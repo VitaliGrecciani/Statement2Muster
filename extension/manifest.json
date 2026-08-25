@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "BankSync • DATEV & BMD Konverter",
+  "version": "1.6.0",
+  "description": "Konvertiert Bank- & Kreditkartenauszüge (PDF/CSV) in saubere DATEV- und BMD-Muster.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Statement2Muster öffnen"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

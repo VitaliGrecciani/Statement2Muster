@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BankSync • DATEV & BMD Auszugskonverter für DACH</title>
+  <meta name="description" content="Kreditkarten- und Bankauszüge (Amex, Wise, PayPal) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO-konform mit In-Memory Engine.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Ambient Glow Effects -->
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+
+  <!-- Sticky Glass Navigation -->
+  <header class="navbar-wrapper">
+    <nav class="navbar glass-card">
+      <div class="nav-brand">
+        <div class="brand-logo">
+          <img src="logo.png" alt="BankSync" class="brand-logo-img">
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <span class="brand-title">BankSync</span>
+            <span class="badge-tag">DACH</span>
+          </div>
+          <span class="brand-subtitle">Statement2Muster • DATEV & BMD</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <a href="#demo" class="nav-link">Live-Demo</a>
+        <a href="#features" class="nav-link">Funktionen</a>
+        <a href="#calculator" class="nav-link">Ersparnis</a>
+        <a href="#security" class="nav-link">DSGVO & Sicherheit</a>
+        <a href="#pricing" class="nav-link">Preise</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </div>
+
+      <div class="nav-actions">
+        <button id="btn-open-login" class="btn-secondary-nav">Anmelden</button>
+        <a href="#demo" class="btn-primary-nav">3 Auszüge gratis testen</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="hero-section">
+    <div class="hero-container">
+      <div class="hero-badge-row">
+        <span class="hero-pill">
+          <span class="pill-dot"></span>
+          Neu: Multi-Upload für 12 Monate & Anti-Mix Guard
+        </span>
+      </div>
+
+      <h1 class="hero-title">
+        Kreditkarten- & Bankauszüge in 3 Sekunden <span class="gradient-text">DATEV- & BMD-fertig</span> konvertieren.
+      </h1>
+
+      <p class="hero-subtitle">
+        Schluss mit fehlerhaften CSV-Importen und mühsamer manueller Tipparbeit für <strong>American Express, Wise, PayPal & Co.</strong> 
+        100% DSGVO-konforme In-Memory-Verarbeitung nach österreichischem & deutschem Recht.
+      </p>
+
+      <div class="hero-trust-badges">
+        <div class="trust-item">
+          <span class="trust-icon">🇩🇪</span>
+          <span>DATEV Unternehmen online</span>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon">🇦🇹</span>
+          <span>BMD NTCS & RZL (Österreich)</span>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon">🔒</span>
+          <span>In-Memory (Keine Server-Speicherung)</span>
+        </div>
+        <div class="trust-item">
+          <span class="trust-icon">🇪🇺</span>
+          <span>Serverstandort: Frankfurt am Main</span>
+        </div>
+      </div>
+
+      <!-- Interactive Live Demo & Converter Box -->
+      <section id="demo" class="demo-wrapper">
+        <div class="demo-card glass-card">
+          <div class="demo-header">
+            <div class="demo-header-title">
+              <span class="demo-badge">Live-Konverter</span>
+              <h3>Testen Sie es sofort mit Ihren Auszügen (3 kostenlose Versuche)</h3>
+            </div>
+            <div class="demo-sample-cta">
+              <button id="btn-load-sample" class="btn-sample">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                </svg>
+                <span>Muster-Auszug laden</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dropzone inside Landing Demo -->
+          <div id="landing-dropzone" class="landing-dropzone">
+            <div class="drop-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <p class="drop-main-text">PDF- oder CSV-Auszug hier hineinziehen oder <span class="drop-link">durchsuchen</span></p>
+            <p class="drop-sub-text">Unterstützt Amex PDF, Wise CSV, PayPal, VR Bank, Sparkasse u.v.m.</p>
+            <input type="file" id="landing-file-input" class="hidden-input" accept=".pdf,.csv" multiple>
+          </div>
+
+          <!-- Processing & Status Message -->
+          <div id="demo-status" class="demo-status hidden">
+            <div class="spinner-demo"></div>
+            <span id="demo-status-text">Analysiere Auszug in-memory...</span>
+          </div>
+
+          <!-- Live Table Preview Result -->
+          <div id="demo-result" class="demo-result hidden">
+            <div class="demo-result-bar">
+              <div class="result-stats">
+                <span class="badge-success">✓ Konvertierung erfolgreich</span>
+                <span class="result-count"><strong id="demo-count">25</strong> Buchungen</span>
+                <span class="result-sum">Summe: <strong id="demo-sum">-7.476,21 €</strong></span>
+              </div>
+              <button id="btn-download-demo-csv" class="btn-download-hero">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>DATEV CSV herunterladen</span>
+              </button>
+            </div>
+
+            <!-- Scrollable Table -->
+            <div class="demo-table-container">
+              <table class="demo-table">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Buchungstext (Mit schwebender Detail-Lupe)</th>
+                    <th style="text-align: right;">Betrag</th>
+                  </tr>
+                </thead>
+                <tbody id="demo-table-body">
+                  <!-- Dynamic Rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Supported Systems Ecosystem -->
+  <section class="ecosystem-section">
+    <div class="section-header-center">
+      <p class="section-tag">Kompatibilität & Ökosystem</p>
+      <h2>Nahtlose Integration in Ihre bestehende Buchhaltungs-Software</h2>
+    </div>
+    <div class="logo-grid">
+      <div class="logo-pill"><span>DATEV</span></div>
+      <div class="logo-pill"><span>BMD NTCS</span></div>
+      <div class="logo-pill"><span>RZL Software</span></div>
+      <div class="logo-pill"><span>Addison</span></div>
+      <div class="logo-pill"><span>Agenda</span></div>
+      <div class="logo-pill"><span>Lexware</span></div>
+      <div class="logo-pill"><span>sevDesk</span></div>
+    </div>
+  </section>
+
+  <!-- Core Features (Glass 3D Cards) -->
+  <section id="features" class="features-section">
+    <div class="section-header-center">
+      <p class="section-tag">Warum BankSync?</p>
+      <h2>Entwickelt für die speziellen Hürden deutscher & österreichischer Buchhalter</h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <h3>Multi-Upload (Sammel-Auszug)</h3>
+        <p>Laden Sie 12 Monatsauszüge oder Quartalsbelege auf einmal hoch. Das System führt alle Buchungen chronologisch in eine saubere Datei zusammen.</p>
+      </div>
+
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <h3>Anti-Mix Guard (Mandantenschutz)</h3>
+        <p>Erkennt automatisch, wenn versehentlich Auszüge verschiedener Firmen oder Karten hochgeladen wurden, und trennt diese auf Wunsch mit 1 Klick.</p>
+      </div>
+
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h3>Intelligente Duplikatsbereinigung</h3>
+        <p>Verhindert doppelte Buchungen bei überschneidenden Monatsauszügen. Datum, Betrag und Text werden mathematisch auf Duplikate geprüft.</p>
+      </div>
+
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <h3>Ultra-Contrast & Schwebende Lupe</h3>
+        <p>Entwickelt für augenschonendes Arbeiten: Schwebende Popover-Linsen zeigen lange Verwendungszwecke und Währungswechselkurse sofort an.</p>
+      </div>
+
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <h3>Chrome Sidepanel & Web-App</h3>
+        <p>Direkt aus dem Browser während der Mandantenprüfung arbeiten oder die komfortable Vollbild-Web-App nutzen.</p>
+      </div>
+
+      <div class="feature-card glass-card">
+        <div class="feature-icon-wrapper">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h3>Windows-1252 / ANSI Codierung</h3>
+        <p>Umlaute (ä, ö, ü, ß) werden exakt nach dem offiziellen DATEV-Standard codiert. Kein manuelles Konvertieren in Excel nötig.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROI / Savings Calculator -->
+  <section id="calculator" class="calculator-section">
+    <div class="calc-container glass-card">
+      <div class="calc-left">
+        <p class="section-tag">Wirtschaftlichkeit</p>
+        <h2>Wie viel Arbeitszeit und Kosten sparen Sie?</h2>
+        <p class="calc-desc">Die manuelle Aufbereitung und Korrektur von Kreditkarten-Auszügen kostet Steuerkanzleien und Unternehmen im Schnitt <strong>15–20 Minuten pro Auszug</strong>.</p>
+        
+        <div class="slider-group">
+          <div class="slider-label-row">
+            <span>Auszüge / Buchungsstapel pro Monat:</span>
+            <span id="slider-val" class="slider-value">20 Auszüge</span>
+          </div>
+          <input type="range" id="calc-slider" min="3" max="100" value="20" class="custom-range">
+        </div>
+      </div>
+
+      <div class="calc-right">
+        <div class="roi-metric-box">
+          <div class="metric-item">
+            <span class="metric-num" id="hours-saved">6,5 Std.</span>
+            <span class="metric-label">Eingesparte Arbeitszeit / Monat</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-num text-gradient" id="money-saved">520 €</span>
+            <span class="metric-label">Geschätzte Ersparnis / Monat (bei 80€/Std.)</span>
+          </div>
+        </div>
+        <p class="roi-footnote">Berechnungsgrundlage: Durchschnittlicher Stundensatz für Buchhaltung / Steuerfachangestellte im DACH-Raum.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security & Compliance Hub -->
+  <section id="security" class="security-section">
+    <div class="section-header-center">
+      <p class="section-tag">100% DSGVO & Datenschutz</p>
+      <h2>Höchste europäische Sicherheitsstandards für sensible Finanzdaten</h2>
+    </div>
+
+    <div class="security-grid">
+      <div class="sec-card glass-card">
+        <div class="sec-icon">🛡️</div>
+        <h4>Flüchtige In-Memory-Verarbeitung</h4>
+        <p>Ihre Auszugs-Dateien werden <strong>weder auf Festplatten noch in Datenbanken gespeichert</strong>. Nach der Generierung der DATEV-CSV wird der Arbeitsspeicher sofort freigegeben.</p>
+      </div>
+      <div class="sec-card glass-card">
+        <div class="sec-icon">🇩🇪</div>
+        <h4>Serverstandort Deutschland (Hetzner)</h4>
+        <p>Unsere Server stehen im ISO-27001-zertifizierten Rechenzentrum in Frankfurt am Main. Es findet kein Datentransfer in Drittländer statt.</p>
+      </div>
+      <div class="sec-card glass-card">
+        <div class="sec-icon">🇦🇹</div>
+        <h4>Österreichische & Deutsche Rechtskonformität</h4>
+        <p>Entspricht allen Vorgaben der EU-DSGVO, des österreichischen ECG/MedienG und des deutschen DDG. AVV-Vertrag nach Art. 28 DSGVO auf Knopfdruck abrufbar.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Plans -->
+  <section id="pricing" class="pricing-section">
+    <div class="section-header-center">
+      <p class="section-tag">Transparente Preise</p>
+      <h2>Faire Tarife für jede Unternehmensgröße</h2>
+      
+      <!-- Billing Toggle -->
+      <div class="billing-toggle-row">
+        <span id="label-monthly" class="toggle-label active">Monatliche Abrechnung</span>
+        <button id="billing-toggle" class="switch-btn" aria-label="Abrechnungszeitraum umschalten">
+          <span class="switch-circle"></span>
+        </button>
+        <span id="label-annual" class="toggle-label">Jährlich <span class="badge-discount">2 Monate gratis</span></span>
+      </div>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Free Trial -->
+      <div class="price-card glass-card">
+        <div class="price-header">
+          <h3>Free Trial</h3>
+          <p>Zum unverbindlichen Testen</p>
+          <div class="price-amount">
+            <span class="currency">€</span><span class="amount">0</span>
+            <span class="period">/ für immer</span>
+          </div>
+        </div>
+        <ul class="price-features">
+          <li>✓ 3 kostenlose Konvertierungen</li>
+          <li>✓ Bis zu 25 Buchungen pro Datei</li>
+          <li>✓ Amex, Wise & Bank-CSVs</li>
+          <li>✓ Standard DATEV & BMD Export</li>
+          <li class="disabled">✕ Multi-Upload (Sammel-Export)</li>
+          <li class="disabled">✕ Anti-Mix Guard</li>
+        </ul>
+        <a href="#demo" class="btn-price-free">Jetzt testen</a>
+      </div>
+
+      <!-- Business PRO (Bestseller) -->
+      <div class="price-card glass-card pro-card">
+        <div class="pro-tag">Bestseller für Unternehmen</div>
+        <div class="price-header">
+          <h3>Business PRO</h3>
+          <p>Für GmbHs, UGs & wachsende Betriebe</p>
+          <div class="price-amount">
+            <span class="currency">€</span><span class="amount" id="price-pro">29</span>
+            <span class="period" id="period-pro">/ Monat</span>
+          </div>
+        </div>
+        <ul class="price-features">
+          <li>✓ <strong>Unbegrenzte Konvertierungen</strong></li>
+          <li>✓ <strong>Multi-Upload (12 Monate auf einmal)</strong></li>
+          <li>✓ <strong>Anti-Mix Guard (Mandantenschutz)</strong></li>
+          <li>✓ <strong>Automatische Duplikatsprüfung</strong></li>
+          <li>✓ Alle Banken & Kreditkarten</li>
+          <li>✓ DATEV- & BMD-Gegenkonten Vorlagen</li>
+          <li>✓ Unbegrenzter lokaler Verlauf</li>
+        </ul>
+        <button class="btn-price-pro btn-open-checkout" data-plan="pro">PRO 14 Tage testen</button>
+      </div>
+
+      <!-- Kanzlei / Steuerberater -->
+      <div class="price-card glass-card">
+        <div class="price-header">
+          <h3>Kanzlei & Treuhand</h3>
+          <p>Für Steuerberater & Buchhaltungsbüros</p>
+          <div class="price-amount">
+            <span class="currency">€</span><span class="amount" id="price-kanzlei">79</span>
+            <span class="period" id="period-kanzlei">/ Monat</span>
+          </div>
+        </div>
+        <ul class="price-features">
+          <li>✓ Alles aus Business PRO</li>
+          <li>✓ <strong>Bis zu 5 Arbeitsplätze</strong></li>
+          <li>✓ <strong>Mandantenverwaltung & Stapelverarbeitung</strong></li>
+          <li>✓ Individuelle Kontenrahmen (SKR03 / SKR04)</li>
+          <li>✓ AV-Vertrag nach Art. 28 DSGVO inklusive</li>
+          <li>✓ Prioritärer Telefon- & E-Mail-Support</li>
+        </ul>
+        <button class="btn-price-kanzlei btn-open-checkout" data-plan="kanzlei">Kanzlei-Tarif wählen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Accordion -->
+  <section id="faq" class="faq-section">
+    <div class="section-header-center">
+      <p class="section-tag">Häufig gestellte Fragen</p>
+      <h2>Alles, was Sie über BankSync wissen müssen</h2>
+    </div>
+
+    <div class="faq-accordion">
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Wie sicher sind meine Bank- und Kreditkartendaten?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Ihre Daten sind maximal geschützt: Wir nutzen ein striktes In-Memory-Verfahren. Das bedeutet, dass Ihre Auszugsdateien ausschließlich flüchtig im Arbeitsspeicher unserer ISO-27001-zertifizierten Server in Frankfurt am Main verarbeitet und sofort nach der Generierung der CSV-Datei restlos gelöscht werden.</p>
+        </div>
+      </div>
+
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Funktioniert der Import in DATEV und BMD ohne Fehler?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Ja! Die erzeugten CSV-Dateien entsprechen exakt dem von DATEV und BMD geforderten Format (Belegdatum, Buchungstext, Betrag mit Komma, Währung EUR, Belegnummer) und sind in Windows-1252 codiert, sodass alle deutschen Umlaute (ä, ö, ü, ß) einwandfrei eingelesen werden.</p>
+        </div>
+      </div>
+
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Was ist der Anti-Mix Guard?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Wenn Sie versehentlich mehrere PDF-Dateien hochladen, die zu unterschiedlichen Firmen oder verschiedenen Kreditkartenkonten gehören, erkennt unser Algorithmus dies sofort. Er warnt Sie und bietet Ihnen an, getrennte DATEV-Dateien pro Firma mit nur einem Klick herunterzuladen.</p>
+        </div>
+      </div>
+
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Wie funktioniert die Kündigung?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Sie können Ihr Abonnement jederzeit mit einem einzigen Klick im Kundenportal zum Ende des jeweiligen Abrechnungszeitraums kündigen. Es gibt keine versteckten Fristen oder Mindestlaufzeiten über den gewählten Zeitraum hinaus.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Login / Registration Modal (Magic Link & Google) -->
+  <div id="auth-modal" class="modal-backdrop hidden">
+    <div class="modal-card glass-card">
+      <button id="btn-close-modal" class="btn-close-modal" aria-label="Schließen">✕</button>
+      <div class="modal-header">
+        <div class="brand-logo modal-logo">
+          <img src="logo.png" alt="BankSync" class="brand-logo-img">
+        </div>
+        <h3>Willkommen bei BankSync</h3>
+        <p>Melden Sie sich an, um Ihre Auszüge zu verwalten und unbegrenzt zu konvertieren.</p>
+      </div>
+
+      <div class="modal-body">
+        <div class="social-auth-stack">
+          <!-- Google -->
+          <button id="btn-google-login" class="btn-social-auth">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span>Weiter mit Google</span>
+          </button>
+
+          <!-- LinkedIn -->
+          <button id="btn-linkedin-login" class="btn-social-auth">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2">
+              <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.25c-.9 0-1.63.73-1.63 1.63 0 .9.73 1.63 1.63 1.63.9 0 1.63-.73 1.63-1.63 0-.9-.73-1.63-1.63-1.63Z"/>
+            </svg>
+            <span>Weiter mit LinkedIn</span>
+          </button>
+
+          <!-- Facebook -->
+          <button id="btn-facebook-login" class="btn-social-auth">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            <span>Weiter mit Facebook</span>
+          </button>
+        </div>
+
+        <div class="auth-divider">
+          <span>oder per E-Mail (Magic Link)</span>
+        </div>
+
+        <form id="magic-link-form" class="auth-form">
+          <div class="input-group">
+            <label for="auth-email">Geschäftliche E-Mail-Adresse</label>
+            <input type="email" id="auth-email" class="auth-input" placeholder="name@kanzlei-muster.de" required>
+          </div>
+          <button type="submit" class="btn-submit-auth">Anmeldelink anfordern</button>
+        </form>
+
+        <p class="auth-footnote">
+          Mit der Anmeldung akzeptieren Sie unsere <a href="#" class="legal-link" data-legal="agb">AGB</a> und die <a href="#" class="legal-link" data-legal="datenschutz">Datenschutzerklärung</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legal Modal (Impressum / Datenschutz / AGB) -->
+  <div id="legal-modal" class="modal-backdrop hidden">
+    <div class="modal-card legal-card glass-card">
+      <button id="btn-close-legal" class="btn-close-modal" aria-label="Schließen">✕</button>
+      <div id="legal-content" class="legal-content-body">
+        <!-- Dynamic Legal Content populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Loupe for Landing Demo Table -->
+  <div id="landing-popover" class="landing-popover hidden"></div>
+
+  <!-- Footer (Impressum & Legal Requirements for Austria / DACH) -->
+  <footer class="footer-wrapper">
+    <div class="footer-container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="brand-logo footer-logo">
+            <img src="logo.png" alt="BankSync" class="brand-logo-img">
+          </div>
+          <h3>BankSync</h3>
+          <p>Der zuverlässige DATEV & BMD Auszugskonverter für Deutschland, Österreich und die Schweiz.</p>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Produkt</h4>
+          <a href="#demo">Live-Konverter</a>
+          <a href="#features">Funktionen</a>
+          <a href="#calculator">Ersparnis-Rechner</a>
+          <a href="#pricing">Preise</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Sicherheit & Recht</h4>
+          <a href="#" class="legal-link" data-legal="datenschutz">Datenschutzerklärung (DSGVO)</a>
+          <a href="#" class="legal-link" data-legal="avv">AVV-Vertrag (Art. 28 DSGVO)</a>
+          <a href="#" class="legal-link" data-legal="impressum">Impressum (§ 5 ECG / § 25 MedienG)</a>
+          <a href="#" class="legal-link" data-legal="agb">Allgemeine Geschäftsbedingungen</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 BankSync • Entwickelt in Österreich für den DACH-Raum. Alle Rechte vorbehalten.</p>
+        <p class="footer-disclaimer">DATEV, BMD, Addison und Lexware sind eingetragene Markenzeichen der jeweiligen Rechteinhaber.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

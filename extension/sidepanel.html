@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statement2Muster - DATEV & BMD Auszugskonverter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header-card">
+      <div class="header-left">
+        <div class="logo-icon">
+          <img src="logo.png" alt="BankSync" class="logo-icon-img">
+        </div>
+        <div class="title-group">
+          <h1>BankSync <span class="badge-tag">DACH</span></h1>
+          <p>Statement2Muster • DATEV & BMD</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-open-tab" class="btn-icon-header" title="In eigenem Tab / Vollbild öffnen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </button>
+        <div id="server-status" class="server-badge offline">
+          <span class="server-dot"></span>
+          <span id="server-status-text">Prüfe...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Nav Tabs -->
+    <nav class="nav-tabs">
+      <button id="tab-convert" class="nav-tab active">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <span>Konverter</span>
+      </button>
+      <button id="tab-history" class="nav-tab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Verlauf</span>
+        <span class="badge-tag">Lokal</span>
+      </button>
+    </nav>
+
+    <!-- Trial Limit Bar / Auth Status -->
+    <div id="limit-bar" class="limit-card">
+      <div class="limit-left">
+        <span id="limit-pulse-dot" class="limit-pulse-dot"></span>
+        <span id="limit-main-label" class="limit-main-label">Testphase: <strong id="limit-counter-text">3 Auszüge frei</strong></span>
+      </div>
+      <button id="btn-open-auth" class="btn-auth-pill" title="Anmelden oder Account verwalten">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span id="auth-btn-label">Anmelden</span>
+      </button>
+    </div>
+
+    <!-- 1. Upload View (Main Card) -->
+    <main id="upload-view" class="main-card">
+      <!-- Drag & Drop Zone -->
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-zone-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <p class="drop-zone-title">Dateien hierher ziehen oder <span>durchsuchen</span></p>
+        <p class="drop-zone-subtitle">PDF oder CSV (Einzel- oder Multi-Upload)</p>
+        <div class="format-tags">
+          <span class="tag">PDF</span>
+          <span class="tag">CSV</span>
+          <span class="tag">Wise</span>
+          <span class="tag">VR Bank</span>
+          <span class="tag">Amex</span>
+          <span class="tag tag-pro">⚡ Multi-Upload (PRO)</span>
+        </div>
+        <input type="file" id="file-input" class="hidden" accept=".csv,.pdf" multiple>
+      </div>
+
+      <!-- File Selected Preview -->
+      <div id="file-info" class="file-selected-box hidden">
+        <div class="file-details">
+          <div class="file-icon-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+          </div>
+          <div class="file-texts">
+            <div id="file-name" class="file-name">statement.pdf</div>
+            <div id="file-size" class="file-meta">0 KB</div>
+          </div>
+        </div>
+        <button id="btn-remove" class="btn-remove-file" title="Datei entfernen">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- DSGVO Consent -->
+      <div class="consent-box">
+        <input id="consent" type="checkbox" class="custom-checkbox" checked>
+        <label for="consent" class="consent-label">
+          <strong>DSGVO-konform:</strong> In-Memory-Verarbeitung. Keine Speicherung auf dem Server.
+        </label>
+      </div>
+
+      <!-- Action Button -->
+      <button id="convert-btn" class="btn-convert" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>In DATEV Muster konvertieren</span>
+      </button>
+
+      <!-- Status Alerts -->
+      <div id="status-card" class="status-card hidden">
+        <div id="status-spinner" class="spinner hidden"></div>
+        <div id="status-text" class="status-text"></div>
+      </div>
+    </main>
+
+    <!-- 2. Interactive Table Preview View -->
+    <section id="preview-view" class="preview-card hidden">
+      <!-- Anti-Mix Guard Detailed Conflict Card -->
+      <div id="conflict-card" class="conflict-warning-card hidden">
+        <div class="conflict-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Anti-Mix Guard: Unterschiedliche Firmen/Konten erkannt!</span>
+        </div>
+        <p class="conflict-subtitle">Die hochgeladenen Auszüge gehören zu verschiedenen Firmen. Sie können die Auszüge getrennt nach Firma herunterladen oder in der Tabelle filtern:</p>
+        <div id="conflict-list" class="conflict-groups">
+          <!-- Dynamic Account Item Boxes with specific files and download buttons -->
+        </div>
+      </div>
+
+      <!-- Duplicate Alert -->
+      <div id="duplicate-card" class="duplicate-alert hidden">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span id="duplicate-text">0 Duplikate automatisch bereinigt</span>
+      </div>
+
+      <div class="preview-header-bar">
+        <div class="preview-summary">
+          <div class="summary-tag">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span id="preview-count">0</span> Buchungen
+          </div>
+          <div class="summary-total">
+            Summe: <span id="preview-total">0,00 €</span>
+          </div>
+        </div>
+
+        <!-- Filter Chips by Company / Account -->
+        <div id="filter-chips-bar" class="filter-chips-bar hidden">
+          <!-- e.g. [Alle (187)] [MSC POURIA SANGLAJI (99)] [Wise (88)] -->
+        </div>
+
+        <!-- Filter / Search -->
+        <div class="search-box">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" class="search-input" placeholder="Transaktionen durchsuchen (z.B. Amazon, Betrag, Datum)...">
+        </div>
+      </div>
+
+      <!-- Full-Height Dynamic Scrollable Table -->
+      <div class="table-wrapper">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Buchungstext</th>
+              <th style="text-align: right;">Betrag</th>
+            </tr>
+          </thead>
+          <tbody id="preview-table-body">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="preview-actions">
+        <button id="btn-download-csv" class="btn-convert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="btn-download-csv-text">DATEV CSV herunterladen</span>
+        </button>
+        <button id="btn-expand-preview" class="btn-secondary" title="Ergebnis auf vollem Bildschirm anzeigen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h6v6"></path>
+            <path d="M9 21H3v-6"></path>
+            <path d="M21 3l-7 7"></path>
+            <path d="M3 21l7-7"></path>
+          </svg>
+          <span>Im Vollbild-Tab analysieren</span>
+        </button>
+        <button id="btn-new-convert" class="btn-secondary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Weiteren Auszug konvertieren</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. History View (Verlauf) -->
+    <section id="history-view" class="history-card-wrap hidden">
+      <div class="history-header">
+        <h2>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Verlauf (Letzte Auszüge)</span>
+        </h2>
+        <button id="btn-clear-history" class="btn-clear-history">Verlauf leeren</button>
+      </div>
+
+      <!-- Pro Promo Banner -->
+      <div class="pro-banner">
+        <div class="pro-banner-text">
+          <h4><span class="badge-pro">PRO</span> Sammel-Export & Anti-Mix Guard</h4>
+          <p>Unbegrenzte Historie & Automatische Mandantentrennung</p>
+        </div>
+        <button id="btn-upgrade-pro" class="btn-pro-unlock">Upgrade</button>
+      </div>
+
+      <!-- History List -->
+      <div id="history-list" class="history-list">
+        <!-- Dynamic History Items -->
+      </div>
+    </section>
+
+    <footer class="footer-info">
+      BankSync v1.6 • In-Memory Engine (Windows-1252)
+    </footer>
+  </div>
+
+  <!-- Floating Loupe Popover for Full Transaction Inspection -->
+  <div id="row-popover" class="row-popover hidden"></div>
+
+  <!-- Glassmorphic Auth Modal (Google, LinkedIn, Facebook, Magic Link) -->
+  <div id="ext-auth-modal" class="modal-backdrop hidden">
+    <div class="ext-modal-card glass-modal">
+      <button id="btn-close-ext-modal" class="btn-close-modal" aria-label="Schließen">✕</button>
+      
+      <div class="modal-brand-header">
+        <div class="modal-logo-icon">
+          <img src="logo.png" alt="BankSync" class="logo-icon-img">
+        </div>
+        <h3>Willkommen bei BankSync</h3>
+        <p class="modal-subtitle">Wählen Sie Ihren Login-Anbieter, um Ihre Auszüge zu verwalten und den <strong>PRO-Status</strong> zu aktivieren.</p>
+      </div>
+
+      <div class="social-auth-stack">
+        <!-- 1. Google Login -->
+        <button class="btn-social-auth btn-auth-google" id="btn-auth-google">
+          <svg width="17" height="17" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Weiter mit Google</span>
+        </button>
+
+        <!-- 2. LinkedIn Login (B2B Accountants & Kanzlei) -->
+        <button class="btn-social-auth btn-auth-linkedin" id="btn-auth-linkedin">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="#0A66C2">
+            <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.25c-.9 0-1.63.73-1.63 1.63 0 .9.73 1.63 1.63 1.63.9 0 1.63-.73 1.63-1.63 0-.9-.73-1.63-1.63-1.63Z"/>
+          </svg>
+          <span>Weiter mit LinkedIn</span>
+        </button>
+
+        <!-- 3. Facebook Login -->
+        <button class="btn-social-auth btn-auth-facebook" id="btn-auth-facebook">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="#1877F2">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+          <span>Weiter mit Facebook</span>
+        </button>
+      </div>
+
+      <div class="auth-divider">
+        <span>oder per Magic Link (E-Mail)</span>
+      </div>
+
+      <form id="ext-magic-link-form" class="ext-auth-form">
+        <div class="input-field-wrap">
+          <input type="email" id="ext-auth-email" placeholder="ihre-kanzlei@beispiel.de" required>
+        </div>
+        <button type="submit" class="btn-submit-magic">Anmeldelink anfordern</button>
+      </form>
+
+      <p class="ext-auth-footer">
+        🔒 In-Memory & DSGVO-konform • Serverstandort Frankfurt
+      </p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
