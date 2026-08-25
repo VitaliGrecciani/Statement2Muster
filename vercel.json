@@ -1,13 +1,4 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/landing/index.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/landing/$1"
-    }
-  ]
+  "outputDirectory": "landing",
+  "cleanUrls": true
 }
