@@ -393,12 +393,12 @@ const legalContent = document.getElementById('legal-content');
 const LEGAL_TEXTS = {
   impressum: `
     <h2>Impressum</h2>
-    <p><strong>Angaben gemäß § 5 E-Commerce-Gesetz (ECG) und § 25 Mediengesetz (MedienG) für Österreich sowie § 5 DDG für Deutschland:</strong></p>
+    <p><strong>Angaben gemäß § 5 E-Commerce-Gesetz (ECG) und § 25 Mediengesetz (MedienG):</strong></p>
     
     <h3>Diensteanbieter / Medieninhaber:</h3>
     <p>
-      <strong>Vitalii Gechanyi</strong><br>
-      BankSync Software & Cloud Services<br>
+      <strong>Grecciani Labs</strong><br>
+      BankSync Software Project<br>
       Roseggergasse 37<br>
       3400 Klosterneuburg (Kierling)<br>
       Österreich
@@ -412,28 +412,16 @@ const LEGAL_TEXTS = {
       <small style="color: var(--text-muted);">(Schnelle elektronische Kontaktaufnahme; Antwortzeit in der Regel &lt; 24h)</small>
     </p>
 
-    <h3>Unternehmensgegenstand:</h3>
-    <p>Dienstleistungen in der automatischen Datenverarbeitung und Informationstechnik, Entwicklung und Bereitstellung von Softwarelösungen und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
-
-    <h3>Kammerzugehörigkeit & Aufsichtsbehörde:</h3>
-    <p>
-      Mitglied der Wirtschaftskammer Niederösterreich (WKO NÖ), Fachgruppe UBIT.<br>
-      Zuständige Behörde / Aufsichtsbehörde: Bezirkshauptmannschaft Tulln.
-    </p>
-
-    <h3>Umsatzsteuer-Identifikation:</h3>
-    <p>Umsatzsteuerbefreit aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG (Österreich) bzw. § 19 UStG (Deutschland).</p>
-
-    <h3>Anwendbare Rechtsvorschriften:</h3>
-    <p>Gewerbeordnung (GewO), E-Commerce-Gesetz (ECG), Mediengesetz (MedienG). Abrufbar unter: <a href="https://www.ris.bka.gv.at" target="_blank" style="color: var(--primary); text-decoration: underline;">www.ris.bka.gv.at</a>.</p>
+    <h3>Projekt- und Unternehmensgegenstand:</h3>
+    <p>Entwicklung, Bereitstellung und Betrieb von browserbasierten Softwarewerkzeugen und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
 
     <h3>Haftungsausschluss:</h3>
-    <p>Die Inhalte unserer Webseiten und Software wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.</p>
+    <p>Die Inhalte dieses Webangebots und der Software wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Inhalte und Vorlagen wird keine Gewähr übernommen.</p>
   `,
 
   datenschutz: `
     <h2>Datenschutzerklärung (DSGVO)</h2>
-    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitalii Gechanyi</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@banksync-dach.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
+    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Grecciani Labs</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@banksync-dach.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
     
     <h3>1. In-Memory-Verarbeitung (Zero Server Storage)</h3>
     <p>BankSync verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
