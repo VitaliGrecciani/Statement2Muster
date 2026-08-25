@@ -397,21 +397,35 @@ const LEGAL_TEXTS = {
     
     <h3>Diensteanbieter / Medieninhaber:</h3>
     <p>
-      <strong>BankSync Software Solutions</strong><br>
-      Inhaber: Zorik Markarov<br>
-      Adresse: Wien, Österreich<br>
-      E-Mail: support@banksync.at<br>
-      Telefon: +43 1 2345678
+      <strong>Vitalii Gechanyi</strong><br>
+      BankSync Software & Cloud Services<br>
+      Roseggergasse 37<br>
+      3400 Klosterneuburg (Kierling)<br>
+      Österreich
+    </p>
+
+    <h3>Elektronische Kontaktaufnahme:</h3>
+    <p>
+      E-Mail: <a href="mailto:support@banksync-dach.com" style="color: var(--primary); text-decoration: underline;">support@banksync-dach.com</a><br>
+      Kontakt: <a href="mailto:kontakt@banksync-dach.com" style="color: var(--primary); text-decoration: underline;">kontakt@banksync-dach.com</a><br>
+      Web: <a href="https://banksync-dach.com" target="_blank" style="color: var(--primary); text-decoration: underline;">https://banksync-dach.com</a><br>
+      <small style="color: var(--text-muted);">(Schnelle elektronische Kontaktaufnahme; Antwortzeit in der Regel &lt; 24h)</small>
     </p>
 
     <h3>Unternehmensgegenstand:</h3>
-    <p>Entwicklung von Softwarelösungen, Datenverarbeitung und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
+    <p>Dienstleistungen in der automatischen Datenverarbeitung und Informationstechnik, Entwicklung und Bereitstellung von Softwarelösungen und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
 
-    <h3>Kammerzugehörigkeit:</h3>
-    <p>Mitglied der Wirtschaftskammer Österreich (WKO), Fachgruppe UBIT (Unternehmensberatung, Buchhaltung und Informationstechnologie).</p>
+    <h3>Kammerzugehörigkeit & Aufsichtsbehörde:</h3>
+    <p>
+      Mitglied der Wirtschaftskammer Niederösterreich (WKO NÖ), Fachgruppe UBIT.<br>
+      Zuständige Behörde / Aufsichtsbehörde: Bezirkshauptmannschaft Tulln.
+    </p>
+
+    <h3>Umsatzsteuer-Identifikation:</h3>
+    <p>Umsatzsteuerbefreit aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG (Österreich) bzw. § 19 UStG (Deutschland).</p>
 
     <h3>Anwendbare Rechtsvorschriften:</h3>
-    <p>Gewerbeordnung (GewO), E-Commerce-Gesetz (ECG), Mediengesetz (MedienG). Abrufbar unter: <a href="https://www.ris.bka.gv.at" target="_blank">www.ris.bka.gv.at</a>.</p>
+    <p>Gewerbeordnung (GewO), E-Commerce-Gesetz (ECG), Mediengesetz (MedienG). Abrufbar unter: <a href="https://www.ris.bka.gv.at" target="_blank" style="color: var(--primary); text-decoration: underline;">www.ris.bka.gv.at</a>.</p>
 
     <h3>Haftungsausschluss:</h3>
     <p>Die Inhalte unserer Webseiten und Software wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen.</p>
@@ -419,16 +433,16 @@ const LEGAL_TEXTS = {
 
   datenschutz: `
     <h2>Datenschutzerklärung (DSGVO)</h2>
-    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Wir verarbeiten Ihre Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
+    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitalii Gechanyi</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@banksync-dach.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
     
     <h3>1. In-Memory-Verarbeitung (Zero Server Storage)</h3>
     <p>BankSync verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
 
     <h3>2. Serverstandort & Hosting</h3>
-    <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren der Hetzner Online GmbH in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung in Drittstaaten außerhalb der Europäischen Union.</p>
+    <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung von Bankauszugsdaten in Drittstaaten außerhalb der Europäischen Union.</p>
 
     <h3>3. Ihre Rechte</h3>
-    <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB) wenden.</p>
+    <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Anfragen richten Sie bitte an: <a href="mailto:support@banksync-dach.com" style="color: var(--primary);">support@banksync-dach.com</a>. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB, Barichgasse 40-42, 1030 Wien) wenden.</p>
   `,
 
   avv: `
