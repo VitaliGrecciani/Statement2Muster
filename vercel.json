@@ -1,6 +1,4 @@
 {
-  "version": 2,
-  "public": false,
   "cleanUrls": true,
   "rewrites": [
     {
@@ -9,7 +7,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/landing/"
+      "destination": "/landing/$1"
     }
   ]
 }
