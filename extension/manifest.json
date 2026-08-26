@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "BankSync • DATEV & BMD Konverter",
-  "version": "1.6.0",
-  "description": "Konvertiert Bank- & Kreditkartenauszüge (PDF/CSV) in saubere DATEV- und BMD-Muster.",
+  "name": "BankSync DACH • DATEV & BMD Auszugskonverter",
+  "version": "1.0.0",
+  "description": "Kreditkarten- und Bankauszüge (Amex, Wise, PayPal, VR Bank) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO In-Memory.",
   "permissions": [
     "sidePanel",
     "storage",
@@ -10,20 +10,27 @@
   ],
   "host_permissions": [
     "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "http://127.0.0.1:8000/*",
+    "https://banksync-dach.com/*",
+    "https://statement2-muster.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Statement2Muster öffnen"
+    "default_title": "BankSync DACH öffnen",
+    "default_icon": {
+      "16": "icon_16.png",
+      "48": "icon_48.png",
+      "128": "icon_128.png"
+    }
   },
   "side_panel": {
     "default_path": "sidepanel.html"
   },
   "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+    "16": "icon_16.png",
+    "48": "icon_48.png",
+    "128": "icon_128.png"
   }
 }
