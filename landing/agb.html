@@ -21,6 +21,12 @@
     .legal-card a { color: var(--primary, #f0b35a); }
     .legal-card strong { color: #e8ecf2; }
     .legal-card small { color: #8a94a6; }
+      /* Custom dark scrollbar - hide default white one */
+    ::-webkit-scrollbar { width: 9px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.13); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+    html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.13) transparent; }
   </style>
 </head>
 <body class="legal-page">
