@@ -3,58 +3,276 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Impressum • BankSync</title>
+  <title>Impressum • Statement2Master</title>
   <meta name="robots" content="index, follow">
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="stylesheet" href="styles.css">
   <style>
-    body.legal-page { background: #0b0f14; }
-    .legal-shell { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
-    .legal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
-    .legal-nav a { color: var(--primary, #f0b35a); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
-    .legal-nav a:hover { text-decoration: underline; }
-    .legal-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 40px; }
-    .legal-card h1 { color: #fff; font-size: 2rem; margin: 0 0 8px; }
-    .legal-card .updated { color: #8a94a6; font-size: 0.85rem; margin-bottom: 28px; }
-    .legal-card h2 { color: #fff; font-size: 1.35rem; margin: 32px 0 12px; }
-    .legal-card h3 { color: #fff; font-size: 1.1rem; margin: 24px 0 8px; }
-    .legal-card p { color: #c6ccd6; line-height: 1.7; margin: 0 0 14px; }
-    .legal-card a { color: var(--primary, #f0b35a); }
-    .legal-card strong { color: #e8ecf2; }
-    .legal-card small { color: #8a94a6; }
-      /* Hide scrollbar entirely - keep scrolling */
-    
     /* Zero Visible Scrollbars (Global & Ultra-Clean) */
-    * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
-    *::-webkit-scrollbar, html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+    * {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    *::-webkit-scrollbar, html::-webkit-scrollbar, body::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
 
-    
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      color: var(--text-body);
+      background-color: var(--bg-base);
+    }
+
+    .legal-nav-bar {
+      width: 100%;
+      max-width: 1000px;
+      margin: 24px auto 0;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .legal-nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-main);
+      font-weight: 850;
+      font-size: 16px;
+    }
+
+    .legal-nav-logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+
+    .btn-return-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      text-decoration: none;
+      font-weight: 750;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .btn-return-home:hover {
+      background: rgba(249, 115, 22, 0.15);
+      border-color: var(--primary-border);
+      color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .legal-main-wrap {
+      flex: 1;
+      width: 100%;
+      max-width: 1000px;
+      margin: 20px auto 60px;
+      padding: 0 24px;
+      box-sizing: border-box;
+    }
+
+    .legal-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--glass-border);
+      border-radius: var(--radius-2xl);
+      padding: 44px 48px;
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      line-height: 1.75;
+    }
+
+    .legal-card h1 {
+      font-size: 28px;
+      font-weight: 850;
+      color: var(--text-main);
+      margin: 0 0 6px;
+      letter-spacing: -0.5px;
+    }
+
+    .legal-subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1.5px solid var(--table-border);
+    }
+
+    .legal-card h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #fdba74;
+      margin: 32px 0 12px;
+    }
+
+    .legal-card h3 {
+      font-size: 15px;
+      font-weight: 750;
+      color: #fed7aa;
+      margin: 20px 0 8px;
+    }
+
+    .legal-card p, .legal-card ul {
+      margin: 0 0 16px;
+      font-size: 14.5px;
+      color: #e7e5e4;
+    }
+
+    .legal-card ul {
+      padding-left: 24px;
+    }
+
+    .legal-card li {
+      margin-bottom: 8px;
+    }
+
+    .legal-card a {
+      color: var(--primary);
+      text-decoration: underline;
+      transition: color 0.2s ease;
+    }
+
+    .legal-card a:hover {
+      color: var(--primary-hover);
+    }
+
+    .legal-card strong {
+      color: #ffffff;
+    }
+
+    /* Bottom Sub-Links Grid Inside Card */
+    .legal-card-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid var(--table-border);
+    }
+
+    .legal-pill-link {
+      font-size: 12.5px;
+      font-weight: 750;
+      color: var(--text-muted);
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--table-border);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .legal-pill-link:hover, .legal-pill-link.active {
+      color: var(--primary);
+      border-color: var(--primary-border);
+      background: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .legal-page-footer {
+      width: 100%;
+      border-top: 1px solid var(--table-border);
+      padding: 24px;
+      text-align: center;
+      background: rgba(8, 7, 6, 0.95);
+    }
+
+    .legal-page-footer p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-sub);
+      font-weight: 600;
+    }
+
+    @media (max-width: 680px) {
+      .legal-card {
+        padding: 28px 20px;
+      }
+      .legal-card h1 {
+        font-size: 22px;
+      }
+    }
   </style>
 </head>
-<body class="legal-page">
-  <!-- Ambient Glow Effects -->
+<body>
+  <!-- Ambient Radial Glow Spots -->
   <div class="ambient-glow glow-top-left"></div>
   <div class="ambient-glow glow-bottom-right"></div>
 
-  <div class="legal-shell">
-    <div class="legal-nav">
-      <a href="/">← Zurück zur Startseite</a>
-    </div>
+  <!-- Header Navigation -->
+  <header class="legal-nav-bar">
+    <a href="/" class="legal-nav-brand">
+      <img src="logo.png" alt="Statement2Master" class="legal-nav-logo">
+      <span>Statement2Master <span class="badge-tag" style="font-size: 10px; margin-left: 4px;">DACH</span></span>
+    </a>
+    <a href="/" class="btn-return-home">
+      <span>← Zurück zur Startseite</span>
+    </a>
+  </header>
+
+  <!-- Main Content Card -->
+  <main class="legal-main-wrap">
     <div class="legal-card">
-<h1>Impressum</h1>
-    <p class="updated">Angaben gemäß § 5 E-Commerce-Gesetz (ECG) und § 25 Mediengesetz (MedienG)</p>
+      <h1>Impressum & Offenlegung</h1>
+      <div class="legal-subtitle">Angaben gemäß § 5 E-Commerce-Gesetz (ECG) und § 25 Mediengesetz (MedienG)</div>
 
-    <h2>Diensteanbieter / Medieninhaber</h2>
-    <p><strong>Grecciani Labs</strong><br>BankSync Software Project<br>Roseggergasse 37<br>3400 Klosterneuburg (Kierling)<br>Österreich</p>
+      <div class="legal-content">
+        
+        <h2>Diensteanbieter / Medieninhaber</h2>
+        <p>
+          <strong>Grecciani Labs</strong><br>
+          Statement2Master & BankSync Software Project<br>
+          Roseggergasse 37<br>
+          3400 Klosterneuburg (Kierling)<br>
+          Österreich
+        </p>
 
-    <h2>Elektronische Kontaktaufnahme</h2>
-    <p>E-Mail: <a href="mailto:support@banksync-dach.com">support@banksync-dach.com</a><br>Kontakt: <a href="mailto:kontakt@banksync-dach.com">kontakt@banksync-dach.com</a><br>Web: <a href="https://banksync-dach.com" target="_blank">https://banksync-dach.com</a><br><small>(Schnelle elektronische Kontaktaufnahme; Antwortzeit in der Regel &lt; 24h)</small></p>
+        <h2>Elektronische Kontaktaufnahme</h2>
+        <p>
+          E-Mail: <a href="mailto:support@banksync-dach.com">support@banksync-dach.com</a><br>
+          Kontakt: <a href="mailto:kontakt@banksync-dach.com">kontakt@banksync-dach.com</a><br>
+          Web: <a href="https://banksync-dach.com" target="_blank">https://banksync-dach.com</a><br>
+          <small style="color: var(--text-muted);">(Schnelle elektronische Kontaktaufnahme; Antwortzeit in der Regel &lt; 24h)</small>
+        </p>
 
-    <h2>Projekt- und Unternehmensgegenstand</h2>
-    <p>Entwicklung, Bereitstellung und Betrieb von browserbasierten Softwarewerkzeugen und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
+        <h2>Projekt- und Unternehmensgegenstand</h2>
+        <p>Entwicklung, Bereitstellung und Betrieb von browserbasierten Softwarewerkzeugen und B2B-Cloud-Diensten für das Finanz- und Rechnungswesen.</p>
 
-    <h2>Haftungsausschluss</h2>
-    <p>Die Inhalte dieses Webangebots und der Software wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Inhalte und Vorlagen wird keine Gewähr übernommen.</p>
+        <h2>Haftungsausschluss</h2>
+        <p>Die Inhalte dieses Webangebots und der Software wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Inhalte und Vorlagen wird keine Gewähr übernommen.</p>
+        
+      </div>
+
+      <!-- Quick Nav between Legal Documents -->
+      <div class="legal-card-links">
+        <a href="/impressum" class="legal-pill-link active">Impressum</a>
+        <a href="/datenschutz" class="legal-pill-link ">Datenschutz (DSGVO)</a>
+        <a href="/agb" class="legal-pill-link ">AGB</a>
+        <a href="/avv" class="legal-pill-link ">AVV-Vertrag (Art. 28 DSGVO)</a>
+      </div>
     </div>
-  </div>
+  </main>
+
+  <!-- Grounded Unified Footer -->
+  <footer class="legal-page-footer">
+    <p>© 2026 Grecciani Labs • Statement2Master & BankSync DACH. Alle Rechte vorbehalten. 100% In-Memory & DSGVO-konform.</p>
+  </footer>
 </body>
 </html>
