@@ -279,10 +279,11 @@ if (calcSlider) {
 const billingToggle = document.getElementById('billing-toggle');
 const labelMonthly = document.getElementById('label-monthly');
 const labelAnnual = document.getElementById('label-annual');
+const priceStarter = document.getElementById('price-starter');
+const periodStarter = document.getElementById('period-starter');
+const btnLinkStarter = document.getElementById('btn-link-starter');
 const pricePro = document.getElementById('price-pro');
 const periodPro = document.getElementById('period-pro');
-const priceKanzlei = document.getElementById('price-kanzlei');
-const periodKanzlei = document.getElementById('period-kanzlei');
 
 let isAnnual = false;
 
@@ -294,15 +295,19 @@ if (billingToggle) {
     labelAnnual.classList.toggle('active', isAnnual);
 
     if (isAnnual) {
-      pricePro.textContent = '24';
-      periodPro.textContent = '/ Monat (290 € / Jahr)';
-      priceKanzlei.textContent = '65';
-      periodKanzlei.textContent = '/ Monat (780 € / Jahr)';
+      if (priceStarter) priceStarter.textContent = '4.08';
+      if (periodStarter) periodStarter.textContent = '/ Monat (49 € / Jahr)';
+      if (btnLinkStarter) btnLinkStarter.href = 'https://grecciani-labs.lemonsqueezy.com/checkout/buy/0b00d42a-357a-4712-9048-1747f28146be';
+
+      if (pricePro) pricePro.textContent = '24';
+      if (periodPro) periodPro.textContent = '/ Monat (290 € / Jahr)';
     } else {
-      pricePro.textContent = '29';
-      periodPro.textContent = '/ Monat';
-      priceKanzlei.textContent = '79';
-      periodKanzlei.textContent = '/ Monat';
+      if (priceStarter) priceStarter.textContent = '4.90';
+      if (periodStarter) periodStarter.textContent = '/ Monat';
+      if (btnLinkStarter) btnLinkStarter.href = 'https://grecciani-labs.lemonsqueezy.com/checkout/buy/a43e59c9-3b23-44dd-985a-f7a548ce890c';
+
+      if (pricePro) pricePro.textContent = '29';
+      if (periodPro) periodPro.textContent = '/ Monat';
     }
   });
 }
