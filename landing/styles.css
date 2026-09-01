@@ -200,18 +200,27 @@ body {
 .brand-title-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .brand-title {
-  font-size: 15.5px;
-  font-weight: 850;
+  font-size: 17px;
+  font-weight: 800;
   letter-spacing: -0.4px;
   color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-accent {
+  color: var(--primary);
+  font-weight: 900;
+  margin: 0 1px;
+  text-shadow: 0 0 14px var(--primary-glow);
 }
 
 .brand-subtitle {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.2px;
