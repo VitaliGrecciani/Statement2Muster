@@ -190,9 +190,22 @@ body.full-tab .preview-actions {
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   letter-spacing: -0.3px;
   white-space: nowrap;
+}
+
+.brand-wordmark {
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: -0.3px;
+}
+
+.brand-accent {
+  color: var(--primary);
+  font-weight: 900;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
 }
 
 .badge-tag {
