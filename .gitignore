@@ -22,6 +22,8 @@ eggs/
 *.jpeg
 *.pdf
 *.log
+*.zip
+extension_firefox_build/
 .pytest_cache/
 .coverage
 

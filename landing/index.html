@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BankSync • DATEV & BMD Auszugskonverter für DACH</title>
-  <meta name="description" content="Kreditkarten- und Bankauszüge (Amex, Wise, PayPal) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO-konform mit In-Memory Engine.">
+  <title>Statement2Muster • DATEV & BMD Auszugskonverter für DACH</title>
+  <meta name="description" content="Kreditkarten- und PDF-Auszüge (Amex, Wise, PayPal) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO-konform mit lokaler In-Memory Engine.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="shortcut icon" href="favicon.ico">
@@ -21,14 +21,14 @@
     <nav class="navbar glass-card">
       <div class="nav-brand">
         <div class="brand-logo">
-          <img src="logo.png" alt="BankSync" class="brand-logo-img">
+          <img src="logo.png" alt="Statement2Muster" class="brand-logo-img">
         </div>
         <div class="brand-text">
           <div class="brand-title-row">
-            <span class="brand-title">BankSync</span>
+            <span class="brand-title">Statement2Muster</span>
             <span class="badge-tag">DACH</span>
           </div>
-          <span class="brand-subtitle">Statement2Muster • DATEV & BMD</span>
+          <span class="brand-subtitle">DATEV & BMD Auszugskonverter</span>
         </div>
       </div>
 
@@ -83,6 +83,14 @@
         <div class="trust-item">
           <span class="trust-icon">🇪🇺</span>
           <span>Serverstandort: Frankfurt am Main</span>
+        </div>
+      </div>
+
+      <!-- Compliance & Security Guarantee Disclaimer -->
+      <div class="safety-disclaimer-banner glass-card">
+        <div class="safety-disclaimer-icon">🛡️</div>
+        <div class="safety-disclaimer-text">
+          <strong>Sicherheits-Garantie:</strong> Statement2Muster ist ein reines B2B-Dateikonvertierungstool. Auszüge werden flüchtig im Arbeitsspeicher (In-Memory) verarbeitet und niemals dauerhaft gespeichert. <strong>Wir verbinden uns nicht mit Bankkonten, fragen niemals nach Passwörtern oder PINs</strong> und führen keine Finanztransaktionen durch.
         </div>
       </div>
 
@@ -183,7 +191,7 @@
   <!-- Core Features (Glass 3D Cards) -->
   <section id="features" class="features-section">
     <div class="section-header-center">
-      <p class="section-tag">Warum BankSync?</p>
+      <p class="section-tag">Warum Statement2Muster?</p>
       <h2>Entwickelt für die speziellen Hürden deutscher & österreichischer Buchhalter</h2>
     </div>
 
@@ -369,7 +377,7 @@
           <li>✓ DATEV- & BMD-Export</li>
           <li>✓ E-Mail-Support</li>
         </ul>
-        <a id="btn-link-starter" href="https://grecciani-labs.lemonsqueezy.com/checkout/buy/a43e59c9-3b23-44dd-985a-f7a548ce890c" target="_blank" class="btn-price-free" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2);">Starter wählen</a>
+        <a id="btn-link-starter" href="#auth-modal" class="btn-price-free btn-open-auth-trigger" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2);">Starter wählen</a>
       </div>
 
       <!-- Business PRO (Bestseller) -->
@@ -392,7 +400,7 @@
           <li>✓ Unbegrenzter lokaler Verlauf</li>
           <li>✓ Prioritärer Support</li>
         </ul>
-        <a href="https://grecciani-labs.lemonsqueezy.com/checkout/buy/4df1b63d-981e-4bb5-a6ec-f84e97a41944" target="_blank" class="btn-price-pro">Business PRO buchen</a>
+        <a href="#auth-modal" class="btn-price-pro btn-open-auth-trigger">Business PRO buchen</a>
       </div>
 
       <!-- Lifetime License -->
@@ -412,8 +420,14 @@
           <li>✓ Volle DATEV- & BMD-Kompatibilität</li>
           <li>✓ Keine wiederkehrenden Gebühren</li>
         </ul>
-        <a href="https://grecciani-labs.lemonsqueezy.com/checkout/buy/fb93f21b-022d-47b2-b2ff-c7e802a3d7a0" target="_blank" class="btn-price-free" style="background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(168,85,247,0.2) 100%); border-color: rgba(168,85,247,0.4);">Lifetime sichern</a>
+        <a href="#auth-modal" class="btn-price-free btn-open-auth-trigger" style="background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(168,85,247,0.2) 100%); border-color: rgba(168,85,247,0.4);">Lifetime sichern</a>
       </div>
+    </div>
+
+    <!-- 14-Day Money-Back Guarantee Trust Badge -->
+    <div style="max-width: 600px; margin: 32px auto 0; text-align: center; color: var(--text-muted); font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <span>🛡️</span>
+      <span><strong>14 Tage Geld-zurück-Garantie:</strong> Risikofrei testen. Details in unserer <a href="widerruf.html" style="color: var(--primary); text-decoration: underline;">Widerrufsbelehrung & Refund Policy</a>.</span>
     </div>
   </section>
 
@@ -421,7 +435,7 @@
   <section id="faq" class="faq-section">
     <div class="section-header-center">
       <p class="section-tag">Häufig gestellte Fragen</p>
-      <h2>Alles, was Sie über BankSync wissen müssen</h2>
+      <h2>Alles, was Sie über Statement2Muster wissen müssen</h2>
     </div>
 
     <div class="faq-accordion">
@@ -473,9 +487,9 @@
       <button id="btn-close-modal" class="btn-close-modal" aria-label="Schließen">✕</button>
       <div class="modal-header">
         <div class="brand-logo modal-logo">
-          <img src="logo.png" alt="BankSync" class="brand-logo-img">
+          <img src="logo.png" alt="Statement2Muster" class="brand-logo-img">
         </div>
-        <h3>Willkommen bei BankSync</h3>
+        <h3>Willkommen bei Statement2Muster</h3>
         <p>Melden Sie sich an, um Ihre Auszüge zu verwalten und unbegrenzt zu konvertieren.</p>
       </div>
 
@@ -547,9 +561,9 @@
       <div class="footer-top">
         <div class="footer-brand">
           <div class="brand-logo footer-logo">
-            <img src="logo.png" alt="BankSync" class="brand-logo-img">
+            <img src="logo.png" alt="Statement2Muster" class="brand-logo-img">
           </div>
-          <h3>BankSync</h3>
+          <h3>Statement2Muster</h3>
           <p>Der zuverlässige DATEV & BMD Auszugskonverter für Deutschland, Österreich und die Schweiz.</p>
         </div>
 
@@ -564,6 +578,7 @@
         <div class="footer-links-col">
           <h4>Sicherheit & Recht</h4>
           <a href="datenschutz.html" class="footer-link">Datenschutzerklärung (DSGVO)</a>
+          <a href="widerruf.html" class="footer-link">Widerrufsbelehrung (Refund Policy)</a>
           <a href="avv.html" class="footer-link">AVV-Vertrag (Art. 28 DSGVO)</a>
           <a href="impressum.html" class="footer-link">Impressum (§ 5 ECG / § 25 MedienG)</a>
           <a href="agb.html" class="footer-link">Allgemeine Geschäftsbedingungen</a>
@@ -571,7 +586,7 @@
       </div>
 
       <div class="footer-bottom">
-        <p>© 2026 BankSync • Entwickelt in Österreich für den DACH-Raum. Alle Rechte vorbehalten.</p>
+        <p>© 2026 Statement2Muster • Entwickelt in Österreich für den DACH-Raum. Alle Rechte vorbehalten.</p>
         <p class="footer-disclaimer">DATEV, BMD, Addison und Lexware sind eingetragene Markenzeichen der jeweiligen Rechteinhaber.</p>
       </div>
     </div>

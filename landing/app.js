@@ -1,5 +1,5 @@
 // ==========================================================================
-// BankSync Landing Page Interactive Logic
+// Statement2Muster Landing Page Interactive Logic
 // ==========================================================================
 
 const apiBaseUrl = 'http://127.0.0.1:8000';
@@ -242,7 +242,7 @@ if (btnDownloadDemoCsv) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'BankSync_DATEV_Muster.csv';
+    a.download = 'Statement2Muster_DATEV.csv';
     a.click();
     URL.revokeObjectURL(url);
   });
@@ -297,14 +297,14 @@ if (billingToggle) {
     if (isAnnual) {
       if (priceStarter) priceStarter.textContent = '4.08';
       if (periodStarter) periodStarter.textContent = '/ Monat (49 € / Jahr)';
-      if (btnLinkStarter) btnLinkStarter.href = 'https://grecciani-labs.lemonsqueezy.com/checkout/buy/0b00d42a-357a-4712-9048-1747f28146be';
+      if (btnLinkStarter) btnLinkStarter.setAttribute('data-plan', 'starter-annual');
 
       if (pricePro) pricePro.textContent = '24';
       if (periodPro) periodPro.textContent = '/ Monat (290 € / Jahr)';
     } else {
       if (priceStarter) priceStarter.textContent = '4.90';
       if (periodStarter) periodStarter.textContent = '/ Monat';
-      if (btnLinkStarter) btnLinkStarter.href = 'https://grecciani-labs.lemonsqueezy.com/checkout/buy/a43e59c9-3b23-44dd-985a-f7a548ce890c';
+      if (btnLinkStarter) btnLinkStarter.setAttribute('data-plan', 'starter-monthly');
 
       if (pricePro) pricePro.textContent = '29';
       if (periodPro) periodPro.textContent = '/ Monat';
@@ -341,9 +341,10 @@ if (btnOpenLogin) {
   });
 }
 
-document.querySelectorAll('.btn-open-checkout').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const plan = btn.getAttribute('data-plan');
+document.querySelectorAll('.btn-open-checkout, .btn-open-auth-trigger').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const plan = btn.getAttribute('data-plan') || 'standard';
     authModal.classList.remove('hidden');
   });
 });
@@ -403,7 +404,7 @@ const LEGAL_TEXTS = {
     <h3>Diensteanbieter / Medieninhaber:</h3>
     <p>
       <strong>Grecciani Labs</strong><br>
-      BankSync Software Project<br>
+      Statement2Muster Software Project<br>
       Roseggergasse 37<br>
       3400 Klosterneuburg (Kierling)<br>
       Österreich
@@ -411,9 +412,9 @@ const LEGAL_TEXTS = {
 
     <h3>Elektronische Kontaktaufnahme:</h3>
     <p>
-      E-Mail: <a href="mailto:support@banksync-dach.com" style="color: var(--primary); text-decoration: underline;">support@banksync-dach.com</a><br>
-      Kontakt: <a href="mailto:kontakt@banksync-dach.com" style="color: var(--primary); text-decoration: underline;">kontakt@banksync-dach.com</a><br>
-      Web: <a href="https://banksync-dach.com" target="_blank" style="color: var(--primary); text-decoration: underline;">https://banksync-dach.com</a><br>
+      E-Mail: <a href="mailto:support@statement2muster.com" style="color: var(--primary); text-decoration: underline;">support@statement2muster.com</a><br>
+      Kontakt: <a href="mailto:kontakt@statement2muster.com" style="color: var(--primary); text-decoration: underline;">kontakt@statement2muster.com</a><br>
+      Web: <a href="https://statement2muster.com" target="_blank" style="color: var(--primary); text-decoration: underline;">https://statement2muster.com</a><br>
       <small style="color: var(--text-muted);">(Schnelle elektronische Kontaktaufnahme; Antwortzeit in der Regel &lt; 24h)</small>
     </p>
 
@@ -426,16 +427,19 @@ const LEGAL_TEXTS = {
 
   datenschutz: `
     <h2>Datenschutzerklärung (DSGVO)</h2>
-    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Grecciani Labs</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@banksync-dach.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
+    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Grecciani Labs</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@statement2muster.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
     
     <h3>1. In-Memory-Verarbeitung (Zero Server Storage)</h3>
-    <p>BankSync verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
+    <p>Statement2Muster verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
 
     <h3>2. Serverstandort & Hosting</h3>
-    <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung von Bankauszugsdaten in Drittstaaten außerhalb der Europäischen Union.</p>
+    <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung von Auszugsdaten in Drittstaaten außerhalb der Europäischen Union.</p>
 
-    <h3>3. Ihre Rechte</h3>
-    <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Anfragen richten Sie bitte an: <a href="mailto:support@banksync-dach.com" style="color: var(--primary);">support@banksync-dach.com</a>. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB, Barichgasse 40-42, 1030 Wien) wenden.</p>
+    <h3>3. Zahlungsabwicklung</h3>
+    <p>Abonnements und Zahlungen werden über unseren autorisierten Partner <strong>Stripe (Stripe Payments Europe, Ltd.)</strong> über zertifizierte PCI-DSS-Infrastrukturen abgewickelt.</p>
+
+    <h3>4. Ihre Rechte</h3>
+    <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Anfragen richten Sie bitte an: <a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB, Barichgasse 40-42, 1030 Wien) wenden.</p>
   `,
 
   avv: `
@@ -447,11 +451,23 @@ const LEGAL_TEXTS = {
   agb: `
     <h2>Allgemeine Geschäftsbedingungen (AGB)</h2>
     <h3>1. Geltungsbereich</h3>
-    <p>Diese AGB gelten für alle Dienstleistungen und Abonnements von BankSync gegenüber Unternehmern im Sinne des § 1 UGB (B2B).</p>
+    <p>Diese AGB gelten für alle Dienstleistungen und Abonnements von Statement2Muster gegenüber Unternehmern im Sinne des § 1 UGB (B2B) und Verbrauchern.</p>
     <h3>2. Leistungsumfang</h3>
-    <p>BankSync stellt eine webbasierte Software zur Konvertierung von Bank- und Kreditkartenauszügen in das DATEV- und BMD-Format bereit.</p>
+    <p>Statement2Muster stellt eine webbasierte Software zur Konvertierung von PDF/CSV-Auszügen in standardisierte DATEV- und BMD-Musterformate bereit.</p>
     <h3>3. Kündigung & Zahlungsmodalitäten</h3>
-    <p>Monatliche Abonnements sind zum Ende des jeweiligen Monats kündbar. Jährliche Abonnements verlängern sich um ein weiteres Jahr, sofern sie nicht vor Ablauf gekündigt werden.</p>
+    <p>Monatliche Abonnements sind jederzeit zum Ende des jeweiligen Abrechnungsmonats kündbar. Jährliche Abonnements verlängern sich um ein weiteres Jahr, sofern sie nicht vor Ablauf gekündigt werden.</p>
+  `,
+
+  widerruf: `
+    <h2>Widerrufsbelehrung & Refund Policy</h2>
+    <div style="background: rgba(249,115,22,0.08); border: 1px solid var(--primary-border); border-radius: var(--radius-md); padding: 14px 18px; margin: 16px 0;">
+      <strong>🛡️ 14-Tage Geld-zurück-Garantie:</strong>
+      <p style="margin: 4px 0 0; font-size: 13.5px; color: #f5f5f4;">Sollte ein unterstütztes Dateiformat technisch nicht wie versprochen in das DATEV/BMD-Muster konvertiert werden können, erstatten wir innerhalb von 14 Tagen 100% des Kaufpreises zurück.</p>
+    </div>
+    <h3>1. Widerrufsrecht für Verbraucher</h3>
+    <p>Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Um Ihr Widerrufsrecht auszuüben, senden Sie eine E-Mail an: <a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>.</p>
+    <h3>2. Rückerstattungsablauf</h3>
+    <p>Rückzahlungen werden innerhalb von 24–48 Stunden geprüft und über die ursprüngliche Zahlungsmethode (Stripe) ohne Bearbeitungsgebühren erstattet.</p>
   `
 };
 

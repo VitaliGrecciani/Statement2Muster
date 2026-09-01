@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Statement2Master DACH • DATEV & BMD Auszugskonverter",
+  "name": "Statement2Muster DACH • DATEV & BMD Auszugskonverter",
   "version": "1.0.0",
-  "description": "Kreditkarten- und Bankauszüge (Amex, Wise, PayPal, VR Bank) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO In-Memory.",
+  "description": "Kreditkarten- und PDF-Auszüge (Amex, Wise, PayPal, VR Bank) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO In-Memory.",
   "permissions": [
     "sidePanel",
     "storage",
@@ -11,14 +11,15 @@
   "host_permissions": [
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
-    "https://banksync-dach.com/*",
+    "https://statement2muster.com/*",
+    "https://www.statement2muster.com/*",
     "https://statement2-muster.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Statement2Master DACH öffnen",
+    "default_title": "Statement2Muster DACH öffnen",
     "default_icon": {
       "16": "icon_16.png",
       "48": "icon_48.png",
@@ -35,7 +36,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "statement2master@banksync-dach.com",
+      "id": "statement2muster@statement2muster.com",
       "strict_min_version": "109.0"
     }
   }

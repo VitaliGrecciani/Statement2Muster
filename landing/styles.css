@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BankSync Landing Page - Dark Obsidian & Terracotta Grid (Cyber-Fintech)
+   Statement2Muster Landing Page - Dark Obsidian & Terracotta Grid (B2B SaaS)
    Inspired by Glide Design System • Frosted Glass Over High-Tech Grid
    ========================================================================== */
 
@@ -1560,4 +1560,44 @@ body {
   .hero-title { font-size: 32px; }
   .calc-container { grid-template-columns: 1fr; }
   .footer-top { grid-template-columns: 1fr; gap: 24px; }
+}
+
+/* Compliance Safety Disclaimer Banner */
+.safety-disclaimer-banner {
+  max-width: 960px;
+  margin: 28px auto 0;
+  padding: 16px 24px;
+  background: rgba(249, 115, 22, 0.06);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.safety-disclaimer-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.safety-disclaimer-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #e7e5e4;
+}
+
+.safety-disclaimer-text strong {
+  color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .safety-disclaimer-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px;
+  }
 }
