@@ -874,7 +874,7 @@ btnClearHistory.addEventListener('click', () => {
 
 // Pro Upgrade Promo action
 btnUpgradePro.addEventListener('click', () => {
-  alert('⭐ Statement2Muster PRO\n\n- Unbegrenzte Konvertierungen\n- Multi-Upload (3-12 Monate auf einmal)\n- Anti-Mix Guard (Automatische Mandantentrennung)\n- Automatischer Sammel-Export\n- Unbegrenzter lokaler Verlauf\n\n(Demnächst verfügbar auf unserer Webseite!)');
+  window.open('https://buy.stripe.com/14AfZh6jr2NbedI6urebu04', '_blank');
 });
 
 // ==========================================================================
