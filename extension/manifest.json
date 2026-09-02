@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Statement2Muster DACH • DATEV & BMD Auszugskonverter",
-  "version": "1.0.0",
-  "description": "Kreditkarten- und PDF-Auszüge (Amex, Wise, PayPal, VR Bank) in 3 Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO In-Memory.",
+  "version": "1.0.1",
+  "description": "Kreditkarten- und Bankauszüge in Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO-konform In-Memory.",
   "permissions": [
     "sidePanel",
     "storage",
