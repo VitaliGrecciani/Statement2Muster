@@ -24,9 +24,9 @@
             <line x1="10" y1="14" x2="21" y2="3"></line>
           </svg>
         </button>
-        <div id="server-status" class="server-badge offline">
+        <div id="server-status" class="server-badge online">
           <span class="server-dot"></span>
-          <span id="server-status-text">Prüfe...</span>
+          <span id="server-status-text">Lokal aktiv (In-Memory)</span>
         </div>
       </div>
     </header>
@@ -88,6 +88,16 @@
           <span class="tag tag-pro">⚡ Multi-Upload (PRO)</span>
         </div>
         <input type="file" id="file-input" class="hidden" accept=".csv,.pdf" multiple>
+      </div>
+
+      <!-- Demo 1-Click Action -->
+      <div class="demo-action-box">
+        <button id="btn-load-demo" type="button" class="btn-demo-sample" title="Beispiel-Auszug laden zum sofortigen Testen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+          <span>✨ Demo-Auszug laden (Musterdaten testen)</span>
+        </button>
       </div>
 
       <!-- File Selected Preview -->
@@ -341,6 +351,7 @@
     </div>
   </div>
 
+  <script src="lib/pdf.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

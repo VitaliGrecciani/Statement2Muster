@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Statement2Muster DACH • DATEV & BMD Auszugskonverter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Kreditkarten- und Bankauszüge in Sekunden DATEV- & BMD-fertig konvertieren. 100% DSGVO-konform In-Memory.",
   "permissions": [
     "sidePanel",
@@ -14,6 +14,16 @@
     "https://statement2muster.com/*",
     "https://www.statement2muster.com/*",
     "https://statement2-muster.vercel.app/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/pdf.worker.min.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ],
   "background": {
     "service_worker": "background.js"
