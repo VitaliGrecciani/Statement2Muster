@@ -390,6 +390,97 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Browser Store CTA Buttons */
+.hero-store-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 auto 30px;
+}
+
+.store-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.store-badge-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--primary-glow);
+}
+
+.store-btn-svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.store-badge-btn:hover .store-btn-svg {
+  transform: scale(1.1);
+}
+
+.chrome-btn .store-btn-svg {
+  color: #38bdf8;
+}
+
+.firefox-btn .store-btn-svg {
+  color: #fb923c;
+}
+
+.store-btn-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.store-btn-sub {
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.store-btn-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.btn-store-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(234, 88, 12, 0.12);
+  border: 1px solid rgba(234, 88, 12, 0.35);
+  color: #ff9d66;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-store-nav:hover {
+  background: rgba(234, 88, 12, 0.22);
+  border-color: var(--primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 /* ==========================================================================
    Live Demo & Converter Box (Floating Dark Glass Window)
    ========================================================================== */
