@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayPal Monatsauszug in DATEV importieren • Statement2Muster</title>
+  <meta name="description" content="PayPal Transaktionsberichte & Monatsauszüge in Sekunden DATEV-konform konvertieren. Automatische Trennung von Bruttobetrag, PayPal-Gebühren und Erstattungen.">
+  <meta name="keywords" content="PayPal DATEV import, PayPal CSV DATEV Unternehmen online, PayPal Gebühren DATEV buchen, PayPal Transaktionsbericht DATEV">
+  <link rel="canonical" href="https://www.statement2muster.com/paypal-datev">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="google-site-verification" content="google4071b0a280233f13">
+
+  <!-- OpenGraph -->
+  <meta property="og:locale" content="de_DE">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="PayPal Monatsauszug in DATEV importieren • Statement2Muster">
+  <meta property="og:description" content="PayPal Transaktionsberichte sauber in DATEV Unternehmen online einlesen. 100% In-Memory und DSGVO-konform.">
+  <meta property="og:url" content="https://www.statement2muster.com/paypal-datev">
+  <meta property="og:site_name" content="Statement2Muster DACH">
+  <meta property="og:image" content="https://www.statement2muster.com/apple-touch-icon.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PayPal Auszug in DATEV importieren • Statement2Muster">
+  <meta name="twitter:description" content="PayPal Transaktionsberichte in Sekunden DATEV-fertig konvertieren.">
+  <meta name="twitter:image" content="https://www.statement2muster.com/apple-touch-icon.png">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://www.statement2muster.com/paypal-datev#software",
+        "name": "Statement2Muster PayPal DATEV Konverter",
+        "url": "https://www.statement2muster.com/paypal-datev",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, Chrome, Edge, Firefox",
+        "description": "Konvertiert PayPal Geschäftskonto-Auszüge und Transaktionslisten direkt in DATEV-fähige Buchungsdaten.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR",
+          "description": "3 kostenlose Konvertierungen ohne Registrierung"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Grecciani Labs",
+          "url": "https://www.statement2muster.com/"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.statement2muster.com/paypal-datev#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Wie werden PayPal-Transaktionsgebühren verarbeitet?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Statement2Muster liest Gebührenspalten aus dem PayPal-Export und bereitet die Buchungssätze so auf, dass Bruttoumsätze und die abgezogenen PayPal-Gebühren buchhalterisch korrekt erfasst werden können."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Funktioniert das Tool mit dem erweiterten Transaktionsbericht von PayPal?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Ja. Sowohl die monatliche Standard-Kontoübersicht als auch der detaillierte CSV-Aktivitätsbericht werden automatisch geparst."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+
+  <!-- Navigation -->
+  <header class="navbar-wrapper">
+    <nav class="navbar glass-card">
+      <div class="nav-brand">
+        <a href="/" style="text-decoration:none; color:inherit;" class="brand-text">
+          <div class="brand-title-row">
+            <span class="brand-title">Statement<span class="brand-accent">2</span>Muster</span>
+            <span class="badge-tag">DACH</span>
+          </div>
+          <span class="brand-subtitle">DATEV & BMD Auszugskonverter</span>
+        </a>
+      </div>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link">Startseite</a>
+        <a href="#demo" class="nav-link">Live-Konverter</a>
+        <a href="#anleitung" class="nav-link">Anleitung</a>
+        <a href="#vorteile" class="nav-link">Vorteile</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener" class="btn-store-nav">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          Extension
+        </a>
+        <a href="#demo" class="btn-primary-nav">Jetzt kostenlos testen</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="hero-section">
+    <div class="hero-container">
+      <div class="hero-badge-row">
+        <span class="hero-pill">
+          <span class="pill-dot"></span>
+          Speziallösung für PayPal Geschäfts- & Händlerkonten
+        </span>
+      </div>
+
+      <h1 class="hero-title">
+        PayPal Monatsauszüge in 3 Sekunden <span class="gradient-text">DATEV-fertig</span> konvertieren.
+      </h1>
+
+      <p class="hero-subtitle">
+        Schluss mit unübersichtlichen 40-Spalten-PayPal-Berichten. 
+        Trennen Sie Umsätze, Gebühren und Rückabwicklungen automatisch für den DATEV-Import.
+      </p>
+
+      <!-- Store Badges -->
+      <div class="hero-store-buttons">
+        <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener" class="store-badge-btn chrome-btn" title="Statement2Muster im Chrome Web Store">
+          <svg class="store-btn-svg" viewBox="0 0 24 24" width="22" height="22" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+            <path d="M12 2a10 10 0 0 1 8.66 5H12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 16l-4.33 7.5A10 10 0 0 1 3.34 7.5L7.66 15" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M16 12l4.33 7.5A10 10 0 0 1 12 22" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <div class="store-btn-text">
+            <span class="store-btn-sub">Kostenlos im</span>
+            <span class="store-btn-name">Chrome Web Store & Edge</span>
+          </div>
+        </a>
+
+        <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener" class="store-badge-btn firefox-btn" title="Statement2Muster für Mozilla Firefox">
+          <svg class="store-btn-svg" viewBox="0 0 24 24" width="22" height="22" fill="none">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+          </svg>
+          <div class="store-btn-text">
+            <span class="store-btn-sub">Kostenlos für</span>
+            <span class="store-btn-name">Firefox Add-ons</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="hero-trust-badges">
+        <div class="trust-item"><span class="trust-icon">🛒</span><span>PayPal Business & Händler</span></div>
+        <div class="trust-item"><span class="trust-icon">🇩🇪</span><span>DATEV Unternehmen online</span></div>
+        <div class="trust-item"><span class="trust-icon">🔒</span><span>100% In-Memory (DSGVO)</span></div>
+      </div>
+
+      <!-- Live Converter Box -->
+      <section id="demo" class="demo-wrapper">
+        <div class="demo-card glass-card">
+          <div class="demo-header">
+            <div class="demo-header-title">
+              <span class="demo-badge">Sofort-Test</span>
+              <h3>PayPal Bericht hochladen (CSV oder PDF)</h3>
+            </div>
+            <div class="demo-sample-cta">
+              <button id="btn-load-sample" class="btn-sample">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                <span>Muster-Auszug testen</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="landing-dropzone" class="landing-dropzone">
+            <div class="drop-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="drop-text-content">
+              <p class="drop-main-text">PayPal CSV oder PDF hier hineinziehen oder <span class="drop-highlight">Datei auswählen</span></p>
+              <p class="drop-sub-text">3 Auszüge kostenlos ohne Registrierung • Daten verlassen niemals Ihren Browser</p>
+            </div>
+            <input type="file" id="landing-file-input" accept=".pdf,.csv" style="display:none;">
+          </div>
+
+          <div id="demo-status" class="demo-status-row hidden">
+            <div class="spinner"></div>
+            <span id="demo-status-text">Analysiere PayPal Auszug...</span>
+          </div>
+
+          <div id="demo-result" class="demo-result-box hidden">
+            <div class="demo-result-meta">
+              <div><span class="meta-label">Buchungen gefunden:</span> <strong id="demo-count">0</strong></div>
+              <div><span class="meta-label">Gesamtsumme:</span> <strong id="demo-sum">0,00 €</strong></div>
+            </div>
+            <div class="demo-table-container">
+              <table class="demo-table">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Buchungstext</th>
+                    <th>Betrag</th>
+                    <th>Währung</th>
+                  </tr>
+                </thead>
+                <tbody id="demo-table-body"></tbody>
+              </table>
+            </div>
+            <div class="demo-download-row">
+              <button id="btn-download-demo-csv" class="btn-demo-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>DATEV CSV herunterladen (Windows-1252)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <div id="landing-popover" class="landing-popover hidden"></div>
+  <footer class="footer-wrapper">
+    <div class="footer-container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="brand-title-row" style="margin-bottom: 8px;">
+            <span class="brand-title" style="font-size: 19px;">Statement<span class="brand-accent">2</span>Muster</span>
+            <span class="badge-tag">DACH</span>
+          </div>
+          <p>Der zuverlässige DATEV & BMD Auszugskonverter für Deutschland, Österreich und die Schweiz.</p>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Lösungen & Banken</h4>
+          <a href="/amex-datev">American Express ➔ DATEV</a>
+          <a href="/wise-datev">Wise Multiwährung ➔ DATEV</a>
+          <a href="/paypal-datev" style="color:#ff9d66;">PayPal Auszüge ➔ DATEV</a>
+          <a href="/bmd-konverter">BMD NTCS & RZL (Österreich)</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Produkt</h4>
+          <a href="/#demo">Live-Konverter</a>
+          <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener">Chrome & Edge Extension</a>
+          <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener">Firefox Add-on</a>
+          <a href="/#pricing">Preise</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Sicherheit & Recht</h4>
+          <a href="/datenschutz" class="footer-link">Datenschutzerklärung (DSGVO)</a>
+          <a href="/widerruf" class="footer-link">Widerrufsbelehrung</a>
+          <a href="/avv" class="footer-link">AVV-Vertrag (Art. 28 DSGVO)</a>
+          <a href="/impressum" class="footer-link">Impressum (§ 5 ECG)</a>
+          <a href="/agb" class="footer-link">AGB</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 Statement2Muster • Entwickelt in Österreich für den DACH-Raum. Alle Rechte vorbehalten.</p>
+        <p class="footer-disclaimer">DATEV, BMD und PayPal sind eingetragene Markenzeichen der jeweiligen Rechteinhaber.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

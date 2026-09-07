@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>American Express (Amex) Auszug in DATEV importieren • Statement2Muster</title>
+  <meta name="description" content="American Express PDF- und CSV-Auszüge in 3 Sekunden DATEV-fertig konvertieren. Richtige Umlaute, Wechselkurs-Aufbereitung und 100% DSGVO-konform.">
+  <meta name="keywords" content="Amex DATEV importieren, American Express DATEV Unternehmen online, Amex CSV DATEV, Amex PDF konvertieren DATEV, Amex Buchungsliste Steuerberater">
+  <link rel="canonical" href="https://www.statement2muster.com/amex-datev">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="google-site-verification" content="google4071b0a280233f13">
+
+  <!-- OpenGraph -->
+  <meta property="og:locale" content="de_DE">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="American Express Auszug in DATEV importieren • Statement2Muster">
+  <meta property="og:description" content="Amex PDF- und CSV-Auszüge in Sekunden fehlerfrei in DATEV Unternehmen online einlesen. 100% In-Memory und DSGVO-konform.">
+  <meta property="og:url" content="https://www.statement2muster.com/amex-datev">
+  <meta property="og:site_name" content="Statement2Muster DACH">
+  <meta property="og:image" content="https://www.statement2muster.com/apple-touch-icon.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Amex Auszug in DATEV importieren • Statement2Muster">
+  <meta name="twitter:description" content="American Express PDF- und CSV-Auszüge in Sekunden DATEV-fertig konvertieren.">
+  <meta name="twitter:image" content="https://www.statement2muster.com/apple-touch-icon.png">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://www.statement2muster.com/amex-datev#software",
+        "name": "Statement2Muster Amex DATEV Konverter",
+        "url": "https://www.statement2muster.com/amex-datev",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, Chrome, Edge, Firefox",
+        "description": "Konvertiert American Express Kreditkartenabrechnungen (PDF & CSV) direkt im Browser in DATEV-konforme Buchungsstapel.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR",
+          "description": "3 kostenlose Konvertierungen ohne Registrierung"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Grecciani Labs",
+          "url": "https://www.statement2muster.com/"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.statement2muster.com/amex-datev#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Warum scheitert der direkte Import von Amex-PDFs in DATEV?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "DATEV Unternehmen online und DATEV Rechnungswesen erfordern feste CSV-Feldstrukturen mit Belegdatum, Buchungstext, Betrag und Konten. Amex liefert Monatsrechnungen als gestaltete PDF-Dokumente mit mehreren Kartennummern und Fremdwährungshinweisen, die DATEV nicht automatisch einlesen kann."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Werden Fremdwährungsumsätze (USD, GBP) von Amex korrekt verarbeitet?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Ja. Statement2Muster extrahiert den tatsächlichen Euro-Abrechnungsbetrag und übernimmt den Originalbetrag sowie den Referenzwechselkurs automatisch in den DATEV-Buchungstext."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Wie werden Haupt- und Zusatzkarten bei Amex getrennt?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Unser integrierter Anti-Mix Guard erkennt unterschiedliche Kartennummern und Karteninhaber auf der Abrechnung und ermöglicht es, separate Buchungsstapel pro Mitarbeiter oder Karte herunterzuladen."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+
+  <!-- Navigation -->
+  <header class="navbar-wrapper">
+    <nav class="navbar glass-card">
+      <div class="nav-brand">
+        <a href="/" style="text-decoration:none; color:inherit;" class="brand-text">
+          <div class="brand-title-row">
+            <span class="brand-title">Statement<span class="brand-accent">2</span>Muster</span>
+            <span class="badge-tag">DACH</span>
+          </div>
+          <span class="brand-subtitle">DATEV & BMD Auszugskonverter</span>
+        </a>
+      </div>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link">Startseite</a>
+        <a href="#demo" class="nav-link">Live-Konverter</a>
+        <a href="#anleitung" class="nav-link">Anleitung</a>
+        <a href="#vorteile" class="nav-link">Vorteile</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener" class="btn-store-nav">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          Extension
+        </a>
+        <a href="#demo" class="btn-primary-nav">Jetzt kostenlos testen</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="hero-section">
+    <div class="hero-container">
+      <div class="hero-badge-row">
+        <span class="hero-pill">
+          <span class="pill-dot"></span>
+          Speziallösung für American Express Business & Corporate
+        </span>
+      </div>
+
+      <h1 class="hero-title">
+        American Express Auszüge in 3 Sekunden <span class="gradient-text">DATEV-fertig</span> konvertieren.
+      </h1>
+
+      <p class="hero-subtitle">
+        Schluss mit fehlerhaften Amex-CSV-Importen und mühsamem Abtippen von PDF-Sammelabrechnungen. 
+        Erzeugt saubere, DATEV-konforme Buchungsstapel nach offiziellem Windows-1252 Kanzleistandard.
+      </p>
+
+      <!-- Store Badges -->
+      <div class="hero-store-buttons">
+        <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener" class="store-badge-btn chrome-btn" title="Statement2Muster im Chrome Web Store">
+          <svg class="store-btn-svg" viewBox="0 0 24 24" width="22" height="22" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+            <path d="M12 2a10 10 0 0 1 8.66 5H12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 16l-4.33 7.5A10 10 0 0 1 3.34 7.5L7.66 15" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M16 12l4.33 7.5A10 10 0 0 1 12 22" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <div class="store-btn-text">
+            <span class="store-btn-sub">Kostenlos im</span>
+            <span class="store-btn-name">Chrome Web Store & Edge</span>
+          </div>
+        </a>
+
+        <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener" class="store-badge-btn firefox-btn" title="Statement2Muster für Mozilla Firefox">
+          <svg class="store-btn-svg" viewBox="0 0 24 24" width="22" height="22" fill="none">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+          </svg>
+          <div class="store-btn-text">
+            <span class="store-btn-sub">Kostenlos für</span>
+            <span class="store-btn-name">Firefox Add-ons</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="hero-trust-badges">
+        <div class="trust-item"><span class="trust-icon">💳</span><span>Amex Business Gold & Platinum</span></div>
+        <div class="trust-item"><span class="trust-icon">🇩🇪</span><span>DATEV Unternehmen online</span></div>
+        <div class="trust-item"><span class="trust-icon">🔒</span><span>100% In-Memory (DSGVO)</span></div>
+      </div>
+
+      <!-- Live Converter Box -->
+      <section id="demo" class="demo-wrapper">
+        <div class="demo-card glass-card">
+          <div class="demo-header">
+            <div class="demo-header-title">
+              <span class="demo-badge">Sofort-Test</span>
+              <h3>American Express Auszug hochladen (PDF oder CSV)</h3>
+            </div>
+            <div class="demo-sample-cta">
+              <button id="btn-load-sample" class="btn-sample">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                <span>Muster-Amex-Auszug testen</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="landing-dropzone" class="landing-dropzone">
+            <div class="drop-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="drop-text-content">
+              <p class="drop-main-text">Amex Monatsrechnung (PDF/CSV) hier hineinziehen oder <span class="drop-highlight">Datei auswählen</span></p>
+              <p class="drop-sub-text">3 Auszüge kostenlos ohne Registrierung • Daten verlassen niemals Ihren Browser</p>
+            </div>
+            <input type="file" id="landing-file-input" accept=".pdf,.csv" style="display:none;">
+          </div>
+
+          <div id="demo-status" class="demo-status-row hidden">
+            <div class="spinner"></div>
+            <span id="demo-status-text">Analysiere American Express Auszug...</span>
+          </div>
+
+          <div id="demo-result" class="demo-result-box hidden">
+            <div class="demo-result-meta">
+              <div><span class="meta-label">Buchungen gefunden:</span> <strong id="demo-count">0</strong></div>
+              <div><span class="meta-label">Gesamtsumme:</span> <strong id="demo-sum">0,00 €</strong></div>
+            </div>
+            <div class="demo-table-container">
+              <table class="demo-table">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Buchungstext</th>
+                    <th>Betrag</th>
+                    <th>Währung</th>
+                  </tr>
+                </thead>
+                <tbody id="demo-table-body"></tbody>
+              </table>
+            </div>
+            <div class="demo-download-row">
+              <button id="btn-download-demo-csv" class="btn-demo-download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>DATEV CSV herunterladen (Windows-1252)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Problem / Solution Guide Section -->
+  <section id="anleitung" class="features-section" style="max-width: 1040px; margin: 60px auto 20px; padding: 0 20px;">
+    <div class="section-header-center">
+      <p class="section-tag">Hintergrund & Lösung</p>
+      <h2>Warum der direkte Amex-Import in DATEV bisher scheiterte</h2>
+    </div>
+
+    <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px;">
+      <div class="feature-card glass-card">
+        <h3>1. Mehrere Karten auf einer Abrechnung</h3>
+        <p>Amex Business fasst oft Mitarbeiterkarten (Zusatzkarten) in einer einzigen PDF zusammen. Unser <strong>Anti-Mix Guard</strong> erkennt Kartennummern und trennt sie automatisch in getrennte Buchungsstapel.</p>
+      </div>
+      <div class="feature-card glass-card">
+        <h3>2. Fremdwährungen & Wechselkurse</h3>
+        <p>Auslandsumsätze in USD oder GBP führen in DATEV häufig zu Fehlern. Statement2Muster übernimmt den real abgerechneten Euro-Betrag und setzt Wechselkurs und Originalbetrag in den Verwendungszweck.</p>
+      </div>
+      <div class="feature-card glass-card">
+        <h3>3. Echte Windows-1252 Codierung</h3>
+        <p>Deutsche Umlaute (ä, ö, ü, ß) in Händlernamen (z.B. „München“, „Kaufhaus“) werden ohne Zeichenfehler übertragen, sodass DATEV Rechnungswesen den Import sofort akzeptiert.</p>
+      </div>
+    </div>
+
+    <!-- Step by Step -->
+    <div class="glass-card" style="margin-top: 40px; padding: 32px;">
+      <h3 style="font-size: 22px; color: #fff; margin-bottom: 16px;">In 4 Schritten von der Amex PDF zu DATEV:</h3>
+      <ol style="color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
+        <li><strong>Abrechnung herunterladen:</strong> Exportieren Sie Ihre monatliche PDF- oder CSV-Abrechnung aus dem American Express Online-Kartenkonto.</li>
+        <li><strong>In Statement2Muster ablegen:</strong> Ziehen Sie die Datei einfach per Drag & Drop in das obige Feld oder öffnen Sie unsere Browser-Erweiterung.</li>
+        <li><strong>Vorschau prüfen:</strong> Beträge, Buchungstexte und Summen werden sekundenschnell aufbereitet.</li>
+        <li><strong>In DATEV einlesen:</strong> Laden Sie die fertige CSV herunter und importieren Sie sie direkt in DATEV Unternehmen online (Belege / Bank) oder DATEV Rechnungswesen.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="faq-section" style="max-width: 860px; margin: 60px auto; padding: 0 20px;">
+    <div class="section-header-center">
+      <p class="section-tag">Häufige Fragen</p>
+      <h2>Fragen zur American Express Konvertierung</h2>
+    </div>
+
+    <div class="faq-accordion" style="margin-top: 24px;">
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Werden Kartennummern oder sensible Daten gespeichert?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Nein. Statement2Muster verarbeitet Ihre Auszüge flüchtig im Arbeitsspeicher (In-Memory). Es werden weder Kreditkartennummern noch Beträge dauerhaft auf Servern gespeichert.</p>
+        </div>
+      </div>
+
+      <div class="faq-item glass-card">
+        <button class="faq-question">
+          <span>Funktioniert das auch mit privaten Amex-Karten?</span>
+          <span class="faq-arrow">+</span>
+        </button>
+        <div class="faq-answer">
+          <p>Ja, sowohl geschäftliche (Corporate, Business Gold/Platinum) als auch private American Express Kreditkartenabrechnungen werden vollumfänglich unterstützt.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <div id="landing-popover" class="landing-popover hidden"></div>
+  <footer class="footer-wrapper">
+    <div class="footer-container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="brand-title-row" style="margin-bottom: 8px;">
+            <span class="brand-title" style="font-size: 19px;">Statement<span class="brand-accent">2</span>Muster</span>
+            <span class="badge-tag">DACH</span>
+          </div>
+          <p>Der zuverlässige DATEV & BMD Auszugskonverter für Deutschland, Österreich und die Schweiz.</p>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Lösungen & Banken</h4>
+          <a href="/amex-datev" style="color:#ff9d66;">American Express ➔ DATEV</a>
+          <a href="/wise-datev">Wise Multiwährung ➔ DATEV</a>
+          <a href="/paypal-datev">PayPal Auszüge ➔ DATEV</a>
+          <a href="/bmd-konverter">BMD NTCS & RZL (Österreich)</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Produkt</h4>
+          <a href="/#demo">Live-Konverter</a>
+          <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener">Chrome & Edge Extension</a>
+          <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener">Firefox Add-on</a>
+          <a href="/#pricing">Preise</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4>Sicherheit & Recht</h4>
+          <a href="/datenschutz" class="footer-link">Datenschutzerklärung (DSGVO)</a>
+          <a href="/widerruf" class="footer-link">Widerrufsbelehrung</a>
+          <a href="/avv" class="footer-link">AVV-Vertrag (Art. 28 DSGVO)</a>
+          <a href="/impressum" class="footer-link">Impressum (§ 5 ECG)</a>
+          <a href="/agb" class="footer-link">AGB</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 Statement2Muster • Entwickelt in Österreich für den DACH-Raum. Alle Rechte vorbehalten.</p>
+        <p class="footer-disclaimer">DATEV, BMD und American Express sind eingetragene Markenzeichen der jeweiligen Rechteinhaber.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
