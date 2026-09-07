@@ -1,0 +1,6 @@
+# robots.txt for Statement2Muster DACH (https://www.statement2muster.com/)
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://www.statement2muster.com/sitemap.xml
