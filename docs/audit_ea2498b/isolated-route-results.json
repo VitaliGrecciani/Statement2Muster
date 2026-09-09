@@ -1,0 +1,28 @@
+{
+  "default_process_isolation": true,
+  "one_row": {
+    "http": 200,
+    "detail": null
+  },
+  "over_row_limit": {
+    "http": 413,
+    "detail": "File 'synthetic.csv' exceeds maximum allowed limit of 1 rows."
+  },
+  "route_admission": {
+    "http": 408
+  },
+  "config_wiring": {
+    "settings_concurrency": 1,
+    "actual_concurrency": 1,
+    "settings_queue_depth": 2,
+    "actual_queue_depth": 2
+  },
+  "admission": {
+    "timeout_seconds": 0.01,
+    "still_pending_after_80ms": false
+  },
+  "real_supervisor_timeout": {
+    "http": 408,
+    "live_children_after_response": []
+  }
+}
