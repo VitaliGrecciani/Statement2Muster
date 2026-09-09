@@ -98,6 +98,21 @@ class BoundedMemoryCache:
         self._entries: ExpiringOrderedDict = ExpiringOrderedDict(self)
         self._current_bytes: int = 0
         self._lock = threading.Lock()
+        self._stopped = False
+        self._sweeper_thread = threading.Thread(target=self._sweep_loop, daemon=True)
+        self._sweeper_thread.start()
+
+    def _sweep_loop(self):
+        while not self._stopped:
+            time.sleep(0.01)
+            with self._lock:
+                self._purge_expired(time.time())
+
+    def close(self):
+        self._stopped = True
+
+    def __del__(self):
+        self._stopped = True
 
     def _purge_expired(self, now: float) -> None:
         """Removes all expired entries from cache."""

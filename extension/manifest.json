@@ -11,6 +11,7 @@
   "host_permissions": [
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
+    "https://api.statement2muster.com/*",
     "https://statement2muster.com/*",
     "https://www.statement2muster.com/*",
     "https://statement2-muster.vercel.app/*"

@@ -60,6 +60,8 @@ class Settings(BaseSettings):
         if sqlite_env and "sqlite" in self.DATABASE_URL:
             self.SQLITE_DB_PATH = sqlite_env
             self.DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_env}"
+        if self.ENVIRONMENT.lower() == "production" and self.EMAIL_BACKEND.lower() == "memory":
+            raise ValueError("EMAIL_BACKEND cannot be 'memory' in production environment. Configure SMTP delivery.")
         return self
 
     def get_jwt_keys(self):

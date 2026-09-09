@@ -6,7 +6,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, case
 from app.db.session import get_db
 from app.db.models import Tenant, AuthChallenge, RevokedToken, AuthRateLimit
 from app.core.security import create_access_token, _PUB_KEY, get_jwks, revoke_token, hash_token
@@ -32,6 +32,25 @@ class TokenResponse(BaseModel):
 
 from app.services.email_service import email_service
 
+async def _get_or_create_rate_limit(db: AsyncSession, email: str, now: datetime.datetime) -> AuthRateLimit:
+    """Safely gets or inserts rate limit record across concurrent sessions (C04)."""
+    rl = (await db.execute(select(AuthRateLimit).where(AuthRateLimit.email == email))).scalars().first()
+    if not rl:
+        try:
+            async with db.begin_nested():
+                db.add(AuthRateLimit(
+                    email=email,
+                    failed_attempts=0,
+                    request_count=0,
+                    window_start=now,
+                    updated_at=now
+                ))
+                await db.flush()
+        except Exception:
+            pass
+        rl = (await db.execute(select(AuthRateLimit).where(AuthRateLimit.email == email))).scalars().first()
+    return rl
+
 @router.post("/request-code")
 async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_db)):
     """
@@ -42,47 +61,51 @@ async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_d
     now = datetime.datetime.now(datetime.timezone.utc)
     
     # 1. Persistent rate limit & lockout record (C04)
-    rl_query = select(AuthRateLimit).where(AuthRateLimit.email == req.email)
-    rl = (await db.execute(rl_query)).scalars().first()
-    if not rl:
-        rl = AuthRateLimit(
-            email=req.email,
-            failed_attempts=0,
-            request_count=0,
-            window_start=now
-        )
-        db.add(rl)
-        await db.flush()
+    rl = await _get_or_create_rate_limit(db, req.email, now)
 
     # 2. Check active lockout
-    if rl.lockout_until:
+    if rl and rl.lockout_until:
         lockout_dt = rl.lockout_until if rl.lockout_until.tzinfo else rl.lockout_until.replace(tzinfo=datetime.timezone.utc)
         if now < lockout_dt:
-            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many failed verification attempts. Please wait until the lockout period expires."
             )
         else:
-            rl.lockout_until = None
-            rl.failed_attempts = 0
+            await db.execute(
+                update(AuthRateLimit)
+                .where(AuthRateLimit.email == req.email)
+                .values(lockout_until=None, failed_attempts=0, updated_at=now)
+            )
+            await db.commit()
 
     # 3. Rate-limit request-code calls (max 3 requests per 10 minutes - C04)
-    w_start = rl.window_start if (rl.window_start and rl.window_start.tzinfo) else (rl.window_start.replace(tzinfo=datetime.timezone.utc) if rl.window_start else None)
+    w_start = rl.window_start if (rl and rl.window_start and rl.window_start.tzinfo) else (rl.window_start.replace(tzinfo=datetime.timezone.utc) if (rl and rl.window_start) else None)
     if not w_start or (now - w_start) > datetime.timedelta(minutes=10):
-        rl.window_start = now
-        rl.request_count = 1
+        await db.execute(
+            update(AuthRateLimit)
+            .where(AuthRateLimit.email == req.email)
+            .values(window_start=now, request_count=1, updated_at=now)
+        )
+        await db.commit()
     else:
         if rl.request_count >= 3:
-            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many verification code requests. Please wait a few minutes before requesting another code."
             )
-        rl.request_count += 1
-
-    rl.updated_at = now
-    await db.flush()
+        await db.execute(
+            update(AuthRateLimit)
+            .where(AuthRateLimit.email == req.email)
+            .values(request_count=AuthRateLimit.request_count + 1, updated_at=now)
+        )
+        await db.commit()
+        curr_rl = (await db.execute(select(AuthRateLimit).where(AuthRateLimit.email == req.email))).scalars().first()
+        if curr_rl and curr_rl.request_count > 3:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many verification code requests. Please wait a few minutes before requesting another code."
+            )
 
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = now + datetime.timedelta(minutes=10)
@@ -102,7 +125,7 @@ async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_d
         used=0
     )
     db.add(challenge)
-    await db.flush()
+    await db.commit()
 
     # 3. Truthful delivery via EmailDeliveryService
     sent = await email_service.send_verification_email(req.email, code, expires)
@@ -136,39 +159,24 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
 
     now = datetime.datetime.now(datetime.timezone.utc)
     
-    rl_query = select(AuthRateLimit).where(AuthRateLimit.email == req.email)
-    rl = (await db.execute(rl_query)).scalars().first()
-    if not rl:
-        rl = AuthRateLimit(
-            email=req.email,
-            failed_attempts=0,
-            request_count=0,
-            window_start=now
-        )
-        db.add(rl)
-        await db.flush()
+    rl = await _get_or_create_rate_limit(db, req.email, now)
 
     # Check active lockout
-    if rl.lockout_until:
+    if rl and rl.lockout_until:
         lockout_dt = rl.lockout_until if rl.lockout_until.tzinfo else rl.lockout_until.replace(tzinfo=datetime.timezone.utc)
         if now < lockout_dt:
-            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many failed verification attempts. Account is temporarily locked out."
             )
         else:
-            rl.lockout_until = None
-            rl.failed_attempts = 0
-
-    if rl.failed_attempts >= 5:
-        rl.lockout_until = now + datetime.timedelta(minutes=15)
-        rl.updated_at = now
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed verification attempts. Account is temporarily locked out."
-        )
+            # Lockout expired, reset
+            await db.execute(
+                update(AuthRateLimit)
+                .where(AuthRateLimit.email == req.email)
+                .values(lockout_until=None, failed_attempts=0, updated_at=now)
+            )
+            await db.commit()
 
     c_query = select(AuthChallenge).where(
         AuthChallenge.email == req.email,
@@ -178,16 +186,30 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     )
     challenge = (await db.execute(c_query)).scalars().first()
     if not challenge:
-        rl.failed_attempts += 1
-        rl.updated_at = now
-        if rl.failed_attempts >= 5:
-            rl.lockout_until = now + datetime.timedelta(minutes=15)
-            await db.commit()
+        # Atomic increment of failed_attempts and conditional lockout under concurrency (C04)
+        lockout_time = now + datetime.timedelta(minutes=15)
+        stmt = (
+            update(AuthRateLimit)
+            .where(AuthRateLimit.email == req.email)
+            .values(
+                failed_attempts=AuthRateLimit.failed_attempts + 1,
+                lockout_until=case(
+                    (AuthRateLimit.failed_attempts + 1 >= 5, lockout_time),
+                    else_=AuthRateLimit.lockout_until
+                ),
+                updated_at=now
+            )
+        )
+        await db.execute(stmt)
+        await db.commit()
+
+        # Read updated state to return 429 if locked out, else 401
+        updated_rl = (await db.execute(select(AuthRateLimit).where(AuthRateLimit.email == req.email))).scalars().first()
+        if updated_rl and updated_rl.failed_attempts >= 5:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many failed verification attempts. Account is temporarily locked out."
             )
-        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired verification code."
@@ -204,13 +226,14 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Verification code has already been consumed."
         )
-    await db.flush()
 
-    # Success: clear failed attempts
-    rl.failed_attempts = 0
-    rl.lockout_until = None
-    rl.updated_at = now
-    await db.flush()
+    # Success: clear failed attempts atomically
+    await db.execute(
+        update(AuthRateLimit)
+        .where(AuthRateLimit.email == req.email)
+        .values(failed_attempts=0, lockout_until=None, updated_at=now)
+    )
+    await db.commit()
 
     query = select(Tenant).where(Tenant.email == req.email)
     res = await db.execute(query)

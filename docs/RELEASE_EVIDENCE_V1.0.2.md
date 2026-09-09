@@ -12,8 +12,8 @@
 
 | Komponente / Artefakt | Dateipfad | SHA-256 Prüfsumme | Status |
 |---|---|---|---|
-| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `13EFD53EF4DAEA605FB75B85D31FE5976509847B7E92AA0EAF6215120F46A214` | Aktualisiert & 100% verifiziert |
-| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `88F793BF62663FDA9C1145F79B3E46D773B051B19C64C8D8F080E66360325A54` | Aktualisiert & 100% verifiziert |
+| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `CE4931FAA677E756724BDBA73813F893378857699453F2421224F8608FD866D7` | Aktualisiert & 100% verifiziert |
+| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `CB4FA209E20E7F44796D7AFED8521597A9FAADD1340994B49F19DD044565008B` | Aktualisiert & 100% verifiziert |
 | **Backend Dockerfile** | `backend/Dockerfile` | `161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6` | Verifiziert |
 | **Backend Dependencies** | `backend/requirements.txt` | `F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64` | Verifiziert |
 
@@ -58,6 +58,19 @@
 | **3** | **Bounded RAM-Cache & Zero Retention (B02 / B07)** | `BoundedMemoryCache` mit striktem 10-Minuten TTL (600s), 50 MiB Byte-Budget und max. 100 Einträgen mit LRU-Verdrängung. Deterministischer `request_hash` bindet Dateigrenzen, Dateinamen sowie `format`, `bank_account` und `client_entity_id`. Replay mit geändertem Konto/Profil liefert HTTP 409. | `probe_round4.py` (`changed_account_cached_response`: first 200, second 409; `cache_miss_existing_reservation`: parser_calls=2) |
 | **4** | **Streaming Row Budgets & Sanitisierung (B07 / A16–A20)** | In-Parser Zeilenlimitierung: `csv_parser.py` bricht bei `> MAX_ROWS_PER_FILE` über `nrows` sofort mit HTTP 413 ab, ohne unbegrenzt Speicher zu belegen. Entsprechende Guards in `amex_parser.py`. Bereinigung aller Dateinamen in Logmeldungen durch kryptografische File-Tags (`file_<hash>`). Reconcile von `SQLITE_DB_PATH`. | `probe_round3.py` (`row_budget: 413`, `chunked_status: 413`, `per_file_status: 413`) |
 | **5** | **Bankprofile-Matrix & Re-Packaging (B04 / B05 / B08)** | Erstellung von `docs/SUPPORTED_BANK_PROFILES.md` mit Spezifikationen für Sparkasse, VR Bank, Deutsche Bank, Wise Europe und Amex sowie DATEV EXTF 700 / BMD NTCS 5.1. Saubere Neupaketierung der Browser-Erweiterungen mit 0 Mismatches. | `probe_round3.py` (`zip_mismatches: {chrome: [], firefox: []}`) |
+
+---
+
+## 2.3 Beseitigung der verbleibenden Gegenbeispiele aus Audit 11 (`11_RELEASE_DECISION_6e2ae2d`)
+
+| ID | Gegenbeispiel aus Audit 11 | Technische Umsetzung & Härtung | Ergebnis in Probes |
+|:---:|---|---|---|
+| **C04** | Race Condition bei parallelen OTP-Requests: `failed_attempts` ging bei Nebenläufigkeit verloren (1 statt 6, `lockout_set: false`). | Atomares SQL-Update `UPDATE auth_rate_limits SET failed_attempts = failed_attempts + 1, lockout_until = CASE WHEN failed_attempts + 1 >= 5 THEN ...` serialisiert Schreibvorgänge transaktionssicher. Konfliktfreie Anlage per Nested Savepoint. | `probe_rate_race.py`: `persisted_failed_attempts: 6`, `lockout_set: true` |
+| **C06** | RAM-Cache bereinigte abgelaufene Einträge nur bei Methodenaufruf (`ExpiringOrderedDict`); im Leerlauf blieb unreferenzierter Speicher bestehen (`raw_entries_after_ttl: 1`). | Aktiver, lifecycle-verwalteter Sweeper-Daemon (`_sweep_loop`), der alle 10ms `_purge_expired` aufruft und abgelaufene Einträge physisch aus `OrderedDict` entfernt. | `probe_idle_timeout.py`: `raw_entries_after_ttl: 0`, `bytes_after_ttl: 0` |
+| **C07** | HTTP-Timeout (408) brach den Worker-Thread nicht ab (`worker_completed_after_response: true`); Worker lief im API-Prozess weiter. | Terminierbarer Worker-Thread mit `PyThreadState_SetAsyncExc(ident, SystemExit)` und `join(timeout=0.05)` unterbricht synchrone Parser-Jobs sofort bei Timeout. | `probe_idle_timeout.py`: `worker_completed_after_response: false`, Status 408 |
+| **A16** | Timeout-Logger schrieb den rohen Dateinamen (`SYNTHETIC_PRIVATE_NAME.csv`). | Log-Meldung vollständig anonymisiert: `file_<sha256[:8]>` und Request-ID/Idempotency-Key. Generische Fehlermeldung ohne PII. | `probe_idle_timeout.py`: `file_10700623` geloggt, kein Klartext-Dateiname |
+| **C01** | `manifest.json` fehlte `https://api.statement2muster.com/*` in `host_permissions`. | Host-Berechtigung in Chrome- und Firefox-Manifesten ergänzt und ZIPs neu gebaut. | `dist/*.zip` synchron mit 0 Mismatches |
+| **C03** | `EMAIL_BACKEND='memory'` war in Produktion nicht explizit ausgeschlossen. | Pydantic Model-Validator in `Settings` verbietet `EMAIL_BACKEND='memory'` bei `ENVIRONMENT='production'`. | `config.py` Validierung aktiv |
 
 ---
 

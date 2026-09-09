@@ -6,6 +6,8 @@ import uuid
 import hashlib
 import datetime
 import asyncio
+import threading
+import ctypes
 from typing import List, Dict, Any, Optional, Tuple
 from contextlib import asynccontextmanager
 
@@ -193,23 +195,50 @@ async def convert_statements(
             logger.info(f"Parsing file {file_idx+1}/{len(file_data)}: {len(content)} bytes in-memory")
 
             try:
-                try:
-                    file_txs, acc_summary = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            registry.parse_file,
+                loop = asyncio.get_running_loop()
+                done_event = asyncio.Event()
+                res_box = []
+                exc_box = []
+
+                def _worker():
+                    try:
+                        res = registry.parse_file(
                             content=content,
                             filename=filename,
                             tenant_id=tenant_id,
                             client_entity_id=client_entity_id
-                        ),
-                        timeout=settings.PARSER_TIMEOUT_SECONDS
-                    )
+                        )
+                        res_box.append(res)
+                    except BaseException as e:
+                        exc_box.append(e)
+                    finally:
+                        loop.call_soon_threadsafe(done_event.set)
+
+                worker_thread = threading.Thread(target=_worker, daemon=True)
+                worker_thread.start()
+
+                try:
+                    await asyncio.wait_for(done_event.wait(), timeout=settings.PARSER_TIMEOUT_SECONDS)
                 except asyncio.TimeoutError:
-                    logger.error(f"Parser timed out after {settings.PARSER_TIMEOUT_SECONDS}s processing '{filename}'")
+                    # Terminate worker thread immediately upon timeout (C07)
+                    if worker_thread.ident:
+                        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                            ctypes.c_ulong(worker_thread.ident),
+                            ctypes.py_object(SystemExit)
+                        )
+                    worker_thread.join(timeout=0.05)
+
+                    # Zero PII: log sanitized hash and request ID without raw filename (A16)
+                    file_hash_prefix = hashlib.sha256(filename.encode("utf-8")).hexdigest()[:8]
+                    logger.error(f"Parser timed out after {settings.PARSER_TIMEOUT_SECONDS}s for request {idempotency_key} (file_{file_hash_prefix})")
                     raise HTTPException(
                         status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                        detail=f"Parser timed out processing '{filename}'"
+                        detail="Parser timed out processing file."
                     )
+
+                if exc_box:
+                    raise exc_box[0]
+                file_txs, acc_summary = res_box[0]
                 if file_txs:
                     if len(file_txs) > settings.MAX_ROWS_PER_FILE:
                         raise HTTPException(
