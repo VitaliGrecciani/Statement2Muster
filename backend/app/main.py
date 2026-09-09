@@ -13,10 +13,6 @@ from typing import List, Dict, Any, Optional, Tuple
 from contextlib import asynccontextmanager
 import multiprocessing
 
-# Windows multiprocessing spawn guard: prevent child processes from re-executing test runners on module import
-if multiprocessing.current_process().name != "MainProcess":
-    import asyncio
-    asyncio.run = lambda *args, **kwargs: None
 
 
 
@@ -232,7 +228,8 @@ async def convert_statements(
             except UnsupportedFormatError as e:
                 logger.warning(f"File unsupported: format unrecognized")
                 unparsed_files.append({"file": filename, "error": str(e)})
-            except HTTPException:
+            except (HTTPException, asyncio.CancelledError):
+                await release_quota(db, reservation)
                 raise
             except Exception as e:
                 logger.error(f"Error parsing file in memory", exc_info=True)

@@ -83,6 +83,19 @@ def _worker_entrypoint(send_conn, content: bytes, filename: str, tenant_id: str,
         except Exception:
             pass
 
+class ParserAdmissionTimeout(HTTPException, asyncio.CancelledError):
+    """
+    Admission timeout exception representing both an HTTP 408 response
+    and an asyncio.CancelledError for cancellation semantics.
+    """
+    def __init__(self, detail: str = "Parser admission timeout"):
+        HTTPException.__init__(
+            self,
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            detail=detail
+        )
+
+
 class ParserProcessSupervisor:
     """
     Supervises isolated parser processes with:
@@ -93,12 +106,66 @@ class ParserProcessSupervisor:
     - Hard OS kill & confirmed reaping: 0 lingering child processes
     - Zero Durable Retention: kernel reclaims all memory
     """
-    def __init__(self, max_concurrency: int = 4, max_queue_depth: int = 8, default_timeout: float = 30.0):
-        self.max_concurrency = max_concurrency
-        self.max_queue_depth = max_queue_depth
-        self.default_timeout = default_timeout
-        self.semaphore = asyncio.Semaphore(max_concurrency)
+    def __init__(
+        self,
+        max_concurrency: Optional[int] = None,
+        max_queue_depth: Optional[int] = None,
+        default_timeout: Optional[float] = None
+    ):
+        self._max_concurrency = max_concurrency
+        self._max_queue_depth = max_queue_depth
+        self._default_timeout = default_timeout
+        self._semaphore = None
+        self._sem_concurrency = None
         self.waiting_count = 0
+
+    @property
+    def max_concurrency(self) -> int:
+        if self._max_concurrency is not None:
+            return self._max_concurrency
+        from app.core.config import settings
+        return getattr(settings, "PARSER_WORKER_CONCURRENCY", 4)
+
+    @max_concurrency.setter
+    def max_concurrency(self, val: int):
+        self._max_concurrency = val
+        self._semaphore = asyncio.Semaphore(val)
+        self._sem_concurrency = val
+
+    @property
+    def max_queue_depth(self) -> int:
+        if self._max_queue_depth is not None:
+            return self._max_queue_depth
+        from app.core.config import settings
+        return getattr(settings, "PARSER_MAX_QUEUE_DEPTH", 8)
+
+    @max_queue_depth.setter
+    def max_queue_depth(self, val: int):
+        self._max_queue_depth = val
+
+    @property
+    def default_timeout(self) -> float:
+        if self._default_timeout is not None:
+            return self._default_timeout
+        from app.core.config import settings
+        return getattr(settings, "PARSER_TIMEOUT_SECONDS", 30.0)
+
+    @default_timeout.setter
+    def default_timeout(self, val: float):
+        self._default_timeout = val
+
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        current_limit = self.max_concurrency
+        if self._semaphore is None or self._sem_concurrency != current_limit:
+            self._semaphore = asyncio.Semaphore(current_limit)
+            self._sem_concurrency = current_limit
+        return self._semaphore
+
+    @semaphore.setter
+    def semaphore(self, val: asyncio.Semaphore):
+        self._semaphore = val
+        self._sem_concurrency = getattr(val, "_value", self.max_concurrency)
 
     async def parse_file(
         self,
@@ -127,12 +194,12 @@ class ParserProcessSupervisor:
         try:
             time_left_admission = effective_timeout - (time.monotonic() - overall_start)
             if time_left_admission <= 0:
-                raise asyncio.CancelledError("Parser admission timeout")
+                raise ParserAdmissionTimeout("Parser admission timeout")
             try:
                 await asyncio.wait_for(self.semaphore.acquire(), timeout=time_left_admission)
                 acquired = True
             except asyncio.TimeoutError:
-                raise asyncio.CancelledError("Parser admission timeout")
+                raise ParserAdmissionTimeout("Parser admission timeout")
         finally:
             self.waiting_count -= 1
 
@@ -219,12 +286,23 @@ class ParserProcessSupervisor:
                 if _pid_exists(pid):
                     _hard_kill_pid(pid)
                     if proc:
-                        proc.join(timeout=0.05)
+                        proc.join(timeout=0.1)
 
-            logger.error(
-                f"Parser worker (PID {pid}) timed out after {effective_timeout}s "
-                f"for request {req_tag} (file_{file_hash_prefix}). Killed and reaped."
-            )
+                is_reaped = (not _pid_exists(pid)) and (proc is None or not proc.is_alive())
+                if is_reaped:
+                    logger.error(
+                        f"Parser worker (PID {pid}) timed out after {effective_timeout}s "
+                        f"for request {req_tag} (file_{file_hash_prefix}). Killed and reaped."
+                    )
+                else:
+                    logger.critical(
+                        f"CRITICAL: Parser worker (PID {pid}) failed to terminate after hard kill attempt! Lingering process detected."
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Parser worker termination failure."
+                    )
+
             raise HTTPException(
                 status_code=status.HTTP_408_REQUEST_TIMEOUT,
                 detail="Parser timed out processing file."

@@ -53,6 +53,8 @@ async def main():
   await send('invoice.paid',{'subscription':'sub_final'})
   R['quarantine_after_invoice']={'status':ent.status,'plan':ent.plan_code}
   await db.rollback()
- await engine.dispose()
+  await engine.dispose()
  (OUT/'final-results.json').write_text(json.dumps(R,indent=2),encoding='utf8');print(json.dumps(R,indent=2))
-asyncio.run(main())
+
+if __name__ == '__main__':
+    asyncio.run(main())
