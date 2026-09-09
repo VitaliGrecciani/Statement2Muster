@@ -355,14 +355,25 @@
       </div>
 
       <div class="auth-divider">
-        <span>oder per Magic Link (E-Mail)</span>
+        <span>oder per E-Mail Einmalcode (OTP)</span>
       </div>
 
-      <form id="ext-magic-link-form" class="ext-auth-form">
-        <div class="input-field-wrap">
-          <input type="email" id="ext-auth-email" placeholder="ihre-kanzlei@beispiel.de" required>
+      <form id="ext-auth-form" class="ext-auth-form">
+        <div id="auth-step-email">
+          <div class="input-field-wrap" style="margin-bottom: 8px;">
+            <input type="email" id="ext-auth-email" placeholder="ihre-kanzlei@beispiel.de" required style="width: 100%; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; border-radius: 6px; font-size: 13px;">
+          </div>
+          <button type="button" id="btn-request-otp" class="btn-submit-magic" style="width: 100%; padding: 9px; background: #046a4e; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Code per E-Mail anfordern</button>
         </div>
-        <button type="submit" class="btn-submit-magic">Anmeldelink anfordern</button>
+        <div id="auth-step-code" style="display: none; margin-top: 10px;">
+          <p style="font-size: 12px; color: #a0aec0; margin-bottom: 6px;">6-stelligen Code eingeben, der an Ihre E-Mail gesendet wurde:</p>
+          <div class="input-field-wrap" style="margin-bottom: 8px;">
+            <input type="text" id="ext-auth-code" maxlength="6" placeholder="123456" style="width: 100%; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; border-radius: 6px; font-size: 16px; letter-spacing: 4px; text-align: center;">
+          </div>
+          <button type="button" id="btn-verify-otp" class="btn-submit-magic" style="width: 100%; padding: 9px; background: #3182ce; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Anmelden & Verifizieren</button>
+          <button type="button" id="btn-back-email" style="width: 100%; margin-top: 6px; background: transparent; border: none; color: #a0aec0; font-size: 11px; cursor: pointer; text-decoration: underline;">Andere E-Mail verwenden</button>
+        </div>
+        <div id="auth-status-msg" style="margin-top: 8px; font-size: 12px; display: none;"></div>
       </form>
 
       <p class="ext-auth-footer">

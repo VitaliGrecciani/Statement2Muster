@@ -1,8 +1,10 @@
-﻿import logging
+import logging
 import datetime
+import hashlib
 from decimal import Decimal
 import re
 from typing import Tuple, List, Optional, Dict, Any
+from fastapi import HTTPException
 
 from app.schemas.canonical import CanonicalTransaction, AccountSummary
 from app.parsers.amex_parser import AmexStatementParser, UniversalBankStatementParser
@@ -59,19 +61,24 @@ class BankParserRegistry:
             file_res = None
             parser_name = "Universal"
 
+            file_tag = f"file_{hashlib.sha256(filename.encode('utf-8')).hexdigest()[:8]}"
             if is_amex or "amex" in lower_name:
                 try:
                     file_res = self.amex_parser.parse_with_metadata(content, filename=filename)
                     parser_name = "American Express"
+                except HTTPException:
+                    raise
                 except Exception as e:
-                    logger.debug(f"Amex parser failed on {filename}: {e}")
+                    logger.debug(f"Amex parser failed on {file_tag}: {e}")
 
             if not file_res or not file_res.get("transactions"):
                 try:
                     file_res = self.universal_parser.parse_with_metadata(content, filename=filename)
                     parser_name = "Universal Bank"
+                except HTTPException:
+                    raise
                 except Exception as e:
-                    logger.debug(f"Universal parser failed on {filename}: {e}")
+                    logger.debug(f"Universal parser failed on {file_tag}: {e}")
 
             if not file_res or not file_res.get("transactions"):
                 raise UnsupportedFormatError(

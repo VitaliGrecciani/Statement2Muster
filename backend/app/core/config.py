@@ -1,5 +1,6 @@
 import os
 from typing import Optional
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
@@ -11,12 +12,22 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./statement2muster.db"
+    SQLITE_DB_PATH: Optional[str] = None
     
     # Asymmetric JWT configuration (RS256) per Architect ADR-001
     JWT_ALGORITHM: str = "RS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
     JWT_PRIVATE_KEY_PEM: Optional[str] = None
     JWT_PUBLIC_KEY_PEM: Optional[str] = None
+    
+    # Email Delivery Configuration (B01)
+    EMAIL_BACKEND: str = os.getenv("EMAIL_BACKEND", "memory") # memory, smtp, file
+    EMAIL_OUTBOX_PATH: str = "docs/audit_2026-09-09_round3/email_outbox.jsonl"
+    SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST", None)
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: Optional[str] = os.getenv("SMTP_USER", None)
+    SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD", None)
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "no-reply@statement2muster.com")
     
     # Stripe Billing Secrets
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "sk_test_mock")
@@ -36,7 +47,20 @@ class Settings(BaseSettings):
     PARSER_TIMEOUT_SECONDS: int = 30
     OCR_TIMEOUT_SECONDS: int = 90
     
+    # RAM Cache Budget & Retention (B02 / B07)
+    RAM_CACHE_TTL_SECONDS: int = 600                  # 10 minutes
+    RAM_CACHE_MAX_BYTES: int = 50 * 1024 * 1024       # 50 MiB
+    RAM_CACHE_MAX_ENTRIES: int = 100
+    
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def reconcile_sqlite_path(self):
+        sqlite_env = os.getenv("SQLITE_DB_PATH") or self.SQLITE_DB_PATH
+        if sqlite_env and "sqlite" in self.DATABASE_URL:
+            self.SQLITE_DB_PATH = sqlite_env
+            self.DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_env}"
+        return self
 
     def get_jwt_keys(self):
         """Returns (private_key_pem, public_key_pem). Generates ephemeral RSA pair if not set."""

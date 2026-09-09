@@ -148,6 +148,17 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
     if line_items_data:
         price_id = line_items_data[0].get("price", {}).get("id")
 
+    # Authoritative line items retrieval from Stripe API if missing from webhook payload
+    if not price_id and session_id and settings.STRIPE_SECRET_KEY and not settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+        try:
+            import stripe
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            items = stripe.checkout.Session.list_line_items(session_id, limit=5)
+            if items and getattr(items, "data", None):
+                price_id = items.data[0].price.id
+        except Exception as e:
+            logger.warning(f"Could not retrieve authoritative line items from Stripe API for session {session_id}: {e}")
+
     plan_code = None
     if price_id:
         if price_id in (settings.STRIPE_PRICE_LIFETIME, "price_lifetime_8900", "price_lifetime_14900"):
@@ -159,20 +170,30 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         else:
             plan_code = None # Explicitly unrecognized price catalog ID
     else:
-        # Require explicit Price ID from catalog; do not grant plan based on amount alone
         plan_code = None
 
+    # Unknown or missing price catalog ID must be quarantined, NEVER granted active access (B06 / Architect decision)
+    ent_status = "active" if plan_code else "quarantined"
+
     if mode == "payment":
-        # Deduplicate checkout session events
+        # Check existing entitlement for idempotent upsert
         existing = (await db.execute(select(Entitlement).where(Entitlement.source_id == session_id))).scalars().first()
         if existing:
+            # If existing entitlement was quarantined / unfulfilled and authoritative plan arrives, update it
+            if existing.plan_code is None and plan_code is not None:
+                existing.plan_code = plan_code
+                existing.status = ent_status
+                existing.updated_at = datetime.datetime.now(datetime.timezone.utc)
+                await db.flush()
+                logger.info(f"Idempotent fulfillment: updated session {session_id} to active plan {plan_code}")
+                return
             logger.info(f"Entitlement for session {session_id} already exists, skipping duplicate event.")
             return
 
         ent = Entitlement(
             tenant_id=tenant.id,
             plan_code=plan_code,
-            status="active",
+            status=ent_status,
             source_type="one_time",
             source_id=session_id,
             payment_intent=pi_id,
@@ -188,7 +209,9 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
 
         existing_sub = (await db.execute(select(Entitlement).where(Entitlement.source_id == sub_id))).scalars().first()
         if existing_sub:
-            existing_sub.status = "active"
+            if plan_code:
+                existing_sub.plan_code = plan_code
+            existing_sub.status = ent_status
             existing_sub.updated_at = datetime.datetime.now(datetime.timezone.utc)
             await db.flush()
             return
@@ -196,7 +219,7 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         ent = Entitlement(
             tenant_id=tenant.id,
             plan_code=plan_code,
-            status="active",
+            status=ent_status,
             source_type="subscription",
             source_id=sub_id,
             payment_intent=pi_id,

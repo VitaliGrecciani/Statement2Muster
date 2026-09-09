@@ -89,7 +89,7 @@
     "successful_files": 1,
     "account_count": 2,
     "export_status": 422,
-    "export_excerpt": "{\"detail\":\"Export blocked: Mixed bank accounts detected ({'SYNTHETIC_B', 'SYNTHETIC_A'}). Accounting export requires single account partition.\"}"
+    "export_excerpt": "{\"detail\":\"Export blocked: Mixed bank accounts detected ({'SYNTHETIC_A', 'SYNTHETIC_B'}). Accounting export requires single account partition.\"}"
   },
   "mixed_years": {
     "json_status": 200,
@@ -139,8 +139,8 @@
     "SQLAlchemy": "2.0.52"
   },
   "hashes": {
-    "dist/statement2muster-chrome-v1.0.2.zip": "6D7CF889E4D7F44E35C40D2ABC5A8A6912286160FF26D6E12827470352577C8C",
-    "dist/statement2muster-firefox-v1.0.2.zip": "8F09D303C3E237A52EE29CEF4F0A844C134DE3860899DEB57D8FD732593783A4",
+    "dist/statement2muster-chrome-v1.0.2.zip": "A98B17F2A3377BCA7F00C20D8B1FF0DD93E76C4E3C5B55B1E55EF97BCDD565EE",
+    "dist/statement2muster-firefox-v1.0.2.zip": "EF8ED89548573B2BBB853719F24B07D0D296E90DFACB161DAE9D3324818221C1",
     "backend/Dockerfile": "161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6",
     "backend/requirements.txt": "F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64"
   },

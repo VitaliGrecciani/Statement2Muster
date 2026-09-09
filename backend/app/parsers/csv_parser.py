@@ -6,6 +6,8 @@ import hashlib
 from decimal import Decimal
 from typing import Tuple, List, Optional, Dict, Any
 import pandas as pd
+from fastapi import HTTPException, status
+from app.core.config import settings
 from app.parsers.base import BaseBankParser
 from app.schemas.canonical import CanonicalTransaction, AccountSummary
 
@@ -41,10 +43,17 @@ class StructuredCsvParser(BaseBankParser):
 
         # Detect separator
         sep = self._detect_separator(text)
+        max_rows = getattr(settings, "MAX_ROWS_PER_FILE", 10000)
         try:
-            df = pd.read_csv(io.StringIO(text), sep=sep, dtype=str, engine='python')
+            df = pd.read_csv(io.StringIO(text), sep=sep, dtype=str, engine='python', nrows=max_rows + 1)
         except Exception:
-            df = pd.read_csv(io.StringIO(text), sep=None, dtype=str, engine='python')
+            df = pd.read_csv(io.StringIO(text), sep=None, dtype=str, engine='python', nrows=max_rows + 1)
+
+        if len(df) > max_rows:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File '{filename}' exceeds maximum allowed limit of {max_rows} rows."
+            )
 
         date_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['datum', 'date', 'tag', 'zeitraum', 'buchung'])), None)
         text_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['text', 'verwendungszweck', 'empfänger', 'partner', 'beschreibung', 'details', 'name', 'zahlungsgrund'])), None)

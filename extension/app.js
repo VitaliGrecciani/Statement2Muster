@@ -1697,12 +1697,21 @@ if (btnOpenAuth) {
       const user = res.userSession;
       if (user && user.isLoggedIn) {
         if (confirm(`👤 Angemeldet als: ${user.name || user.email}\nTarif: ${user.plan || 'Standard'}\n\nMöchten Sie sich abmelden?`)) {
+          fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: 'POST' }).catch(() => {});
           chrome.storage.local.remove(['userSession', 'authToken'], () => {
             applyLoggedOutState();
           });
         }
       } else {
-        if (extAuthModal) extAuthModal.classList.remove('hidden');
+        if (extAuthModal) {
+          extAuthModal.classList.remove('hidden');
+          const stepEmail = document.getElementById('auth-step-email');
+          const stepCode = document.getElementById('auth-step-code');
+          const statusMsg = document.getElementById('auth-status-msg');
+          if (stepEmail) stepEmail.style.display = 'block';
+          if (stepCode) stepCode.style.display = 'none';
+          if (statusMsg) statusMsg.style.display = 'none';
+        }
       }
     });
   });
@@ -1712,6 +1721,105 @@ if (btnCloseExtModal) {
   btnCloseExtModal.addEventListener('click', () => {
     if (extAuthModal) extAuthModal.classList.add('hidden');
   });
+}
+
+// 2-Step OTP Authentication Event Handlers (B01)
+const btnRequestOtp = document.getElementById('btn-request-otp');
+const btnVerifyOtp = document.getElementById('btn-verify-otp');
+const btnBackEmail = document.getElementById('btn-back-email');
+const inputAuthEmail = document.getElementById('ext-auth-email');
+const inputAuthCode = document.getElementById('ext-auth-code');
+const authStatusMsg = document.getElementById('auth-status-msg');
+const stepEmailEl = document.getElementById('auth-step-email');
+const stepCodeEl = document.getElementById('auth-step-code');
+
+if (btnRequestOtp) {
+  btnRequestOtp.addEventListener('click', async () => {
+    const email = (inputAuthEmail ? inputAuthEmail.value : '').trim();
+    if (!email || !email.includes('@')) {
+      showAuthStatus('Bitte geben Sie eine gültige E-Mail-Adresse ein.', true);
+      return;
+    }
+    btnRequestOtp.disabled = true;
+    btnRequestOtp.textContent = 'Code wird gesendet...';
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/v1/auth/request-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.detail || `Fehler: ${resp.status}`);
+      }
+      showAuthStatus('Code wurde per E-Mail gesendet.', false);
+      if (stepEmailEl) stepEmailEl.style.display = 'none';
+      if (stepCodeEl) stepCodeEl.style.display = 'block';
+      if (inputAuthCode) inputAuthCode.focus();
+    } catch (err) {
+      showAuthStatus(err.message || 'Verbindungsfehler beim Anfordern des Codes.', true);
+    } finally {
+      btnRequestOtp.disabled = false;
+      btnRequestOtp.textContent = 'Code per E-Mail anfordern';
+    }
+  });
+}
+
+if (btnVerifyOtp) {
+  btnVerifyOtp.addEventListener('click', async () => {
+    const email = (inputAuthEmail ? inputAuthEmail.value : '').trim();
+    const code = (inputAuthCode ? inputAuthCode.value : '').trim();
+    if (!code || code.length !== 6) {
+      showAuthStatus('Bitte geben Sie den 6-stelligen Code ein.', true);
+      return;
+    }
+    btnVerifyOtp.disabled = true;
+    btnVerifyOtp.textContent = 'Wird verifiziert...';
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/v1/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(data.detail || `Ungültiger Code: ${resp.status}`);
+      }
+      const user = {
+        isLoggedIn: true,
+        email: email,
+        name: email.split('@')[0],
+        plan: data.plan || 'Standard'
+      };
+      chrome.storage.local.set({
+        authToken: data.access_token,
+        userSession: user
+      }, () => {
+        applyLoggedInState(user);
+        if (extAuthModal) extAuthModal.classList.add('hidden');
+      });
+    } catch (err) {
+      showAuthStatus(err.message || 'Verifizierung fehlgeschlagen.', true);
+    } finally {
+      btnVerifyOtp.disabled = false;
+      btnVerifyOtp.textContent = 'Anmelden & Verifizieren';
+    }
+  });
+}
+
+if (btnBackEmail) {
+  btnBackEmail.addEventListener('click', () => {
+    if (stepEmailEl) stepEmailEl.style.display = 'block';
+    if (stepCodeEl) stepCodeEl.style.display = 'none';
+    if (authStatusMsg) authStatusMsg.style.display = 'none';
+  });
+}
+
+function showAuthStatus(msg, isError) {
+  if (!authStatusMsg) return;
+  authStatusMsg.style.display = 'block';
+  authStatusMsg.style.color = isError ? '#feb2b2' : '#9ae6b4';
+  authStatusMsg.textContent = msg;
 }
 
 // Initialize on extension startup

@@ -29,18 +29,45 @@ class TokenResponse(BaseModel):
     tenant_id: str
     plan: str
 
+from app.services.email_service import email_service
+
+# Thread/process-safe structures for attempt budgets and rate limits (B01)
+# Key: email -> (failed_attempts_count, lockout_until_datetime)
 _failed_attempts: dict = {}
+# Key: email -> [request_timestamps]
+_request_code_history: dict = {}
 
 @router.post("/request-code")
 async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_db)):
     """
     Issues a single-use 6-digit OTP code with 10-minute TTL for email identity proof (A01).
+    Enforces request-rate budget and truthful delivery status via EmailDeliveryService.
+    Does NOT reset failed-attempts lockout counter (B01).
     """
-    # Reset failed attempts counter when a fresh code is requested
-    _failed_attempts[req.email] = 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    
+    # 1. Rate-limit request-code calls (max 5 requests per 10 minutes)
+    req_times = _request_code_history.get(req.email, [])
+    cutoff = now - datetime.timedelta(minutes=10)
+    req_times = [t for t in req_times if t > cutoff]
+    if len(req_times) >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many verification code requests. Please wait a few minutes before requesting another code."
+        )
+    req_times.append(now)
+    _request_code_history[req.email] = req_times
+
+    # 2. Check active lockout
+    attempts, lockout_until = _failed_attempts.get(req.email, (0, None))
+    if lockout_until and now < lockout_until:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed verification attempts. Please wait until the lockout period expires."
+        )
 
     code = f"{secrets.randbelow(900000) + 100000}"
-    expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=10)
+    expires = now + datetime.timedelta(minutes=10)
     
     # Invalidate previous unused codes for this email
     await db.execute(
@@ -59,22 +86,13 @@ async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_d
     db.add(challenge)
     await db.flush()
 
-    # Outbox delivery record (verifiable test outbox / delivery log)
-    try:
-        from pathlib import Path
-        import json
-        outbox_file = Path("docs/audit_2026-09-09_round3/email_outbox.jsonl")
-        outbox_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(outbox_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "recipient": req.email,
-                "subject": "Your Statement2Muster Verification Code",
-                "code": code,
-                "expires_at": expires.isoformat()
-            }) + "\n")
-    except Exception:
-        pass
+    # 3. Truthful delivery via EmailDeliveryService
+    sent = await email_service.send_verification_email(req.email, code, expires)
+    if not sent:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to deliver verification code email. Please verify email address or try again."
+        )
     
     return {
         "message": "Verification code sent to email.",
@@ -89,7 +107,8 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     Exchanges verified identity / code from launchWebAuthFlow into a short-lived
     10-minute RS256 Bearer JWT (ADR-001).
     Enforces proof-of-identity: token cannot be issued by email alone (A01).
-    Enforces attempt budget: 5 failed attempts locks out the email (429 Too Many Requests).
+    Enforces attempt budget: 5 failed attempts locks out the email for 15 minutes (429 Too Many Requests).
+    Lockout is persistent across request-code invocations (B01).
     """
     if not req.code:
         raise HTTPException(
@@ -97,15 +116,29 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
             detail="Verification code required. Please call /api/v1/auth/request-code first."
         )
 
-    # Enforce attempt budget: lock out after 5 consecutive failures
-    attempts = _failed_attempts.get(req.email, 0)
-    if attempts >= 5:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    attempts, lockout_until = _failed_attempts.get(req.email, (0, None))
+    
+    # Check if currently locked out
+    if lockout_until and now < lockout_until:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed verification attempts. Please request a new verification code."
+            detail="Too many failed verification attempts. Account is temporarily locked out."
+        )
+    if lockout_until and now >= lockout_until:
+        # Lockout period expired, reset counter
+        attempts = 0
+        lockout_until = None
+        _failed_attempts[req.email] = (attempts, lockout_until)
+
+    if attempts >= 5:
+        lockout_until = now + datetime.timedelta(minutes=15)
+        _failed_attempts[req.email] = (attempts, lockout_until)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed verification attempts. Please wait before retrying."
         )
 
-    now = datetime.datetime.now(datetime.timezone.utc)
     c_query = select(AuthChallenge).where(
         AuthChallenge.email == req.email,
         AuthChallenge.code == req.code,
@@ -114,7 +147,14 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     )
     challenge = (await db.execute(c_query)).scalars().first()
     if not challenge:
-        _failed_attempts[req.email] = attempts + 1
+        new_attempts = attempts + 1
+        new_lockout = (now + datetime.timedelta(minutes=15)) if new_attempts >= 5 else None
+        _failed_attempts[req.email] = (new_attempts, new_lockout)
+        if new_attempts >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed verification attempts. Account is temporarily locked out."
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired verification code."
@@ -171,3 +211,9 @@ async def get_jwks_endpoint():
 async def get_public_key():
     """Exposes RS256 Public Key PEM for client-side or third-party token validation."""
     return {"algorithm": "RS256", "public_key": _PUB_KEY.decode()}
+
+@router.post("/logout")
+async def logout_endpoint():
+    """Client logout and session termination (B01)."""
+    return {"message": "Session logged out successfully.", "status": "logged_out"}
+

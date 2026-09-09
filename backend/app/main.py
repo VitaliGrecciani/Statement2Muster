@@ -100,7 +100,8 @@ async def jwks_endpoint():
     return get_jwks()
 
 # Bounded in-memory RAM cache for idempotent conversion replay (B02 / ADR-001)
-_idempotent_result_cache: Dict[str, Tuple[Any, dict, int, str]] = {}
+from app.core.cache import idempotent_result_cache, BoundedMemoryCache
+_idempotent_result_cache = idempotent_result_cache
 
 @app.post("/api/v1/convert")
 async def convert_statements(
@@ -148,8 +149,12 @@ async def convert_statements(
                 detail=f"File exceeds maximum allowed limit of {settings.MAX_FILE_SIZE_BYTES} bytes."
             )
         file_data.append((filename, content))
+        combined_hasher.update(filename.encode("utf-8"))
+        combined_hasher.update(b"\x00")
         combined_hasher.update(content)
+        combined_hasher.update(b"\x00")
 
+    combined_hasher.update(f"{target_format}:{default_bank_account}:{client_entity_id}".encode("utf-8"))
     request_hash = combined_hasher.hexdigest()
 
     # Step 1: Two-Phase Commit Quota Reservation before parsing (ADR-001)
@@ -304,11 +309,7 @@ async def convert_statements(
                         detail=f"Export blocked: Multi-year transactions detected for DATEV EXTF ({distinct_years}). DATEV batches must belong to a single fiscal year."
                     )
 
-        # Cache successful response for idempotent replay
-        if len(_idempotent_result_cache) > 200:
-            _idempotent_result_cache.clear()
-
-        # Handle requested export format
+        # Cache successful response for bounded RAM idempotent replay (B02 / ADR-001)
         if target_format == "json":
             resp_content = statement_result.model_dump(mode="json")
             _idempotent_result_cache[cache_key] = (resp_content, common_headers, 200, "json")
@@ -351,11 +352,13 @@ async def convert_statements(
             )
 
     except HTTPException:
-        await release_quota(db, reservation)
+        if reservation.status == "RESERVED":
+            await release_quota(db, reservation)
         raise
     except Exception as e:
         logger.error(f"Unexpected conversion error: {e}", exc_info=True)
-        await release_quota(db, reservation)
+        if reservation.status == "RESERVED":
+            await release_quota(db, reservation)
         raise HTTPException(status_code=500, detail="Internal conversion error")
 
 

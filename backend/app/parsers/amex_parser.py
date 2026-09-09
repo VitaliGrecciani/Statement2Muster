@@ -5,9 +5,12 @@ import os
 import asyncio
 import concurrent.futures
 import tempfile
+import hashlib
 import logging
 import pdfplumber
 from datetime import datetime
+from fastapi import HTTPException, status
+from app.core.config import settings
 
 logger = logging.getLogger("statement2muster.amex")
 
@@ -39,8 +42,14 @@ class AmexStatementParser:
         card_number = ""
         currency = "EUR"
 
+        file_tag = f"stream_{hashlib.sha256(filename.encode('utf-8')).hexdigest()[:8]}" if filename else "pdf_stream"
         try:
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                if len(pdf.pages) > settings.MAX_PAGES_PER_FILE:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"PDF exceeds maximum allowed limit of {settings.MAX_PAGES_PER_FILE} pages."
+                    )
                 if len(pdf.pages) > 0:
                     p1_text = pdf.pages[0].extract_text() or ""
                     
@@ -151,9 +160,16 @@ class AmexStatementParser:
                                     "_account_holder": account_holder,
                                     "_account_id": card_number
                                 })
+                                if len(transactions) > settings.MAX_ROWS_PER_FILE:
+                                    raise HTTPException(
+                                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                                        detail=f"File exceeds maximum allowed limit of {settings.MAX_ROWS_PER_FILE} rows."
+                                    )
                         i += 1
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error parsing Amex PDF statement ({filename}): {e}")
+            logger.error(f"Error parsing Amex PDF statement ({file_tag}): {e}")
 
         return {
             "account_holder": account_holder,
@@ -184,18 +200,24 @@ class UniversalBankStatementParser:
         account_holder = "Bank Kunde"
         iban = ""
         currency = "EUR"
+        tag = f"[stream_{hashlib.sha256(filename.encode('utf-8')).hexdigest()[:8]}]" if filename else "[pdf_stream]"
 
         try:
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                 total_pages = len(pdf.pages)
-                logger.info(f"[{filename}] UniversalBankParser opening {total_pages} page(s)")
+                if total_pages > settings.MAX_PAGES_PER_FILE:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"PDF exceeds maximum allowed limit of {settings.MAX_PAGES_PER_FILE} pages."
+                    )
+                logger.info(f"{tag} UniversalBankParser opening {total_pages} page(s)")
 
                 if total_pages == 0:
                     return {"account_holder": account_holder, "account_id": iban, "currency": currency, "transactions": []}
 
                 # 1. Metadata from page 1
                 p1_text = pdf.pages[0].extract_text() or ""
-                logger.info(f"[{filename}] Page 1 extracted ({len(p1_text)} chars)")
+                logger.info(f"{tag} Page 1 extracted ({len(p1_text)} chars)")
 
                 # Year detection
                 year_match = re.search(r"(?:per|vom|Zeitraum|Datum|Auszug\s+Nr\.?|Rechnungsabschluss)\s*(?:[0-9\.\-\s/]+)?\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b", p1_text, re.IGNORECASE)
@@ -238,33 +260,41 @@ class UniversalBankStatementParser:
 
                 # Strategy 2: layout=True if Strategy 1 found 0
                 if not transactions:
-                    logger.info(f"[{filename}] Strategy 1 returned 0 txs, trying Strategy 2 (layout=True)...")
+                    logger.info(f"{tag} Strategy 1 returned 0 txs, trying Strategy 2 (layout=True)...")
                     blocks_true = [p.extract_text(layout=True) or "" for p in pdf.pages]
                     raw_layout_combined = "\n".join([b for b in blocks_true if b])
                     transactions = self._extract_transactions(raw_layout_combined, statement_year, account_holder, iban, filename)
 
                 # Strategy 3: extract_tables() if Strategy 1 & 2 returned 0
                 if not transactions:
-                    logger.info(f"[{filename}] Strategy 1 & 2 returned 0 txs, trying Strategy 3 (pdfplumber.extract_tables())...")
+                    logger.info(f"{tag} Strategy 1 & 2 returned 0 txs, trying Strategy 3 (pdfplumber.extract_tables())...")
                     table_txs = self._extract_from_tables(pdf, statement_year, account_holder, iban, filename)
                     if table_txs:
                         transactions = table_txs
-                        logger.info(f"[{filename}] Strategy 3 succeeded: {len(transactions)} txs found in tables")
+                        logger.info(f"{tag} Strategy 3 succeeded: {len(transactions)} txs found in tables")
 
                 # Strategy 4: Automatic Native OCR for Scanned PDFs (when 0 chars or 0 txs found)
                 total_chars = len(raw_combined.strip())
                 if not transactions and (total_chars < 50 or total_pages > 0):
-                    logger.info(f"[{filename}] PDF has no digital text layer ({total_chars} chars). Launching Strategy 4 (High-Res Native OCR Engine)...")
+                    logger.info(f"{tag} PDF has no digital text layer ({total_chars} chars). Launching Strategy 4 (High-Res Native OCR Engine)...")
                     ocr_text = self._run_native_ocr(pdf_bytes, filename)
                     if ocr_text:
-                        logger.info(f"[{filename}] OCR extracted {len(ocr_text)} chars. Parsing OCR transactions...")
+                        logger.info(f"{tag} OCR extracted {len(ocr_text)} chars. Parsing OCR transactions...")
                         ocr_txs = self._extract_transactions(ocr_text, statement_year, account_holder, iban, filename)
                         if ocr_txs:
                             transactions = ocr_txs
-                            logger.info(f"[{filename}] Strategy 4 (OCR) succeeded: {len(transactions)} txs recognized!")
+                            logger.info(f"{tag} Strategy 4 (OCR) succeeded: {len(transactions)} txs recognized!")
 
+                if len(transactions) > settings.MAX_ROWS_PER_FILE:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"File exceeds maximum allowed limit of {settings.MAX_ROWS_PER_FILE} rows."
+                    )
+
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error in UniversalBankStatementParser for '{filename}': {e}", exc_info=True)
+            logger.error(f"Error in UniversalBankStatementParser for {tag}: {e}", exc_info=True)
 
         return {
             "account_holder": account_holder,
@@ -277,13 +307,24 @@ class UniversalBankStatementParser:
     def _run_native_ocr(self, pdf_bytes: bytes, filename: str) -> str:
         """Renders scanned PDF pages to high-res images and recognizes text with Windows Native OCR."""
         import concurrent.futures
+        tag = f"[stream_{hashlib.sha256(filename.encode('utf-8')).hexdigest()[:8]}]" if filename else "[pdf_stream]"
 
         def _ocr_worker():
             try:
                 import pypdfium2 as pdfium
+            except (ImportError, ModuleNotFoundError):
+                logger.debug("pypdfium2 not installed; OCR unavailable")
+                return ""
+
+            try:
                 import winsdk.windows.media.ocr as ocr
                 import winsdk.windows.graphics.imaging as imaging
                 import winsdk.windows.storage as storage
+            except (ImportError, ModuleNotFoundError):
+                logger.debug("Windows Native OCR (winsdk) not available in this environment (Linux/non-Windows)")
+                return ""
+
+            try:
                 import asyncio
                 import tempfile
 
@@ -322,7 +363,7 @@ class UniversalBankStatementParser:
                             res = await engine.recognize_async(bitmap)
                             lines = [self._normalize_ocr_line(line.text) for line in res.lines]
                             page_results.append("\n".join(lines))
-                            logger.info(f"[{filename}] OCR Page {idx+1}/{total_pages}: {len(lines)} lines recognized")
+                            logger.info(f"{tag} OCR Page {idx+1}/{total_pages}: {len(lines)} lines recognized")
 
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -333,7 +374,7 @@ class UniversalBankStatementParser:
 
                 return "\n\n".join(page_results)
             except Exception as ocr_err:
-                logger.error(f"Native OCR failed on '{filename}': {ocr_err}", exc_info=True)
+                logger.error(f"Native OCR failed on {tag}: {ocr_err}", exc_info=True)
                 return ""
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -519,4 +560,9 @@ class UniversalBankStatementParser:
             "_account_holder": holder,
             "_account_id": iban
         })
+        if len(tx_list) > settings.MAX_ROWS_PER_FILE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds maximum allowed limit of {settings.MAX_ROWS_PER_FILE} rows."
+            )
 

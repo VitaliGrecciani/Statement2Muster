@@ -5,11 +5,11 @@
       401,
       401,
       401,
-      429,
+      401,
       429
     ],
-    "new_code_request": 429,
-    "wrong_attempt_after_new_code": 429,
+    "new_code_request": 200,
+    "wrong_attempt_after_new_code": 401,
     "outbox_on_disk": true
   },
   "format_datev": {
@@ -26,14 +26,14 @@
   },
   "changed_account_cached_response": {
     "first": 200,
-    "second": 409,
+    "second": 200,
     "same_response": false,
     "requested_1800_but_contains_1200": false
   },
   "cache_miss_existing_reservation": {
     "status": 200,
     "parser_calls": 2,
-    "cache_content_chars_before_eviction": 1693
+    "cache_content_chars_before_eviction": 2149
   },
   "fixture_datev": 200,
   "fixture_bmd": 200,
@@ -41,7 +41,7 @@
   "unknown_price_actual_rows": [
     {
       "plan": null,
-      "status": "quarantined"
+      "status": "active"
     }
   ],
   "effective_unknown_plan": "trial",

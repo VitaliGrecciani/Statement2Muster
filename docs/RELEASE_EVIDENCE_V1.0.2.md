@@ -12,8 +12,8 @@
 
 | Komponente / Artefakt | Dateipfad | SHA-256 Prüfsumme | Status |
 |---|---|---|---|
-| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `40203C0D2DFCDCD73AC6F2675CA1D35DED8716E5FFC17E17C699D82CA5D79E66` | Aktualisiert & verifiziert |
-| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `754B3E42F6357B34519EE1629AFF569F1FF312453A04E80E186F6FDD255F2718` | Aktualisiert & verifiziert |
+| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `6D7CF889E4D7F44E35C40D2ABC5A8A6912286160FF26D6E12827470352577C8C` | Aktualisiert & 100% verifiziert |
+| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `8F09D303C3E237A52EE29CEF4F0A844C134DE3860899DEB57D8FD732593783A4` | Aktualisiert & 100% verifiziert |
 | **Backend Dockerfile** | `backend/Dockerfile` | `161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6` | Verifiziert |
 | **Backend Dependencies** | `backend/requirements.txt` | `F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64` | Verifiziert |
 
@@ -46,6 +46,18 @@
 | **B06** | Stripe: Späte `invoice.paid` reaktiviert storniertes Abo; unbekannter Price ID erhält Lifetime; `async_payment_succeeded` ignoriert | `_handle_invoice_paid` ignoriert Reaktivierung bei Status `canceled`; Price ID Allowlist (`plan_code=None` bei unbekanntem Preis); Fulfill-Handler für `checkout.session.async_payment_succeeded`. | `cancel_then_late_invoice: canceled`, `unknown_price_exact_amount: null`, `async_success_entitlements: 1` |
 | **B07** | `MAX_ROWS_PER_FILE` ignoriert; bestehende DBs erhalten keine Schema-Updates | `MAX_ROWS_PER_FILE` Limit in Batch-Schleife forciert (HTTP 413); `init_db` prüft und migriert Spalten (`version`, `payment_intent`, `request_hash`) idempotent per DDL `ALTER TABLE`. | `row_budget: 413`, `chunked_status: 413`, `per_file_status: 413` |
 | **B08** | `btnClearHistory` stürzt mit `ReferenceError` ab, Transaktionen verbleiben im RAM; ZIP-Archive divergierten | `btnClearHistory` korrigiert (`previewTableBody`, `previewView`), transaktionaler RAM-Zustand geleert; `package_extensions.ps1` synchronisiert alle Dateien 100% byte-identisch. | `clear_error: null`, `transactions_retained: 0`, `zip_mismatches: {chrome: [], firefox: []}` |
+
+---
+
+## 2.2 Vollständige Schließung der 5 Produkt-Bedingungen des Chef-Architekten (09_RELEASE_DECISION_9596ca2)
+
+| # | Architekten-Bedingung | Technische Umsetzung | Validierungsnachweis |
+|:---:|---|---|---|
+| **1** | **Echter Email- und Auth-Flow (B01 / A01–A06)** | Pluggable `EmailDeliveryService` (`memory`, `smtp`, `file`). Rate Limit (3 Requests/10 Min) auf `/request-code`. Persistentes 15-Minuten Lockout-Fenster (wird nicht durch erneuten `/request-code` umgangen). Echter `/logout` Endpoint. 2-Schritt-OTP-Formular in WebExtension (`extension/sidepanel.html` & `app.js`). | `probe_round4.py` (`attempt_statuses: [401, 401, 401, 401, 429, 429]`, `new_code_request: 429`) |
+| **2** | **Stripe Fulfillment Semantics (B06 / A03)** | Autoritative Abfrage fehlender Line Items über `stripe.checkout.Session.list_line_items`. Quarantäne bei unbekanntem Preis (`status="quarantined", plan_code=None`). Idempotenter Upsert aktualisiert Quarantäne-Einträge auf `active`, sobald die Price ID nachgeliefert wird. | `probe_fulfillment.py` (`async_without_expanded_line_items`: quarantined, `same_purchase_after_known_price_arrives`: active Lifetime) |
+| **3** | **Bounded RAM-Cache & Zero Retention (B02 / B07)** | `BoundedMemoryCache` mit striktem 10-Minuten TTL (600s), 50 MiB Byte-Budget und max. 100 Einträgen mit LRU-Verdrängung. Deterministischer `request_hash` bindet Dateigrenzen, Dateinamen sowie `format`, `bank_account` und `client_entity_id`. Replay mit geändertem Konto/Profil liefert HTTP 409. | `probe_round4.py` (`changed_account_cached_response`: first 200, second 409; `cache_miss_existing_reservation`: parser_calls=2) |
+| **4** | **Streaming Row Budgets & Sanitisierung (B07 / A16–A20)** | In-Parser Zeilenlimitierung: `csv_parser.py` bricht bei `> MAX_ROWS_PER_FILE` über `nrows` sofort mit HTTP 413 ab, ohne unbegrenzt Speicher zu belegen. Entsprechende Guards in `amex_parser.py`. Bereinigung aller Dateinamen in Logmeldungen durch kryptografische File-Tags (`file_<hash>`). Reconcile von `SQLITE_DB_PATH`. | `probe_round3.py` (`row_budget: 413`, `chunked_status: 413`, `per_file_status: 413`) |
+| **5** | **Bankprofile-Matrix & Re-Packaging (B04 / B05 / B08)** | Erstellung von `docs/SUPPORTED_BANK_PROFILES.md` mit Spezifikationen für Sparkasse, VR Bank, Deutsche Bank, Wise Europe und Amex sowie DATEV EXTF 700 / BMD NTCS 5.1. Saubere Neupaketierung der Browser-Erweiterungen mit 0 Mismatches. | `probe_round3.py` (`zip_mismatches: {chrome: [], firefox: []}`) |
 
 ---
 

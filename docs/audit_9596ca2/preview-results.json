@@ -1,0 +1,53 @@
+{
+  "datev": {
+    "summary": {
+      "count": 1,
+      "totalFormatted": "10,00 €"
+    },
+    "transactions": [
+      {
+        "date": "01.01.2025",
+        "text": "SHOP;Branch",
+        "amountStr": "10,00",
+        "numericVal": 10,
+        "currency": "EUR",
+        "belegNr": "REF;SECOND",
+        "konto": "1200"
+      }
+    ]
+  },
+  "bmd": {
+    "summary": {
+      "count": 1,
+      "totalFormatted": "10,00 €"
+    },
+    "transactions": [
+      {
+        "date": "01.01.2025",
+        "text": "SHOP;Branch",
+        "amountStr": "10,00",
+        "numericVal": 10,
+        "currency": "EUR",
+        "belegNr": "REF;SECOND",
+        "konto": "2800"
+      }
+    ]
+  },
+  "muster_csv": {
+    "summary": {
+      "count": 1,
+      "totalFormatted": "10,00 €"
+    },
+    "transactions": [
+      {
+        "date": "01.01.2025",
+        "text": "SHOP;Branch",
+        "amountStr": "10,00",
+        "numericVal": 10,
+        "currency": "EUR",
+        "belegNr": "REF;SECOND",
+        "konto": ""
+      }
+    ]
+  }
+}
