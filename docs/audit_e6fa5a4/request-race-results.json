@@ -1,0 +1,13 @@
+{
+  "parallel_requests": 6,
+  "statuses": [
+    429,
+    200,
+    429,
+    429,
+    200,
+    200
+  ],
+  "persisted_request_count": 3,
+  "delivered_memory_messages": 3
+}

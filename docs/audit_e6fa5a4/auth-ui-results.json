@@ -1,0 +1,10 @@
+{
+  "extension": {
+    "local_token_present": true,
+    "conversion_authorization_header": "Bearer synthetic-token"
+  },
+  "extension_firefox_build": {
+    "local_token_present": true,
+    "conversion_authorization_header": "Bearer synthetic-token"
+  }
+}

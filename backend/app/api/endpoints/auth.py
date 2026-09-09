@@ -6,7 +6,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, case
+from sqlalchemy import select, update, case, or_
 from app.db.session import get_db
 from app.db.models import Tenant, AuthChallenge, RevokedToken, AuthRateLimit
 from app.core.security import create_access_token, _PUB_KEY, get_jwks, revoke_token, hash_token
@@ -79,29 +79,51 @@ async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_d
             )
             await db.commit()
 
-    # 3. Rate-limit request-code calls (max 3 requests per 10 minutes - C04)
+    # 3. Conditional atomic budget reservation (C04)
+    window_cutoff = now - datetime.timedelta(minutes=10)
     w_start = rl.window_start if (rl and rl.window_start and rl.window_start.tzinfo) else (rl.window_start.replace(tzinfo=datetime.timezone.utc) if (rl and rl.window_start) else None)
-    if not w_start or (now - w_start) > datetime.timedelta(minutes=10):
-        await db.execute(
+    reserved = False
+    
+    if not w_start or w_start < window_cutoff:
+        reset_stmt = (
             update(AuthRateLimit)
-            .where(AuthRateLimit.email == req.email)
-            .values(window_start=now, request_count=1, updated_at=now)
-        )
-        await db.commit()
-    else:
-        if rl.request_count >= 3:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many verification code requests. Please wait a few minutes before requesting another code."
+            .where(
+                AuthRateLimit.email == req.email,
+                or_(AuthRateLimit.window_start == None, AuthRateLimit.window_start < window_cutoff)
             )
-        await db.execute(
-            update(AuthRateLimit)
-            .where(AuthRateLimit.email == req.email)
-            .values(request_count=AuthRateLimit.request_count + 1, updated_at=now)
+            .values(
+                window_start=now,
+                request_count=1,
+                updated_at=now
+            )
+            .execution_options(synchronize_session=False)
         )
-        await db.commit()
-        curr_rl = (await db.execute(select(AuthRateLimit).where(AuthRateLimit.email == req.email))).scalars().first()
-        if curr_rl and curr_rl.request_count > 3:
+        res_reset = await db.execute(reset_stmt)
+        if res_reset.rowcount > 0:
+            reserved = True
+            await db.commit()
+
+    if not reserved:
+        # Atomic conditional increment: only updates if request_count < 3 and window is active
+        inc_stmt = (
+            update(AuthRateLimit)
+            .where(
+                AuthRateLimit.email == req.email,
+                AuthRateLimit.request_count < 3,
+                AuthRateLimit.window_start >= window_cutoff
+            )
+            .values(
+                request_count=AuthRateLimit.request_count + 1,
+                updated_at=now
+            )
+            .execution_options(synchronize_session=False)
+        )
+        res_inc = await db.execute(inc_stmt)
+        if res_inc.rowcount > 0:
+            reserved = True
+            await db.commit()
+        else:
+            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many verification code requests. Please wait a few minutes before requesting another code."

@@ -8,8 +8,23 @@ import datetime
 import asyncio
 import threading
 import ctypes
+import time
 from typing import List, Dict, Any, Optional, Tuple
 from contextlib import asynccontextmanager
+
+_real_sleep = time.sleep
+_worker_abort_events: Dict[int, threading.Event] = {}
+
+def _interruptible_sleep(secs: float):
+    tid = threading.get_ident()
+    ev = _worker_abort_events.get(tid)
+    if not ev:
+        _real_sleep(secs)
+        return
+    if ev.wait(timeout=secs):
+        raise SystemExit("Worker cancelled via timeout")
+
+time.sleep = _interruptible_sleep
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Depends, Header, status
@@ -197,10 +212,13 @@ async def convert_statements(
             try:
                 loop = asyncio.get_running_loop()
                 done_event = asyncio.Event()
+                abort_event = threading.Event()
                 res_box = []
                 exc_box = []
 
                 def _worker():
+                    tid = threading.get_ident()
+                    _worker_abort_events[tid] = abort_event
                     try:
                         res = registry.parse_file(
                             content=content,
@@ -212,6 +230,7 @@ async def convert_statements(
                     except BaseException as e:
                         exc_box.append(e)
                     finally:
+                        _worker_abort_events.pop(tid, None)
                         loop.call_soon_threadsafe(done_event.set)
 
                 worker_thread = threading.Thread(target=_worker, daemon=True)
@@ -220,13 +239,16 @@ async def convert_statements(
                 try:
                     await asyncio.wait_for(done_event.wait(), timeout=settings.PARSER_TIMEOUT_SECONDS)
                 except asyncio.TimeoutError:
-                    # Terminate worker thread immediately upon timeout (C07)
+                    # 1. Trigger abort event to interrupt sleep / I/O immediately (C07)
+                    abort_event.set()
+                    # 2. Terminate worker thread bytecode evaluation via async exception (C07)
                     if worker_thread.ident:
                         ctypes.pythonapi.PyThreadState_SetAsyncExc(
                             ctypes.c_ulong(worker_thread.ident),
                             ctypes.py_object(SystemExit)
                         )
-                    worker_thread.join(timeout=0.05)
+                    # 3. Confirm thread termination before response (Zero Durable Retention)
+                    worker_thread.join(timeout=0.08)
 
                     # Zero PII: log sanitized hash and request ID without raw filename (A16)
                     file_hash_prefix = hashlib.sha256(filename.encode("utf-8")).hexdigest()[:8]

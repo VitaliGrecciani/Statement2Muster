@@ -1,0 +1,24 @@
+{
+  "logout": {
+    "request_code": 200,
+    "token": 200,
+    "before": 200,
+    "logout": 200,
+    "same_token_after": 401
+  },
+  "memory_backend_writes_disk": false,
+  "file_delivery_success_when_path_is_directory": false,
+  "cache": {
+    "expired_object_retained_before_any_access": false,
+    "expired_value_served": false
+  },
+  "stripe_test_key_line_items_api_calls": 1,
+  "quarantine_before_invoice": {
+    "status": "quarantined",
+    "plan": null
+  },
+  "quarantine_after_invoice": {
+    "status": "quarantined",
+    "plan": null
+  }
+}
