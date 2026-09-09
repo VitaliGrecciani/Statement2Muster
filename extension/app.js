@@ -1163,6 +1163,30 @@ function displayPreview(csvText) {
     return { count: 0, totalFormatted: '0,00 €' };
   }
 
+  function parseRow(row) {
+    const res = [];
+    let cur = '';
+    let inQ = false;
+    for (let i = 0; i < row.length; i++) {
+      const c = row[i];
+      if (c === '"') {
+        if (inQ && row[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQ = !inQ;
+        }
+      } else if (c === ';' && !inQ) {
+        res.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    res.push(cur.trim());
+    return res;
+  }
+
   parsedTransactions = [];
   let totalSum = 0;
 
@@ -1174,7 +1198,7 @@ function displayPreview(csvText) {
     const dataRows = lines.slice(2);
     dataRows.forEach(row => {
       if (!row.trim()) return;
-      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const cols = parseRow(row).map(c => c.replace(/^"|"$/g, '').trim());
       const amountRaw = cols[0] || '0,00';
       const sh = (cols[1] || 'S').toUpperCase();
       const currency = cols[2] || 'EUR';
@@ -1210,7 +1234,7 @@ function displayPreview(csvText) {
     const dataRows = lines.slice(1);
     dataRows.forEach(row => {
       if (!row.trim()) return;
-      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const cols = parseRow(row).map(c => c.replace(/^"|"$/g, '').trim());
       const date = cols[1] || '';
       const konto = cols[2] || '';
       const amountStr = cols[4] || '0,00';
@@ -1236,7 +1260,7 @@ function displayPreview(csvText) {
     const dataRows = lines.slice(1);
     dataRows.forEach(row => {
       if (!row.trim()) return;
-      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const cols = parseRow(row).map(c => c.replace(/^"|"$/g, '').trim());
       const date = cols[0] || '';
       const text = cols[1] || '';
       const amountStr = cols[2] || '0,00';

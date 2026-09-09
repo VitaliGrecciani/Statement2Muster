@@ -159,14 +159,8 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         else:
             plan_code = None # Explicitly unrecognized price catalog ID
     else:
-        if mode == "payment":
-            if amount_total in (8900, 14900):
-                plan_code = "lifetime"
-        elif mode == "subscription":
-            if amount_total == 490:
-                plan_code = "starter"
-            elif amount_total in (1900, 2900):
-                plan_code = "pro"
+        # Require explicit Price ID from catalog; do not grant plan based on amount alone
+        plan_code = None
 
     if mode == "payment":
         # Deduplicate checkout session events
@@ -233,6 +227,9 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
     if ent:
+        if ent.status == "canceled":
+            logger.warning(f"Subscription {sub_id} is already canceled. Ignoring stale subscription.updated.")
+            return
         ent.status = mapped_status
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()

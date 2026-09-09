@@ -1,0 +1,3 @@
+"EXTF";700;21;"Buchungsstapel";12;20260909095628000;;"";"";"";1001;10001;20250101;4;20250101;20251231;"Statement2Muster";"";1;;0;"EUR"
+"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";"Basis-Umsatz";"WKZ Basis-Umsatz";"Konto";"Gegenkonto (ohne BU-Schlüssel)";"BU-Schlüssel";"Belegdatum";"Belegfeld 1";"Belegfeld 2";"Skonto";"Buchungstext"
+"10,00";"S";"EUR";"";"";"";"1200";"";"";"0101";"REF;SECOND";"";"";"SHOP;Branch"

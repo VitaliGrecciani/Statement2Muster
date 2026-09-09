@@ -207,7 +207,8 @@ async def test_regression_3_stripe_lifecycle_fulfillment_and_refund():
             "currency": "eur",
             "payment_status": "paid",
             "payment_intent": pi_id,
-            "customer_details": {"email": test_email}
+            "customer_details": {"email": test_email},
+            "line_items": {"data": [{"price": {"id": "price_lifetime_8900"}}]}
         }
         # Process twice with different event IDs (duplicate webhook delivery)
         for i in range(2):

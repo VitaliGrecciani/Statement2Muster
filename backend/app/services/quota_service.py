@@ -20,6 +20,8 @@ async def get_or_create_trial_entitlement(db: AsyncSession, tenant_id: str) -> E
         # Filter valid entitlements by valid_until and sort by plan priority (Lifetime > PRO > Starter > Trial)
         valid_ents = []
         for e in all_ents:
+            if not e.plan_code or e.plan_code.lower() not in PLAN_PRIORITY:
+                continue
             if e.valid_until is not None:
                 exp = e.valid_until if e.valid_until.tzinfo else e.valid_until.replace(tzinfo=datetime.timezone.utc)
                 if exp <= now:

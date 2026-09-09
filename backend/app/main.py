@@ -123,7 +123,18 @@ async def convert_statements(
 
     tenant_id = tenant_info.get("tenant_id")
     idempotency_key = x_idempotency_key or str(uuid.uuid4())
-    target_format = (format or export_format).lower().strip()
+
+    allowed_formats = {"json", "datev", "bmd", "muster_csv"}
+    raw_format = (format or export_format or "datev").lower().strip()
+    if not raw_format:
+        target_format = "datev"
+    elif raw_format in allowed_formats:
+        target_format = raw_format
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported format '{raw_format}'. Allowed formats: {sorted(allowed_formats)}"
+        )
 
     # Read all files into memory and compute deterministic request_hash for idempotency (A02, A18)
     file_data = []
@@ -147,7 +158,7 @@ async def convert_statements(
     )
 
     # Check RAM-only idempotent replay cache (ADR-001 / B02)
-    cache_key = f"{tenant_id}_{idempotency_key}_{target_format}"
+    cache_key = f"{tenant_id}_{idempotency_key}_{target_format}_{default_bank_account}_{client_entity_id}"
     if cache_key in _idempotent_result_cache:
         cached_content, cached_headers, cached_status, cached_fmt = _idempotent_result_cache[cache_key]
         if cached_fmt == "json":

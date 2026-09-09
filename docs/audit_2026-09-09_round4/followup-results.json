@@ -1,0 +1,50 @@
+{
+  "lockout_reset": {
+    "attempt_statuses": [
+      401,
+      401,
+      401,
+      401,
+      401,
+      429
+    ],
+    "new_code_request": 200,
+    "wrong_attempt_after_new_code": 401,
+    "outbox_on_disk": true
+  },
+  "format_datev": {
+    "status": 422,
+    "is_datev": false
+  },
+  "format_unexpected": {
+    "status": 400,
+    "is_datev": false
+  },
+  "format_empty": {
+    "status": 422,
+    "is_datev": false
+  },
+  "changed_account_cached_response": {
+    "first": 200,
+    "second": 200,
+    "same_response": false,
+    "requested_1800_but_contains_1200": false
+  },
+  "cache_miss_existing_reservation": {
+    "status": 200,
+    "parser_calls": 2,
+    "cache_content_chars_before_eviction": 2149
+  },
+  "fixture_datev": 200,
+  "fixture_bmd": 200,
+  "fixture_muster_csv": 200,
+  "unknown_price_actual_rows": [
+    {
+      "plan": null,
+      "status": "active"
+    }
+  ],
+  "effective_unknown_plan": "trial",
+  "no_price_still_grants": null,
+  "cancel_then_stale_updated": "canceled"
+}
