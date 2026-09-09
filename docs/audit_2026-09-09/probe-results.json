@@ -1,0 +1,164 @@
+{
+  "identity_without_verification": {
+    "no_code": 401,
+    "wrong_code": 401,
+    "bypassed": false
+  },
+  "jwks_status": 200,
+  "changed_body_replay": {
+    "statuses": [
+      200,
+      409,
+      409,
+      409,
+      409
+    ],
+    "charged_units": 1,
+    "replay_attack_blocked": true
+  },
+  "partial_success": {
+    "status": 200,
+    "successful_files": 1,
+    "unparsed_lines": [
+      {
+        "file": "bad.csv",
+        "error": "CSV-Datei 'bad.csv' enthält keine erkennbaren Bankbuchungs-Spalten (Datum, Betrag)."
+      }
+    ]
+  },
+  "actual_body_budget": {
+    "configured_bytes": 100,
+    "sent_bytes": 181,
+    "status": 413
+  },
+  "per_file_budget": {
+    "configured_bytes": 10,
+    "file_bytes": 45,
+    "status": 413
+  },
+  "pending_quota": {
+    "trial_allowance": 3,
+    "first_reservation_ok": true,
+    "second_reservation_blocked": true
+  },
+  "billing_unpaid_unknown_purchase_and_refund": {
+    "unpaid_rejected_entitlements_count": 0
+  },
+  "trial_then_paid_selected_plan": "lifetime",
+  "refund_status": "canceled",
+  "invalid_amount": {
+    "transactions": [
+      {
+        "date": "2025-01-01",
+        "cents": 0,
+        "currency": "EUR",
+        "account": "Bank_CSV",
+        "validation": "ERROR"
+      }
+    ]
+  },
+  "dropped_date": {
+    "transactions": [
+      {
+        "date": "None",
+        "cents": 1000,
+        "currency": "EUR",
+        "account": "Bank_CSV",
+        "validation": "ERROR"
+      },
+      {
+        "date": "2025-03-01",
+        "cents": 2000,
+        "currency": "EUR",
+        "account": "Bank_CSV",
+        "validation": "VALID"
+      }
+    ]
+  },
+  "currency_alias": {
+    "transactions": [
+      {
+        "date": "2025-01-01",
+        "cents": 1000,
+        "currency": "USD",
+        "account": "Bank_CSV",
+        "validation": "VALID"
+      }
+    ]
+  },
+  "account_mixing": {
+    "transactions": [
+      {
+        "date": "2025-01-01",
+        "cents": 1000,
+        "currency": "EUR",
+        "account": "SYNTHETIC_A",
+        "validation": "VALID"
+      },
+      {
+        "date": "2025-01-02",
+        "cents": 2000,
+        "currency": "EUR",
+        "account": "SYNTHETIC_B",
+        "validation": "VALID"
+      }
+    ]
+  },
+  "debit_suffix": {
+    "transactions": [
+      {
+        "date": "2025-01-01",
+        "cents": -1000,
+        "currency": "EUR",
+        "account": "Bank_CSV",
+        "validation": "VALID"
+      }
+    ],
+    "reconciliation": "BALANCED"
+  },
+  "reference_delimiter": {
+    "transactions": [
+      {
+        "date": "2025-01-01",
+        "cents": 1000,
+        "currency": "EUR",
+        "account": "Bank_CSV",
+        "validation": "VALID"
+      }
+    ],
+    "csv_column_counts": [
+      6,
+      6
+    ],
+    "formula_preserved": false
+  },
+  "datev_previous_year": {
+    "transaction_year": 2025,
+    "header": "\"EXTF\";700;21;\"Buchungsstapel\";12;20260909091342000;;\"\";\"\";\"\";1001;10001;20250101;4;20250101;20251231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+    "positive_bank_movement_indicator": "S"
+  },
+  "versions": {
+    "python-multipart": "0.0.32",
+    "fastapi": "0.141.1",
+    "starlette": "1.6.0",
+    "stripe": "15.6.1",
+    "pytest": "9.1.1",
+    "SQLAlchemy": "2.0.52"
+  },
+  "release_hashes": {
+    "dist/statement2muster-chrome-v1.0.2.zip": "A0D71C5982798D245DAF38C7404359D8FBC803002BDB07EBC97F0991AAAECEC9",
+    "dist/statement2muster-firefox-v1.0.2.zip": "8E1A21E60DC2DE8D01B1FCCA92E3D4E26C5B7A1F0D257AA753D2D590D6C4076A",
+    "backend/Dockerfile": "161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6",
+    "backend/requirements.txt": "F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64"
+  },
+  "zip_source_comparison": {
+    "chrome": {
+      "entries": 13,
+      "mismatches": []
+    },
+    "firefox": {
+      "entries": 14,
+      "mismatches": []
+    }
+  }
+}

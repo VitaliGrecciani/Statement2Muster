@@ -45,8 +45,10 @@ class AmexStatementParser:
                     p1_text = pdf.pages[0].extract_text() or ""
                     
                     # 1. Date (e.g. "Datum 07.08.26" or "07.08.2026")
+                    stmt_month = "01"
                     date_match = re.search(r"Datum\s+(\d{2})\.(\d{2})\.(\d{2,4})", p1_text, re.IGNORECASE)
                     if date_match:
+                        stmt_month = date_match.group(2)
                         raw_year = date_match.group(3)
                         statement_year = f"20{raw_year}" if len(raw_year) == 2 else raw_year
 
@@ -80,7 +82,7 @@ class AmexStatementParser:
                                     account_holder = next_line
                                     break
 
-                logger.info(f"[{filename}] Clean Metadata -> Holder: '{account_holder}', Card: '{card_number}', Year: '{statement_year}'")
+                logger.info(f"Amex Parser: Year='{statement_year}' detected")
 
                 # Transaction matching
                 line_pattern = re.compile(
@@ -103,7 +105,13 @@ class AmexStatementParser:
                             
                             # Date DD.MM.YYYY
                             trans_day, trans_month = trans_date_raw.split(".")
-                            full_date = f"{trans_day}.{trans_month}.{statement_year}"
+                            tx_year = statement_year
+                            if stmt_month in ("01", "02") and trans_month in ("11", "12"):
+                                try:
+                                    tx_year = str(int(statement_year) - 1)
+                                except ValueError:
+                                    pass
+                            full_date = f"{trans_day}.{trans_month}.{tx_year}"
                             
                             # Clean details
                             cleaned_details = re.sub(r"\b\d+[\.,]\d{2}\s+[A-Z\s]+(?:DOLLAR|USD|GBP|CHF|YEN)\b", "", details).strip()
@@ -187,7 +195,7 @@ class UniversalBankStatementParser:
 
                 # 1. Metadata from page 1
                 p1_text = pdf.pages[0].extract_text() or ""
-                logger.info(f"[{filename}] Page 1 preview ({len(p1_text)} chars): {repr(p1_text[:300])}")
+                logger.info(f"[{filename}] Page 1 extracted ({len(p1_text)} chars)")
 
                 # Year detection
                 year_match = re.search(r"(?:per|vom|Zeitraum|Datum|Auszug\s+Nr\.?|Rechnungsabschluss)\s*(?:[0-9\.\-\s/]+)?\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b", p1_text, re.IGNORECASE)
@@ -220,7 +228,7 @@ class UniversalBankStatementParser:
                     elif filename:
                         account_holder = filename.rsplit('.', 1)[0]
 
-                logger.info(f"[{filename}] Extracted Metadata -> Holder='{account_holder}', IBAN='{iban}', Year='{statement_year}'")
+                logger.info(f"Universal Parser: Year='{statement_year}' detected")
 
                 # Multi-strategy extraction: Strategy 1 (Stream), Strategy 2 (Layout), Strategy 3 (Tables)
                 # Strategy 1: layout=False

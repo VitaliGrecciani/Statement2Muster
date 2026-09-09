@@ -371,17 +371,28 @@ function hideStatus() {
 function normalizeDate(d) {
   if (!d) return '';
   d = d.trim().split(' ')[0];
+  let day = 0, month = 0, year = 0;
   let m = d.match(/^(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
   if (m) {
-    return `${m[3].padStart(2, '0')}.${m[2].padStart(2, '0')}.${m[1]}`;
+    year = parseInt(m[1], 10);
+    month = parseInt(m[2], 10);
+    day = parseInt(m[3], 10);
+  } else {
+    m = d.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})/);
+    if (m) {
+      day = parseInt(m[1], 10);
+      month = parseInt(m[2], 10);
+      let y = m[3];
+      if (y.length === 2) y = '20' + y;
+      year = parseInt(y, 10);
+    }
   }
-  m = d.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})/);
-  if (m) {
-    let y = m[3];
-    if (y.length === 2) y = '20' + y;
-    return `${m[1].padStart(2, '0')}.${m[2].padStart(2, '0')}.${y}`;
+  if (!m || month < 1 || month > 12 || day < 1 || day > 31) return '';
+  const testDate = new Date(year, month - 1, day);
+  if (testDate.getFullYear() !== year || testDate.getMonth() !== month - 1 || testDate.getDate() !== day) {
+    return ''; // Invalid calendar date (e.g. 31.02)
   }
-  return d;
+  return `${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`;
 }
 
 function normalizeAmount(val) {
@@ -510,8 +521,22 @@ async function extractTextFromPdf(arrayBuffer) {
   for (let p = 1; p <= pdfDoc.numPages; p++) {
     const page = await pdfDoc.getPage(p);
     const content = await page.getTextContent();
-    const strings = content.items.map(it => it.str);
-    fullText += strings.join(' ') + '\n';
+    let lastY = null;
+    let pageText = '';
+    for (const item of content.items) {
+      const currentY = item.transform && typeof item.transform[5] === 'number' ? item.transform[5] : null;
+      if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3) {
+        pageText += '\n';
+      } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
+        pageText += ' ';
+      }
+      pageText += item.str;
+      if (item.hasEOL) {
+        pageText += '\n';
+      }
+      lastY = currentY !== null ? currentY : lastY;
+    }
+    fullText += pageText + '\n';
   }
   return fullText;
 }
@@ -521,10 +546,15 @@ function parsePdfTextClientSide(text, filename = '') {
   // 1. Amex Format Check
   if (/american express|amex/i.test(text) || /american express|amex/i.test(filename)) {
     let year = '2026';
-    const yearMatch = text.match(/Datum\s+(\d{2})\.(\d{2})\.(\d{2,4})/i) || text.match(/\b(202[0-9])\b/);
-    if (yearMatch) {
-      const matched = yearMatch[3] || yearMatch[1];
+    let stmtMonth = '';
+    const dateMatch = text.match(/Datum\s+(\d{2})\.(\d{2})\.(\d{2,4})/i);
+    if (dateMatch) {
+      stmtMonth = dateMatch[2];
+      const matched = dateMatch[3];
       year = matched.length === 2 ? '20' + matched : matched;
+    } else {
+      const yearMatch = text.match(/\b(202[0-9])\b/);
+      if (yearMatch) year = yearMatch[1];
     }
 
     let card = '';
@@ -550,7 +580,11 @@ function parsePdfTextClientSide(text, filename = '') {
       if (match) {
         const [_, transDate, bookDate, details, amountRaw, isCredit] = match;
         const [day, mo] = transDate.split('.');
-        const fullDate = `${day}.${mo}.${year}`;
+        let txYear = year;
+        if ((stmtMonth === '01' || stmtMonth === '02') && (mo === '11' || mo === '12')) {
+          txYear = (parseInt(year, 10) - 1).toString();
+        }
+        const fullDate = `${day}.${mo}.${txYear}`;
         const finalAmount = isCredit ? amountRaw : '-' + amountRaw;
         txs.push({
           date: fullDate,
@@ -718,7 +752,36 @@ async function processDemoConversion() {
   showLoupeToast('✅ <strong>DATEV Muster erfolgreich erstellt!</strong> Sie können die Datei nun herunterladen.');
 }
 
-// Backend Conversion Handler (when optional local server is running)
+// Visual Reconciliation Badge (Solldoppik status)
+function updateReconciliationBadge(status) {
+  const badge = document.getElementById('reconciliation-badge');
+  const icon = document.getElementById('reconciliation-badge-icon');
+  const text = document.getElementById('reconciliation-badge-text');
+  if (!badge) return;
+
+  badge.classList.remove('hidden');
+  if (status === 'BALANCED') {
+    badge.style.background = 'rgba(34, 197, 94, 0.15)';
+    badge.style.color = '#4ade80';
+    badge.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+    if (icon) icon.textContent = '✓';
+    if (text) text.textContent = 'Salden ausgeglichen (Solldoppik)';
+  } else if (status === 'DISCREPANCY') {
+    badge.style.background = 'rgba(239, 68, 68, 0.15)';
+    badge.style.color = '#f87171';
+    badge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+    if (icon) icon.textContent = '⚠';
+    if (text) text.textContent = 'Saldenabweichung (Prüfung nötig)';
+  } else {
+    badge.style.background = 'rgba(168, 162, 158, 0.15)';
+    badge.style.color = '#a8a29e';
+    badge.style.borderColor = 'rgba(168, 162, 158, 0.3)';
+    if (icon) icon.textContent = 'ℹ';
+    if (text) text.textContent = 'Einzelbeleg (kein Saldo)';
+  }
+}
+
+// Backend Conversion Handler (when managed or local server is running)
 async function processBackendConversion(files) {
   const isMulti = files.length > 1;
   const formData = new FormData();
@@ -726,8 +789,27 @@ async function processBackendConversion(files) {
     formData.append('files', file);
   }
 
-  const response = await fetch(`${apiBaseUrl}/api/v1/convert`, {
+  // Determine chosen export format
+  const formatRadio = document.querySelector('input[name="export-format"]:checked');
+  const selectedFormat = formatRadio ? formatRadio.value : 'datev';
+
+  // Read auth token from session or local storage
+  let token = '';
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.session) {
+      const s = await chrome.storage.session.get('authToken');
+      token = s.authToken || '';
+    }
+  } catch (e) {}
+
+  const reqHeaders = {};
+  if (token) {
+    reqHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
     method: 'POST',
+    headers: reqHeaders,
     body: formData
   });
 
@@ -735,6 +817,10 @@ async function processBackendConversion(files) {
     const errData = await response.json().catch(() => ({}));
     throw new Error(errData.detail || `Server Fehler: ${response.status}`);
   }
+
+  // Extract reconciliation and audit headers
+  const reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
+  updateReconciliationBadge(reconStatus);
 
   const isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
   const accountsRaw = response.headers.get('X-Accounts-Found') || '[]';
@@ -754,7 +840,13 @@ async function processBackendConversion(files) {
   currentCsvBlob = new Blob([buffer], { type: 'text/csv;charset=windows-1252;' });
   
   let batchName = '';
-  if (isMulti) {
+  const dispHeader = response.headers.get('Content-Disposition') || '';
+  const filenameMatch = dispHeader.match(/filename="?([^";]+)"?/);
+
+  if (filenameMatch && filenameMatch[1]) {
+    currentCsvFilename = filenameMatch[1];
+    batchName = filenameMatch[1];
+  } else if (isMulti) {
     currentCsvFilename = `Muster_Sammelauszug_${files.length}_Dateien.csv`;
     batchName = `⚡ Sammel-Auszug (${files.length} Dateien)`;
   } else {
@@ -766,7 +858,8 @@ async function processBackendConversion(files) {
     lastConvertedCsv: currentCsvText,
     lastConvertedFilename: currentCsvFilename,
     lastAccountsFound: currentAccountsFound,
-    lastDuplicatesCount: currentDuplicatesCount
+    lastDuplicatesCount: currentDuplicatesCount,
+    lastReconciliationStatus: reconStatus
   });
 
   const stats = displayPreview(csvText);
@@ -838,7 +931,7 @@ async function processClientSideFiles(files) {
     }
   }
 
-  // Deduplicate
+  // Deduplication check (non-destructive in R0: all transactions are preserved)
   const seen = new Set();
   const uniqueTxs = [];
   for (const tx of allTransactions) {
@@ -847,8 +940,9 @@ async function processClientSideFiles(files) {
       totalDuplicates++;
     } else {
       seen.add(key);
-      uniqueTxs.push(tx);
     }
+    // R0 fix (A09): do not drop transactions based on naive heuristic
+    uniqueTxs.push(tx);
   }
 
   if (uniqueTxs.length === 0) {
@@ -1015,13 +1109,13 @@ function renderSafeguards(accounts, dupes) {
             ${acc.card ? `<span class="group-badge">Karte ${escapeHtml(acc.card)}</span>` : ''}
             <span class="group-badge">${acc.count} Buchungen</span>
           </div>
-          <button class="btn-download-single-acc" title="Nur diese Auszüge als DATEV CSV laden">
+          <button class="btn-download-single-acc" style="opacity: 0.5; cursor: not-allowed;" title="Mandanten-Einzelexport ist zum Schutz vor Datenmischung vorübergehend deaktiviert (Sicherheits-Audit R0)">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span>CSV (${acc.count})</span>
+            <span>CSV (Gesperrt)</span>
           </button>
         </div>
         <div class="group-files-list">
@@ -1055,28 +1149,10 @@ function renderSafeguards(accounts, dupes) {
   }
 }
 
-// Download only transactions of a specific company
+// Download only transactions of a specific company (R0 fix: disabled to prevent cross-account contamination)
 function downloadAccountSpecificCsv(acc) {
-  let matchedRows = parsedTransactions;
-  if (activeAccountFilter !== 'ALL') {
-    matchedRows = parsedTransactions.filter(tx => {
-      if (acc.name && tx.text && tx.text.includes(acc.name)) return true;
-      return true;
-    });
-  }
-
-  const csvHeader = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n";
-  const csvBody = matchedRows.map(tx => 
-    `${tx.date};${tx.text};${tx.amountStr};${tx.currency};${tx.belegNr || ''};${tx.konto || ''}`
-  ).join("\r\n");
-
-  const fullCsv = csvHeader + csvBody;
-  const win1252Bytes = encodeWindows1252(fullCsv);
-  const blob = new Blob([win1252Bytes], { type: 'text/csv;charset=windows-1252;' });
-  const safeName = acc.name.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `Muster_${safeName}.csv`;
-
-  downloadCsvBlob(blob, filename);
+  showStatus('error', 'Mandanten-Einzelexport ist zum Schutz vor Datenmischung vorübergehend deaktiviert (Sicherheits-Audit R0). Bitte nutzen Sie den Gesamtexport.');
+  return;
 }
 
 // Render Preview Table with Floating Loupe Popover
@@ -1087,48 +1163,116 @@ function displayPreview(csvText) {
     return { count: 0, totalFormatted: '0,00 €' };
   }
 
-  const dataRows = lines.slice(1);
   parsedTransactions = [];
   let totalSum = 0;
 
-  dataRows.forEach(row => {
-    if (!row.trim()) return;
-    const cols = row.split(';');
-    const date = cols[0] || '';
-    const text = cols[1] || '';
-    const amountStr = cols[2] || '0,00';
-    const currency = cols[3] || 'EUR';
-    const belegNr = cols[4] || '';
-    const konto = cols[5] || '';
+  // 1. DATEV EXTF Format
+  if (lines[0].startsWith('"EXTF"') || lines[0].startsWith('EXTF')) {
+    let year = '2026';
+    const yrMatch = lines[0].match(/;\b(202[0-9])0101;/);
+    if (yrMatch) year = yrMatch[1];
+    const dataRows = lines.slice(2);
+    dataRows.forEach(row => {
+      if (!row.trim()) return;
+      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const amountRaw = cols[0] || '0,00';
+      const sh = (cols[1] || 'S').toUpperCase();
+      const currency = cols[2] || 'EUR';
+      const konto = cols[6] || '';
+      const ttmm = cols[9] || '0101';
+      const date = ttmm.length === 4 ? `${ttmm.substring(0, 2)}.${ttmm.substring(2, 4)}.${year}` : ttmm;
+      const belegNr = cols[10] || '';
+      const text = cols[13] || '';
 
-    const numericVal = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
-    if (!isNaN(numericVal)) {
+      const numericBase = parseFloat(amountRaw.replace(/\./g, '').replace(',', '.'));
+      let numericVal = isNaN(numericBase) ? 0 : numericBase;
+      let amountStr = amountRaw;
+      if (sh === 'H') {
+        numericVal = -Math.abs(numericVal);
+        amountStr = '-' + amountRaw;
+      } else {
+        numericVal = Math.abs(numericVal);
+      }
       totalSum += numericVal;
-    }
 
-    parsedTransactions.push({
-      date,
-      text,
-      amountStr,
-      numericVal,
-      currency,
-      belegNr,
-      konto
+      parsedTransactions.push({
+        date,
+        text,
+        amountStr,
+        numericVal,
+        currency,
+        belegNr,
+        konto
+      });
     });
-  });
+  } else if (lines[0].includes('Satzart')) {
+    // 2. BMD Format
+    const dataRows = lines.slice(1);
+    dataRows.forEach(row => {
+      if (!row.trim()) return;
+      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const date = cols[1] || '';
+      const konto = cols[2] || '';
+      const amountStr = cols[4] || '0,00';
+      const currency = cols[5] || 'EUR';
+      const text = cols[6] || '';
+      const belegNr = cols[7] || '';
+
+      const numericVal = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+      if (!isNaN(numericVal)) totalSum += numericVal;
+
+      parsedTransactions.push({
+        date,
+        text,
+        amountStr,
+        numericVal,
+        currency,
+        belegNr,
+        konto
+      });
+    });
+  } else {
+    // 3. Standard Muster CSV
+    const dataRows = lines.slice(1);
+    dataRows.forEach(row => {
+      if (!row.trim()) return;
+      const cols = row.split(';').map(c => c.replace(/^"|"$/g, '').trim());
+      const date = cols[0] || '';
+      const text = cols[1] || '';
+      const amountStr = cols[2] || '0,00';
+      const currency = cols[3] || 'EUR';
+      const belegNr = cols[4] || '';
+      const konto = cols[5] || '';
+
+      const numericVal = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+      if (!isNaN(numericVal)) {
+        totalSum += numericVal;
+      }
+
+      parsedTransactions.push({
+        date,
+        text,
+        amountStr,
+        numericVal,
+        currency,
+        belegNr,
+        konto
+      });
+    });
+  }
 
   renderTableRows(parsedTransactions);
 
-  previewCount.textContent = parsedTransactions.length;
+  if (previewCount) previewCount.textContent = parsedTransactions.length;
   const totalFormatted = totalSum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  previewTotal.textContent = totalFormatted;
+  if (previewTotal) previewTotal.textContent = totalFormatted;
 
   if (searchInput) searchInput.value = '';
 
   // Switch to Preview View
-  uploadView.classList.add('hidden');
-  previewView.classList.remove('hidden');
-  historyView.classList.add('hidden');
+  if (uploadView) uploadView.classList.add('hidden');
+  if (previewView) previewView.classList.remove('hidden');
+  if (historyView) historyView.classList.add('hidden');
 
   return { count: parsedTransactions.length, totalFormatted };
 }
@@ -1270,15 +1414,9 @@ if (searchInput) {
 
 // Main Download Button
 btnDownloadCsv.addEventListener('click', () => {
-  // If multiple accounts, download each account separately
-  if (currentAccountsFound && currentAccountsFound.length > 1) {
-    currentAccountsFound.forEach(acc => {
-      downloadAccountSpecificCsv(acc);
-    });
-    return;
-  }
-
-  // Single account download
+  // R0 fix (A08): Auto-split into multiple pseudo-separated files is disabled
+  // to prevent cross-client data leaks until canonical tenant model is implemented in R4.
+  // Single unified account download
   if (!currentCsvBlob && currentCsvText) {
     const bytes = encodeWindows1252(currentCsvText);
     currentCsvBlob = new Blob([bytes], { type: 'text/csv;charset=windows-1252;' });
@@ -1303,6 +1441,24 @@ function downloadCsvBlob(blob, filename) {
     }
   });
 }
+
+// Format Selection Change Listener
+function updateDownloadButtonText() {
+  const formatRadio = document.querySelector('input[name="export-format"]:checked');
+  const selectedFormat = formatRadio ? formatRadio.value : 'datev';
+  if (!btnDownloadCsvText) return;
+  if (selectedFormat === 'bmd') {
+    btnDownloadCsvText.textContent = 'BMD CSV herunterladen';
+  } else if (selectedFormat === 'muster_csv') {
+    btnDownloadCsvText.textContent = 'Muster CSV herunterladen';
+  } else {
+    btnDownloadCsvText.textContent = 'DATEV CSV herunterladen';
+  }
+}
+
+document.querySelectorAll('input[name="export-format"]').forEach(radio => {
+  radio.addEventListener('change', updateDownloadButtonText);
+});
 
 // Convert Another File
 btnNewConvert.addEventListener('click', () => {
@@ -1436,7 +1592,17 @@ function deleteHistoryItem(id) {
 
 btnClearHistory.addEventListener('click', () => {
   chrome.storage.local.set({ statementHistory: [] }, () => {
-    renderHistoryView();
+    chrome.storage.local.remove(['lastConvertedCsv', 'lastConvertedFilename', 'lastAccountsFound', 'lastDuplicatesCount'], () => {
+      currentCsvText = null;
+      currentCsvBlob = null;
+      currentCsvFilename = null;
+      parsedTransactions = [];
+      if (typeof previewTableBody !== 'undefined' && previewTableBody) previewTableBody.innerHTML = '';
+      if (typeof previewView !== 'undefined' && previewView) previewView.classList.add('hidden');
+      renderHistoryView();
+      showStatus('info', 'Historie und temporärer Zwischenspeicher vollständig gelöscht.');
+      setTimeout(hideStatus, 2000);
+    });
   });
 });
 
@@ -1446,7 +1612,7 @@ btnUpgradePro.addEventListener('click', () => {
 });
 
 // ==========================================================================
-// Extension Authentication Manager (Google, LinkedIn, Facebook, Magic Link)
+// Extension Authentication Manager
 // ==========================================================================
 
 const btnOpenAuth = document.getElementById('btn-open-auth');
@@ -1455,11 +1621,6 @@ const limitMainLabel = document.getElementById('limit-main-label');
 const limitPulseDot = document.getElementById('limit-pulse-dot');
 const extAuthModal = document.getElementById('ext-auth-modal');
 const btnCloseExtModal = document.getElementById('btn-close-ext-modal');
-
-const btnAuthGoogle = document.getElementById('btn-auth-google');
-const btnAuthLinkedin = document.getElementById('btn-auth-linkedin');
-const btnAuthFacebook = document.getElementById('btn-auth-facebook');
-const extMagicLinkForm = document.getElementById('ext-magic-link-form');
 
 function initAuthState() {
   chrome.storage.local.get(['userSession'], (res) => {
@@ -1477,7 +1638,7 @@ function applyLoggedInState(user) {
   if (btnOpenAuth) btnOpenAuth.classList.add('logged-in');
   if (limitPulseDot) limitPulseDot.classList.add('pro');
   if (limitMainLabel) {
-    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">⭐ PRO Aktiv (Unbegrenzt)</strong>`;
+    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">⭐ PRO Aktiv (${escapeHtml(user.plan || 'PRO')})</strong>`;
   }
 }
 
@@ -1490,19 +1651,6 @@ function applyLoggedOutState() {
     if (limitMainLabel) {
       limitMainLabel.innerHTML = `Testphase: <strong>${count} Auszüge frei</strong>`;
     }
-  });
-}
-
-if (limitMainLabel) {
-  limitMainLabel.style.cursor = 'pointer';
-  limitMainLabel.title = 'Klicken zum Zurücksetzen des Test-Limits';
-  limitMainLabel.addEventListener('click', () => {
-    chrome.storage.local.set({ conversionsLeft: 5 }, () => {
-      updateLimitDisplay(5);
-      showStatus('success', '✓ Testphase auf 5 Auszüge zurückgesetzt!');
-      setTimeout(hideStatus, 2000);
-      checkState();
-    });
   });
 }
 
@@ -1519,30 +1667,13 @@ function updateLimitDisplay(count) {
   });
 }
 
-function handleLoginSuccess(provider, email, name) {
-  const session = {
-    isLoggedIn: true,
-    provider: provider,
-    email: email || `user@${provider.toLowerCase()}.com`,
-    name: name || `${provider} User`,
-    plan: 'PRO',
-    loginDate: new Date().toISOString()
-  };
-
-  chrome.storage.local.set({ userSession: session }, () => {
-    applyLoggedInState(session);
-    if (extAuthModal) extAuthModal.classList.add('hidden');
-    alert(`✓ Erfolgreich mit ${provider} angemeldet!\n\nWillkommen, ${session.name}! Ihr PRO-Account ist nun aktiv und Sie haben unbegrenzte Konvertierungen.`);
-  });
-}
-
 if (btnOpenAuth) {
   btnOpenAuth.addEventListener('click', () => {
     chrome.storage.local.get(['userSession'], (res) => {
       const user = res.userSession;
       if (user && user.isLoggedIn) {
-        if (confirm(`👤 Angemeldet als: ${user.name} (${user.provider})\nTarif: ${user.plan}\n\nMöchten Sie sich abmelden?`)) {
-          chrome.storage.local.remove(['userSession'], () => {
+        if (confirm(`👤 Angemeldet als: ${user.name || user.email}\nTarif: ${user.plan || 'Standard'}\n\nMöchten Sie sich abmelden?`)) {
+          chrome.storage.local.remove(['userSession', 'authToken'], () => {
             applyLoggedOutState();
           });
         }
@@ -1556,32 +1687,6 @@ if (btnOpenAuth) {
 if (btnCloseExtModal) {
   btnCloseExtModal.addEventListener('click', () => {
     if (extAuthModal) extAuthModal.classList.add('hidden');
-  });
-}
-
-if (btnAuthGoogle) {
-  btnAuthGoogle.addEventListener('click', () => {
-    handleLoginSuccess('Google', 'user@gmail.com', 'Google User');
-  });
-}
-
-if (btnAuthLinkedin) {
-  btnAuthLinkedin.addEventListener('click', () => {
-    handleLoginSuccess('LinkedIn', 'partner@kanzlei.at', 'LinkedIn Pro');
-  });
-}
-
-if (btnAuthFacebook) {
-  btnAuthFacebook.addEventListener('click', () => {
-    handleLoginSuccess('Facebook', 'user@facebook.com', 'Facebook User');
-  });
-}
-
-if (extMagicLinkForm) {
-  extMagicLinkForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('ext-auth-email').value;
-    handleLoginSuccess('E-Mail', email, email.split('@')[0]);
   });
 }
 

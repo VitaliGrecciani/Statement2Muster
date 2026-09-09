@@ -1,0 +1,66 @@
+{
+  "pdfjs_version": "3.11.174",
+  "year_boundary": {
+    "transactions": [
+      {
+        "date": "31.12.2025",
+        "text": "SYNTHETIC SHOP",
+        "amountStr": "-10,00",
+        "currency": "EUR",
+        "belegNr": "AMEX-1",
+        "konto": "",
+        "account": "American Express",
+        "card": "",
+        "sourceFile": "synthetic.pdf"
+      }
+    ],
+    "account": "American Express",
+    "card": ""
+  },
+  "invalid_date": "",
+  "csv_quoted_semicolon": {
+    "transactions": [
+      {
+        "date": "02.06.2026",
+        "text": "SHOP;Branch",
+        "amountStr": "-12,34",
+        "currency": "USD",
+        "belegNr": "CSV-1",
+        "konto": "",
+        "account": "synthetic",
+        "sourceFile": "synthetic.csv"
+      }
+    ],
+    "accounts": [
+      {
+        "name": "synthetic",
+        "card": "",
+        "count": 1,
+        "files": [
+          "synthetic.csv"
+        ]
+      }
+    ]
+  },
+  "firefox_mock_action_open_calls": 1,
+  "pdf_extraction": {
+    "text": "American Express\n\nDatum 07.01.2026\n\n31.12 02.01 SYNTHETIC SHOP 10,00\n",
+    "result": {
+      "transactions": [
+        {
+          "date": "31.12.2025",
+          "text": "SYNTHETIC SHOP",
+          "amountStr": "-10,00",
+          "currency": "EUR",
+          "belegNr": "AMEX-1",
+          "konto": "",
+          "account": "American Express",
+          "card": "",
+          "sourceFile": "synthetic.pdf"
+        }
+      ],
+      "account": "American Express",
+      "card": ""
+    }
+  }
+}

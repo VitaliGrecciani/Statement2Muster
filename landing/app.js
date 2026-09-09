@@ -78,6 +78,8 @@ if (landingDropzone) {
 if (btnLoadSample) {
   btnLoadSample.addEventListener('click', () => {
     showDemoStatus('Lade DATEV-Musterdaten...');
+    currentDemoCsvText = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n" + 
+      SAMPLE_TRANSACTIONS.map(t => `${t.date};${t.text};${t.amountStr};EUR;DEMO;`).join("\r\n");
     setTimeout(() => {
       renderDemoTable(SAMPLE_TRANSACTIONS);
       hideDemoStatus();
@@ -86,6 +88,8 @@ if (btnLoadSample) {
 }
 
 async function processUploadedFiles(files) {
+  currentDemoCsvText = '';
+  if (demoResult) demoResult.classList.add('hidden');
   showDemoStatus(`Analysiere ${files.length} Datei(en) in-memory...`);
 
   const formData = new FormData();
@@ -133,12 +137,13 @@ async function processUploadedFiles(files) {
     hideDemoStatus();
 
   } catch (err) {
-    console.warn('Backend not reached, falling back to sample preview:', err);
-    showDemoStatus('Zeige Muster-Konvertierung...');
+    console.error('Konvertierungsfehler:', err);
+    currentDemoCsvText = '';
+    if (demoResult) demoResult.classList.add('hidden');
+    showDemoStatus('Fehler: Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
     setTimeout(() => {
-      renderDemoTable(SAMPLE_TRANSACTIONS);
       hideDemoStatus();
-    }, 500);
+    }, 4000);
   }
 }
 
@@ -234,8 +239,9 @@ if (btnDownloadDemoCsv) {
   btnDownloadDemoCsv.addEventListener('click', () => {
     let csvContent = currentDemoCsvText;
     if (!csvContent) {
-      csvContent = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n" + 
-        SAMPLE_TRANSACTIONS.map(t => `${t.date};${t.text};${t.amountStr};EUR;DEMO;`).join("\r\n");
+      showDemoStatus('Keine konvertierten Daten zum Download verfügbar. Bitte Datei hochladen oder Musterdaten laden.');
+      setTimeout(() => hideDemoStatus(), 3000);
+      return;
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=windows-1252;' });

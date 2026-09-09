@@ -236,15 +236,59 @@
       <div class="legal-subtitle">Standardisierte Vereinbarung zur Auftragsverarbeitung für Kanzleien & Unternehmen</div>
 
       <div class="legal-content">
-        
-        <p>Für Steuerberater, Wirtschaftsprüfer und Unternehmen stellen wir gemäß Art. 28 Abs. 3 DSGVO die Grundsätze unserer Auftragsverarbeitung bereit.</p>
-        
-        <h2>1. Gegenstand und In-Memory-Sicherheitsprinzip</h2>
-        <p>Aufgrund unserer <strong>flüchtigen In-Memory-Technologie</strong> werden personenbezogene Buchungsdaten zu keinem Zeitpunkt persistent gespeichert. Die Datenverarbeitung erfolgt ausschließlich temporär im flüchtigen Arbeitsspeicher für die Dauer des Konvertierungsvorgangs.</p>
+        <p>Zwischen dem Kunden als <strong>Verantwortlichem</strong> (nachfolgend „Auftraggeber“) und <strong>Vitali Grecciani (Grecciani Labs)</strong>, Roseggergasse 37, 3400 Klosterneuburg, Österreich (nachfolgend „Auftragnehmer“ oder „Auftragsverarbeiter“) wird gemäß Art. 28 Abs. 3 der Verordnung (EU) 2016/679 (Datenschutz-Grundverordnung – DSGVO) folgende Vereinbarung über die Auftragsverarbeitung (AVV) geschlossen:</p>
 
-        <h2>2. Technische und organisatorische Maßnahmen (TOMs)</h2>
-        <p>Hosting in ISO-27001-zertifizierten deutschen Rechenzentren (Frankfurt am Main). Vollständige TLS-1.3-Transportverschlüsselung und strikte Mandantentrennung.</p>
-        
+        <h2>§ 1 Gegenstand, Dauer und Zweck der Verarbeitung</h2>
+        <p>(1) Gegenstand dieses Vertrages ist die automatisierte Strukturierung, Normalisierung und Konvertierung digitaler Bank- und Kreditkartenauszüge in normierte Zielformate (z. B. DATEV Format EXTF, BMD NTCS, Muster-CSV) über den Dienst Statement2Muster / BankSync DACH.</p>
+        <p>(2) Die Laufzeit dieser Vereinbarung richtet sich nach der Laufzeit des Hauptvertrages bzw. der Nutzung der Softwarelösung.</p>
+        <p>(3) Zweck der Datenverarbeitung ist ausschließlich die technische Bereitstellung des Konvertierungs- und Formatierungsdienstes für geschäftliche und buchhalterische Zwecke des Auftraggebers.</p>
+
+        <h2>§ 2 Kategorien betroffener Personen und Datenarten</h2>
+        <p>(1) <strong>Kategorien betroffener Personen:</strong> Kunden, Lieferanten, Beschäftigte sowie sonstige Geschäftspartner des Auftraggebers oder der Mandanten des Auftraggebers, die als Zahlungsbeteiligte in den Auszügen aufgeführt sind.</p>
+        <p>(2) <strong>Kategorien personenbezogener Daten:</strong> Finanz- und Banktransaktionsdaten, insbesondere Kontonummern, IBAN, BIC, Buchungsdatum, Valutadatum, Beträge, Währungen, Verwendungszweck-Texte, Rechnungs- und Belegnummern sowie Namen oder Firmenbezeichnungen von Zahlungsbeteiligten.</p>
+
+        <h2>§ 3 Weisungsgebundenheit des Auftragnehmers</h2>
+        <p>(1) Der Auftragnehmer verarbeitet die Daten ausschließlich auf dokumentierte Weisung des Auftraggebers, es sei denn, er ist durch das Recht der Europäischen Union oder das Recht der Mitgliedstaaten, dem er unterliegt, zu einer anderweitigen Verarbeitung verpflichtet.</p>
+        <p>(2) Die Weisungen werden primär durch die softwareseitige Übergabe der Dateien und Auswahl des gewünschten Exportformats erteilt. Der Auftragnehmer informiert den Auftraggeber unverzüglich, wenn eine erteilte Weisung nach seiner Auffassung gegen die DSGVO oder andere datenschutzrechtliche Bestimmungen verstößt.</p>
+
+        <h2>§ 4 Vertraulichkeit und Vertraulichkeitsverpflichtung</h2>
+        <p>Der Auftragnehmer gewährleistet, dass sich die zur Verarbeitung der personenbezogenen Daten befugten Personen zur Vertraulichkeit verpflichtet haben oder einer angemessenen gesetzlichen Verschwiegenheitspflicht unterliegen.</p>
+
+        <h2>§ 5 Technische und organisatorische Maßnahmen (TOMs gem. Art. 32 DSGVO)</h2>
+        <p>(1) Der Auftragnehmer trifft alle nach Art. 32 DSGVO erforderlichen Maßnahmen zur Gewährleistung eines dem Risiko angemessenen Schutzniveaus:</p>
+        <ul>
+          <li><strong>Zero-Durable-Storage-Prinzip:</strong> Hochgeladene Kontoauszugsinhalte und Buchungsdaten werden ausschließlich im flüchtigen Arbeitsspeicher (RAM) verarbeitet und zu keinem Zeitpunkt in persistenten Datenbanken oder permanenten Dateisystemen abgelegt.</li>
+          <li><strong>Transportverschlüsselung:</strong> Alle Datenübertragungen zwischen Endgeräten des Auftraggebers und der Konvertierungs-Engine sind durch TLS 1.3 bzw. TLS 1.2 mit Perfect Forward Secrecy geschützt.</li>
+          <li><strong>Standort und Hosting:</strong> Die Verarbeitungsserver befinden sich in zertifizierten Rechenzentren (ISO/IEC 27001) innerhalb der Europäischen Union (Frankfurt am Main, Deutschland).</li>
+          <li><strong>In-Browser-Option:</strong> Bei Nutzung des clientseitigen Verarbeitungsmodus verbleiben die Auszugsdaten vollständig auf dem lokalen Endgerät des Nutzers.</li>
+        </ul>
+
+        <h2>§ 6 Unterauftragsverhältnisse (Subprozessoren)</h2>
+        <p>(1) Der Auftraggeber erteilt hiermit die allgemeine Genehmigung zur Einbindung von Unterauftragsverarbeitern. Aktuell genehmigte Subdienstleister:</p>
+        <ul>
+          <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-zertifizierte Cloud-Infrastruktur / Rechenzentrumsbetrieb in Frankfurt am Main.</li>
+          <li><strong>Stripe Payments Europe, Ltd. (Irland):</strong> Zahlungsabwicklung und Abrechnung von Lizenzgebühren (nur kaufmännische Transaktionsmetadaten, keine Buchungsauszüge).</li>
+        </ul>
+        <p>(2) Der Auftragnehmer informiert den Auftraggeber mindestens 14 Tage vorab über jede beabsichtigte Änderung in Bezug auf die Hinzuziehung oder Ersetzung von Unterauftragsverarbeitern. Dem Auftraggeber steht bei berechtigten datenschutzrechtlichen Bedenken ein Widerspruchsrecht zu.</p>
+
+        <h2>§ 7 Rechte der betroffenen Personen und Unterstützungspflichten</h2>
+        <p>(1) Der Auftragnehmer unterstützt den Auftraggeber nach Möglichkeit mit geeigneten technischen und organisatorischen Maßnahmen bei der Erfüllung der Pflichten des Auftraggebers zur Beantwortung von Anträgen auf Wahrnehmung der Betroffenenrechte (Kapitel III der DSGVO).</p>
+        <p>(2) Wendet sich eine betroffene Person direkt an den Auftragnehmer, wird dieser die Anfrage unverzüglich an den Auftraggeber weiterleiten.</p>
+
+        <h2>§ 8 Unterstützung bei Sicherheitsvorfällen und Datenschutz-Folgenabschätzungen</h2>
+        <p>Der Auftragnehmer unterstützt den Auftraggeber bei der Einhaltung der in den Artikeln 32 bis 36 DSGVO genannten Pflichten (Sicherheit der Verarbeitung, Meldung von Verletzungen des Schutzes personenbezogener Daten an die Aufsichtsbehörde und Benachrichtigung der betroffenen Person, Datenschutz-Folgenabschätzung und vorherige Konsultation).</p>
+
+        <h2>§ 9 Löschung und Rückgabe nach Beendigung der Verarbeitung</h2>
+        <p>(1) Nach Beendigung der Erbringung der Verarbeitungsleistungen werden alle verarbeiteten Auszugsdaten systembedingt und unwiderruflich aus dem Arbeitsspeicher freigegeben und gelöscht.</p>
+        <p>(2) Gesetzliche Aufbewahrungspflichten für abrechnungsrelevante Rechnungsbelege (BAO / HGB) bleiben unberührt.</p>
+
+        <h2>§ 10 Nachweise und Kontrollrechte (Audits)</h2>
+        <p>(1) Der Auftragnehmer stellt dem Auftraggeber alle erforderlichen Informationen zum Nachweis der Einhaltung der in Art. 28 DSGVO niedergelegten Pflichten zur Verfügung.</p>
+        <p>(2) Der Auftragnehmer ermöglicht und unterstützt Überprüfungen und Audits, die vom Auftraggeber oder einem von diesem beauftragten Prüfer durchgeführt werden, nach vorheriger angemessener Ankündigung zu üblichen Geschäftszeiten.</p>
+
+        <h2>§ 11 Schlussbestimmungen</h2>
+        <p>(1) Sollten einzelne Bestimmungen dieses Vertrages unwirksam sein oder werden, berührt dies die Wirksamkeit der übrigen Bestimmungen nicht.</p>
+        <p>(2) Auf diesen AVV findet das Recht der Republik Österreich Anwendung. Gerichtsstand für alle Streitigkeiten ist, soweit gesetzlich zulässig, Wien.</p>
       </div>
 
       <!-- Quick Nav between Legal Documents -->

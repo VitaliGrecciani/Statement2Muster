@@ -1,0 +1,11 @@
+{
+  "datev_preview": {
+    "count": 0,
+    "totalFormatted": "0,00 €"
+  },
+  "clear_error": null,
+  "storage_after_clear": {
+    "statementHistory": []
+  },
+  "transactions_retained": 0
+}

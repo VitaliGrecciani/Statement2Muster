@@ -182,6 +182,10 @@
           <div class="summary-total">
             Summe: <span id="preview-total">0,00 €</span>
           </div>
+          <div id="reconciliation-badge" class="reconciliation-badge hidden" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">
+            <span id="reconciliation-badge-icon">✓</span>
+            <span id="reconciliation-badge-text">Salden ausgeglichen</span>
+          </div>
         </div>
 
         <!-- Filter Chips by Company / Account -->
@@ -213,6 +217,22 @@
             <!-- Dynamic Rows -->
           </tbody>
         </table>
+      </div>
+
+      <!-- Format Selection -->
+      <div class="format-selection-wrapper" style="margin: 10px 0 14px; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+        <div style="font-size: 11px; font-weight: 700; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Zielformat für Buchhaltung</div>
+        <div class="format-options" style="display: flex; gap: 14px; flex-wrap: wrap;">
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
+            <input type="radio" name="export-format" value="datev" checked id="fmt-datev"> DATEV (EXTF)
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
+            <input type="radio" name="export-format" value="bmd" id="fmt-bmd"> BMD 5.1
+          </label>
+          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
+            <input type="radio" name="export-format" value="muster_csv" id="fmt-muster"> Muster CSV
+          </label>
+        </div>
       </div>
 
       <!-- Action Buttons -->

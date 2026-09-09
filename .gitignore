@@ -26,6 +26,9 @@ eggs/
 extension_firefox_build/
 .pytest_cache/
 .coverage
+*.db
+*.sqlite
+*.sqlite3
 
 # Do NOT ignore landing & extension assets
 !landing/logo.png

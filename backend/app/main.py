@@ -1,209 +1,352 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
-from fastapi.staticfiles import StaticFiles
-from typing import List, Dict, Any
-import pandas as pd
 import io
 import json
 import logging
 import os
+import uuid
+import hashlib
+import datetime
+from typing import List, Dict, Any, Optional, Tuple
+from contextlib import asynccontextmanager
 
-from app.parsers.amex_parser import AmexStatementParser, UniversalBankStatementParser
+import pandas as pd
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Depends, Header, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.middleware import EarlyAuthAndBudgetMiddleware
+from app.db.session import init_db, get_db
+from app.services.quota_service import check_and_reserve_quota, commit_quota, release_quota
+from app.parsers.registry import registry, UnsupportedFormatError
+from app.schemas.canonical import CanonicalTransaction, StatementResult
+from app.services.reconciliation_service import build_statement_result
+from app.exporters.datev import export_to_datev_csv
+from app.exporters.bmd import export_to_bmd_csv
+from app.exporters.muster_csv import export_to_muster_csv
+from app.api.endpoints import auth, billing, entitlements
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("statement2muster")
 
-app = FastAPI(title="Statement2Muster API", version="1.6.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize DB schema on startup
+    await init_db()
+    yield
 
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    lifespan=lifespan
+)
+
+# 1. Early ASGI Auth & Budget Middleware (Zero Retention & DoS protection)
+app.add_middleware(EarlyAuthAndBudgetMiddleware)
+
+# 2. CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Mixed-Accounts", "X-Accounts-Found", "X-Duplicates-Count", "Content-Disposition"]
+    expose_headers=[
+        "X-Mixed-Accounts",
+        "X-Accounts-Found",
+        "X-Duplicates-Count",
+        "X-Reconciliation-Status",
+        "Content-Disposition",
+        "X-Reservation-Id",
+        "X-Quota-Units"
+    ]
 )
 
-amex_parser = AmexStatementParser()
-universal_parser = UniversalBankStatementParser()
+# 3. Mount Routers
+app.include_router(auth.router)
+app.include_router(billing.router)
+app.include_router(entitlements.router)
 
 @app.get("/api/v1/health")
 async def health_check():
-    return {"status": "ok", "message": "Statement2Muster API is running"}
+    return {"status": "ok", "message": "Statement2Muster API is running", "version": settings.VERSION}
+
+@app.get("/healthz")
+@app.get("/api/v1/healthz")
+async def healthz_check(db: AsyncSession = Depends(get_db)):
+    """Kubernetes/Container liveness & readiness probe verifying DB connectivity and Zero-Retention status."""
+    from sqlalchemy import text
+    try:
+        res = await db.execute(text("SELECT 1"))
+        _ = res.scalar()
+    except Exception as e:
+        logger.error(f"Healthcheck DB failure: {e}")
+        raise HTTPException(status_code=503, detail="Database unresponsive")
+
+    return {
+        "status": "healthy",
+        "service": "statement2muster-api",
+        "version": settings.VERSION,
+        "database": "connected",
+        "zero_retention": "enforced"
+    }
+
+@app.get("/auth/jwks.json", tags=["auth"])
+@app.get("/.well-known/jwks.json", tags=["auth"])
+async def jwks_endpoint():
+    """Root and well-known aliases for RFC 7517 JWKS."""
+    from app.core.security import get_jwks
+    return get_jwks()
+
+# Bounded in-memory RAM cache for idempotent conversion replay (B02 / ADR-001)
+_idempotent_result_cache: Dict[str, Tuple[Any, dict, int, str]] = {}
 
 @app.post("/api/v1/convert")
-async def convert_statements(files: List[UploadFile] = File(...)):
+async def convert_statements(
+    request: Request,
+    files: List[UploadFile] = File(...),
+    export_format: str = "datev",
+    format: Optional[str] = None,
+    default_bank_account: str = "1200",
+    client_entity_id: str = "default",
+    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    db: AsyncSession = Depends(get_db)
+):
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    logger.info(f"=== Received Batch Request: {len(files)} file(s) ===")
+    # EarlyAuthAndBudgetMiddleware has validated the Bearer token
+    tenant_info = getattr(request.state, "tenant", None)
+    if not tenant_info:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    all_transactions = []
-    processed_accounts = {}
-    processed_names = []
+    tenant_id = tenant_info.get("tenant_id")
+    idempotency_key = x_idempotency_key or str(uuid.uuid4())
+    target_format = (format or export_format).lower().strip()
 
+    # Read all files into memory and compute deterministic request_hash for idempotency (A02, A18)
+    file_data = []
+    combined_hasher = hashlib.sha256()
     for file in files:
         filename = file.filename or "statement.pdf"
-        if not filename.lower().endswith(('.csv', '.pdf')):
-            continue
+        content = await file.read()
+        if len(content) > settings.MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds maximum allowed limit of {settings.MAX_FILE_SIZE_BYTES} bytes."
+            )
+        file_data.append((filename, content))
+        combined_hasher.update(content)
 
-        try:
-            content = await file.read()
-            if not content:
-                continue
-        except Exception as e:
-            logger.error(f"Failed to read file {filename}: {e}")
-            continue
+    request_hash = combined_hasher.hexdigest()
 
-        clean_name = filename.rsplit('.', 1)[0]
-        processed_names.append(clean_name)
-        logger.info(f"Processing in-memory: {filename} ({len(content)} bytes)")
-
-        file_res = {"account_holder": "Unbekannt", "account_id": "", "transactions": []}
-
-        if filename.lower().endswith('.pdf'):
-            try:
-                # 1. Choose parser based on document type / fallback chain
-                if "amex" in filename.lower() or "american express" in filename.lower():
-                    file_res = amex_parser.parse_with_metadata(content, filename=filename)
-                    if not file_res.get("transactions"):
-                        file_res = universal_parser.parse_with_metadata(content, filename=filename)
-                else:
-                    file_res = universal_parser.parse_with_metadata(content, filename=filename)
-                    if not file_res.get("transactions"):
-                        file_res = amex_parser.parse_with_metadata(content, filename=filename)
-
-                logger.info(f"Parsed PDF '{filename}': {len(file_res['transactions'])} txs, Holder='{file_res['account_holder']}', ID='{file_res['account_id']}'")
-            except Exception as e:
-                logger.error(f"Error parsing PDF '{filename}': {e}", exc_info=True)
-        elif filename.lower().endswith('.csv'):
-            try:
-                for enc in ['utf-8-sig', 'utf-8', 'windows-1252', 'latin-1']:
-                    try:
-                        text = content.decode(enc)
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                else:
-                    text = content.decode('utf-8', errors='ignore')
-
-                df_raw = pd.read_csv(io.StringIO(text), sep=None, engine='python', on_bad_lines='skip')
-                
-                holder = "Wise Business" if "Wise" in filename or "TransferWise" in text else "Bank CSV"
-                txs = []
-                for _, row in df_raw.iterrows():
-                    row_dict = row.dropna().to_dict()
-                    if not row_dict:
-                        continue
-                    
-                    date_val = str(row_dict.get('Date', row_dict.get('Datum', row_dict.get('Created on', ''))))
-                    text_val = str(row_dict.get('Description', row_dict.get('Verwendungszweck', row_dict.get('Buchungstext', ''))))
-                    amount_val = str(row_dict.get('Amount', row_dict.get('Betrag', row_dict.get('Total amount', '0,00'))))
-                    currency_val = str(row_dict.get('Currency', row_dict.get('Währung', 'EUR')))
-                    
-                    if date_val and text_val:
-                        txs.append({
-                            "Belegdatum": date_val,
-                            "Buchungstext": text_val,
-                            "Betrag": amount_val,
-                            "Währung": currency_val,
-                            "Belegnummer": f"CSV-{len(txs)+1}",
-                            "Gegenkonto/Konto": ""
-                        })
-                
-                file_res = {
-                    "account_holder": holder,
-                    "account_id": "",
-                    "transactions": txs
-                }
-                logger.info(f"Parsed CSV '{filename}': {len(txs)} txs, Holder='{holder}'")
-            except Exception as e:
-                logger.error(f"Error parsing CSV '{filename}': {e}")
-
-        # Accumulate with account metadata tags
-        acc_key = f"{file_res['account_holder']}_{file_res['account_id']}".strip('_') or "Standard"
-        if acc_key not in processed_accounts:
-            processed_accounts[acc_key] = {
-                "name": file_res['account_holder'],
-                "card": file_res['account_id'],
-                "count": 0,
-                "files": []
-            }
-        processed_accounts[acc_key]["count"] += len(file_res['transactions'])
-        processed_accounts[acc_key]["files"].append(filename)
-
-        for tx in file_res['transactions']:
-            tx["_account_key"] = acc_key
-            tx["_source_file"] = filename
-            all_transactions.append(tx)
-
-    if not all_transactions:
-        raise HTTPException(status_code=422, detail="Keine Buchungssätze in den bereitgestellten Dateien gefunden.")
-
-    # Deduplicate & Sort
-    seen = set()
-    unique_txs = []
-    duplicate_count = 0
-
-    for tx in all_transactions:
-        key = (tx.get("Belegdatum"), tx.get("Buchungstext"), tx.get("Betrag"))
-        if key in seen:
-            duplicate_count += 1
-        else:
-            seen.add(key)
-            unique_txs.append(tx)
-
-    logger.info(f"Total parsed: {len(all_transactions)} txs | Unique: {len(unique_txs)} txs | Deduplicated: {duplicate_count}")
-
-    is_mixed_accounts = len(processed_accounts) > 1
-
-    # Convert to standard format
-    export_txs = []
-    for tx in unique_txs:
-        export_txs.append({
-            "Belegdatum": tx.get("Belegdatum", ""),
-            "Buchungstext": tx.get("Buchungstext", ""),
-            "Betrag": tx.get("Betrag", "0,00"),
-            "Währung": tx.get("Währung", "EUR"),
-            "Belegnummer": tx.get("Belegnummer", ""),
-            "Gegenkonto/Konto": tx.get("Gegenkonto/Konto", ""),
-            "_account_key": tx.get("_account_key", ""),
-            "_source_file": tx.get("_source_file", "")
-        })
-    
-    df_muster = pd.DataFrame(export_txs)
-    
-    try:
-        df_muster['_temp_date'] = pd.to_datetime(df_muster['Belegdatum'], format='%d.%m.%Y', errors='coerce')
-        df_muster = df_muster.sort_values(by='_temp_date').drop(columns=['_temp_date'])
-    except Exception:
-        pass
-
-    if len(processed_names) == 1:
-        out_name = f"Muster_{processed_names[0]}.csv"
-    else:
-        out_name = f"Muster_Sammelauszug_{len(processed_names)}_Dateien.csv"
-
-    # We output clean CSV columns for download
-    df_download = df_muster[[c for c in ["Belegdatum", "Buchungstext", "Betrag", "Währung", "Belegnummer", "Gegenkonto/Konto"] if c in df_muster.columns]]
-
-    output = io.StringIO()
-    df_download.to_csv(output, sep=';', index=False, encoding='windows-1252', decimal=',')
-    csv_bytes = output.getvalue().encode('windows-1252', errors='replace')
-    
-    headers = {
-        "Content-Disposition": f'attachment; filename="{out_name}"',
-        "X-Mixed-Accounts": "true" if is_mixed_accounts else "false",
-        "X-Accounts-Found": json.dumps(list(processed_accounts.values())),
-        "X-Duplicates-Count": str(duplicate_count)
-    }
-
-    return Response(
-        content=csv_bytes,
-        media_type="text/csv",
-        headers=headers
+    # Step 1: Two-Phase Commit Quota Reservation before parsing (ADR-001)
+    reservation = await check_and_reserve_quota(
+        db, tenant_id, len(files), idempotency_key, request_hash=request_hash
     )
+
+    # Check RAM-only idempotent replay cache (ADR-001 / B02)
+    cache_key = f"{tenant_id}_{idempotency_key}_{target_format}"
+    if cache_key in _idempotent_result_cache:
+        cached_content, cached_headers, cached_status, cached_fmt = _idempotent_result_cache[cache_key]
+        if cached_fmt == "json":
+            return JSONResponse(content=cached_content, headers=cached_headers, status_code=cached_status)
+        elif cached_fmt == "datev":
+            return Response(content=cached_content, media_type="text/plain; charset=windows-1252", headers=cached_headers, status_code=cached_status)
+        else:
+            return Response(content=cached_content, media_type="text/csv; charset=windows-1252", headers=cached_headers, status_code=cached_status)
+
+    logger.info(f"=== Batch Request: {len(files)} file(s) [Format: {target_format}] ===")
+
+    all_transactions: List[CanonicalTransaction] = []
+    account_balances: Dict[str, Tuple[Optional[int], Optional[int], str]] = {}
+    successful_files_count = 0
+    unparsed_files = []
+
+    try:
+        for file_idx, (filename, content) in enumerate(file_data):
+            if not filename.lower().endswith(('.csv', '.pdf', '.txt')):
+                unparsed_files.append({"file": filename, "error": f"Unsupported file extension for '{filename}'"})
+                continue
+            if not content:
+                unparsed_files.append({"file": filename, "error": f"Empty file: '{filename}'"})
+                continue
+
+            logger.info(f"Parsing file {file_idx+1}/{len(file_data)}: {len(content)} bytes in-memory")
+
+            try:
+                file_txs, acc_summary = registry.parse_file(
+                    content=content,
+                    filename=filename,
+                    tenant_id=tenant_id,
+                    client_entity_id=client_entity_id
+                )
+                if file_txs:
+                    if len(file_txs) > settings.MAX_ROWS_PER_FILE:
+                        raise HTTPException(
+                            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            detail=f"File '{filename}' exceeds maximum allowed limit of {settings.MAX_ROWS_PER_FILE} rows."
+                        )
+                    all_transactions.extend(file_txs)
+                    successful_files_count += 1
+                    if acc_summary:
+                        acc_key = f"{acc_summary.client_entity_id}_{acc_summary.account_id}" if acc_summary.account_id else acc_summary.client_entity_id
+                        account_balances[acc_key] = (
+                            acc_summary.opening_balance_cents,
+                            acc_summary.closing_balance_cents,
+                            acc_summary.bank_name
+                        )
+            except UnsupportedFormatError as e:
+                logger.warning(f"File unsupported: format unrecognized")
+                unparsed_files.append({"file": filename, "error": str(e)})
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error parsing file in memory", exc_info=True)
+                unparsed_files.append({"file": filename, "error": "Internal parser error"})
+
+        if not all_transactions:
+            await release_quota(db, reservation)
+            raise HTTPException(
+                status_code=422,
+                detail="Keine Buchungssätze in den bereitgestellten Dateien gefunden oder Formate werden nicht unterstützt."
+            )
+
+        # Deduplication check (non-destructive: keep all transactions, count duplicates)
+        seen = set()
+        duplicate_count = 0
+        for tx in all_transactions:
+            dedup_key = (tx.booking_date, tx.description, tx.amount_cents, tx.currency)
+            if dedup_key in seen:
+                duplicate_count += 1
+            else:
+                seen.add(dedup_key)
+
+        # Sort transactions chronologically (safe with None booking_date)
+        all_transactions.sort(key=lambda t: t.booking_date or datetime.date.min)
+
+        # Build comprehensive StatementResult with Solldoppik reconciliation
+        statement_result = build_statement_result(
+            request_id=reservation.reservation_id,
+            tenant_id=tenant_id,
+            transactions=all_transactions,
+            account_balances=account_balances,
+            file_count=len(files),
+            successful_files=successful_files_count,
+            unparsed_lines=unparsed_files
+        )
+
+        # Step 2: Commit Quota on successful conversion (ADR-001)
+        await commit_quota(db, reservation, successful_files_count)
+
+        # Accounts info for client
+        accounts_list = [
+            {"account_id": a.account_id, "name": a.bank_name, "count": a.transaction_count, "reconciliation": a.reconciliation_status}
+            for a in statement_result.accounts.values()
+        ]
+        is_mixed = len(statement_result.accounts) > 1
+
+        common_headers = {
+            "X-Mixed-Accounts": "true" if is_mixed else "false",
+            "X-Accounts-Found": json.dumps(accounts_list),
+            "X-Duplicates-Count": str(duplicate_count),
+            "X-Reservation-Id": reservation.reservation_id,
+            "X-Quota-Units": str(successful_files_count),
+            "X-Reconciliation-Status": statement_result.overall_reconciliation
+        }
+
+        # Safeguard export: non-json accounting export requires clean conversion without unparsed files or discrepancies
+        if target_format != "json":
+            if unparsed_files:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Export blocked: Batch contains unparsed or unsupported files: {[f['file'] for f in unparsed_files]}. Use format=json to inspect details."
+                )
+            if statement_result.overall_reconciliation == "DISCREPANCY":
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Export blocked: Discrepancy detected or batch contains unparsed files. Use format=json to inspect details."
+                )
+            if any(t.validation_status == "ERROR" or t.booking_date is None for t in all_transactions):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Export blocked: One or more transactions contain validation errors or missing dates. Use format=json to inspect details."
+                )
+            distinct_accounts = {t.account_id for t in all_transactions if t.account_id}
+            if len(distinct_accounts) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Export blocked: Mixed bank accounts detected ({distinct_accounts}). Accounting export requires single account partition."
+                )
+            distinct_currencies = {t.currency for t in all_transactions if t.currency}
+            if len(distinct_currencies) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Export blocked: Mixed currencies detected ({distinct_currencies}). Accounting export requires single currency partition."
+                )
+            if target_format == "datev":
+                distinct_years = {t.booking_date.year for t in all_transactions if t.booking_date}
+                if len(distinct_years) > 1:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Export blocked: Multi-year transactions detected for DATEV EXTF ({distinct_years}). DATEV batches must belong to a single fiscal year."
+                    )
+
+        # Cache successful response for idempotent replay
+        if len(_idempotent_result_cache) > 200:
+            _idempotent_result_cache.clear()
+
+        # Handle requested export format
+        if target_format == "json":
+            resp_content = statement_result.model_dump(mode="json")
+            _idempotent_result_cache[cache_key] = (resp_content, common_headers, 200, "json")
+            return JSONResponse(
+                content=resp_content,
+                headers=common_headers
+            )
+        elif target_format == "bmd":
+            csv_bytes = export_to_bmd_csv(
+                all_transactions,
+                default_bank_account=default_bank_account if default_bank_account != "1200" else "2800"
+            )
+            out_name = "BMD_Bankauszug.csv"
+            common_headers["Content-Disposition"] = f'attachment; filename="{out_name}"'
+            _idempotent_result_cache[cache_key] = (csv_bytes, common_headers, 200, "bmd")
+            return Response(
+                content=csv_bytes,
+                media_type="text/csv; charset=windows-1252",
+                headers=common_headers
+            )
+        elif target_format == "muster_csv":
+            csv_bytes = export_to_muster_csv(all_transactions)
+            out_name = "Muster_Kontoauszug.csv"
+            common_headers["Content-Disposition"] = f'attachment; filename="{out_name}"'
+            _idempotent_result_cache[cache_key] = (csv_bytes, common_headers, 200, "muster_csv")
+            return Response(
+                content=csv_bytes,
+                media_type="text/csv; charset=windows-1252",
+                headers=common_headers
+            )
+        else: # Default: datev
+            csv_bytes = export_to_datev_csv(all_transactions, default_bank_account=default_bank_account)
+            out_name = "EXTF_Buchungsstapel.csv"
+            common_headers["Content-Disposition"] = f'attachment; filename="{out_name}"'
+            _idempotent_result_cache[cache_key] = (csv_bytes, common_headers, 200, "datev")
+            return Response(
+                content=csv_bytes,
+                media_type="text/plain; charset=windows-1252",
+                headers=common_headers
+            )
+
+    except HTTPException:
+        await release_quota(db, reservation)
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected conversion error: {e}", exc_info=True)
+        await release_quota(db, reservation)
+        raise HTTPException(status_code=500, detail="Internal conversion error")
+
 
 # Mount Landing Page Static Files at Root
 landing_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "landing"))
