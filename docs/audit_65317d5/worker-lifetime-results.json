@@ -1,0 +1,17 @@
+{
+  "idle": {
+    "raw_entries_after_ttl": 0,
+    "bytes_after_ttl": 0,
+    "entries_after_instrumented_len": 0
+  },
+  "timeout": {
+    "http": 408,
+    "worker_started": true,
+    "worker_still_running_when_response_received": true,
+    "thread_is_alive_at_408": false,
+    "synthetic_input_retained_in_live_frame": false,
+    "thread_is_alive_100ms_after_408": false,
+    "thread_is_alive_after_sleep_returns": false,
+    "worker_completed_after_response": false
+  }
+}

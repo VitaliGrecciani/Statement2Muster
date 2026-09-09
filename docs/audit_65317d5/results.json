@@ -1,0 +1,151 @@
+{
+  "no_code": 401,
+  "wrong_code": 401,
+  "jwks": 200,
+  "otp_attempt_budget": {
+    "request_status": 200,
+    "wrong_attempts": 30,
+    "statuses": [
+      401,
+      429
+    ],
+    "valid_after_attempts": 429,
+    "code_source": "test-only direct DB read; no email delivery"
+  },
+  "identical_replay": {
+    "statuses": [
+      200,
+      200,
+      200,
+      200
+    ],
+    "parser_calls": 1,
+    "distinct_transaction_ids": 1
+  },
+  "changed_body": 409,
+  "error_amount": {
+    "json_status": 200,
+    "validation": [
+      "ERROR"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: One or more transactions contain validation errors or missing dates. Use format=json to inspect details.\"}"
+  },
+  "missing_amount": {
+    "json_status": 200,
+    "validation": [
+      "ERROR"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: One or more transactions contain validation errors or missing dates. Use format=json to inspect details.\"}"
+  },
+  "invalid_date": {
+    "json_status": 200,
+    "validation": [
+      "ERROR"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: One or more transactions contain validation errors or missing dates. Use format=json to inspect details.\"}"
+  },
+  "invalid_and_valid_dates": {
+    "json_status": 200,
+    "validation": [
+      "ERROR",
+      "VALID"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: One or more transactions contain validation errors or missing dates. Use format=json to inspect details.\"}"
+  },
+  "ignored_extension": {
+    "json_status": 200,
+    "validation": [
+      "VALID"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: Batch contains unparsed or unsupported files: ['unsupported.xml']. Use format=json to inspect details.\"}"
+  },
+  "mixed_accounts": {
+    "json_status": 200,
+    "validation": [
+      "VALID",
+      "VALID"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 2,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: Mixed bank accounts detected ({'SYNTHETIC_A', 'SYNTHETIC_B'}). Accounting export requires single account partition.\"}"
+  },
+  "mixed_years": {
+    "json_status": 200,
+    "validation": [
+      "VALID",
+      "VALID"
+    ],
+    "reconciliation": "UNVERIFIED",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: Multi-year transactions detected for DATEV EXTF ({2025, 2026}). DATEV batches must belong to a single fiscal year.\"}"
+  },
+  "mixed_currencies": {
+    "json_status": 200,
+    "validation": [
+      "VALID",
+      "VALID"
+    ],
+    "reconciliation": "DISCREPANCY",
+    "successful_files": 1,
+    "account_count": 1,
+    "export_status": 422,
+    "export_excerpt": "{\"detail\":\"Export blocked: Discrepancy detected or batch contains unparsed files. Use format=json to inspect details.\"}"
+  },
+  "row_budget": {
+    "limit": 1,
+    "rows": 0,
+    "status": 413
+  },
+  "chunked_status": 413,
+  "per_file_status": 413,
+  "concurrent_sessions": [
+    "HTTPException:409: Concurrent quota reservation conflict. Please retry.",
+    "RESERVED"
+  ],
+  "concurrent_reserved_units": 3,
+  "cancel_then_late_invoice": "canceled",
+  "unknown_price_exact_amount": null,
+  "async_success_entitlements": 1,
+  "normal_lifetime_refund": "canceled",
+  "versions": {
+    "fastapi": "0.141.1",
+    "starlette": "1.6.0",
+    "pytest": "9.1.1",
+    "python-multipart": "0.0.32",
+    "SQLAlchemy": "2.0.52"
+  },
+  "hashes": {
+    "dist/statement2muster-chrome-v1.0.2.zip": "CE4931FAA677E756724BDBA73813F893378857699453F2421224F8608FD866D7",
+    "dist/statement2muster-firefox-v1.0.2.zip": "CB4FA209E20E7F44796D7AFED8521597A9FAADD1340994B49F19DD044565008B",
+    "backend/Dockerfile": "161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6",
+    "backend/requirements.txt": "F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64"
+  },
+  "zip_mismatches": {
+    "chrome": [],
+    "firefox": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "parallel_attempts": 6,
+  "statuses": [
+    401,
+    401,
+    401,
+    401,
+    401,
+    401
+  ],
+  "persisted_failed_attempts": 6,
+  "lockout_set": true
+}
