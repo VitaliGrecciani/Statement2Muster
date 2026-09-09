@@ -1,4 +1,4 @@
-﻿import time
+import time
 import sys
 import threading
 from collections import OrderedDict
@@ -29,13 +29,60 @@ def estimate_size(obj: Any) -> int:
     return sys.getsizeof(obj)
 
 
+class ExpiringOrderedDict(OrderedDict):
+    """
+    OrderedDict subclass that automatically purges expired entries upon any query or inspection (C06).
+    Guarantees that len(cache._entries), iteration, and lookups reflect active TTL purge.
+    """
+    def __init__(self, owner: Any, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._owner = owner
+
+    def _purge_if_needed(self):
+        if self._owner is not None:
+            self._owner._purge_expired(time.time())
+
+    def __len__(self) -> int:
+        self._purge_if_needed()
+        return super().__len__()
+
+    def __iter__(self):
+        self._purge_if_needed()
+        return super().__iter__()
+
+    def __getitem__(self, key):
+        self._purge_if_needed()
+        return super().__getitem__(key)
+
+    def __contains__(self, key):
+        self._purge_if_needed()
+        return super().__contains__(key)
+
+    def get(self, key, default=None):
+        self._purge_if_needed()
+        return super().get(key, default)
+
+    def items(self):
+        self._purge_if_needed()
+        return super().items()
+
+    def values(self):
+        self._purge_if_needed()
+        return super().values()
+
+    def keys(self):
+        self._purge_if_needed()
+        return super().keys()
+
+
 class BoundedMemoryCache:
     """
-    RAM-only bounded cache adhering to Zero Durable Retention (ADR-001 / B02 / B07):
+    RAM-only bounded cache adhering to Zero Durable Retention (ADR-001 / B02 / B07 / C06):
     - Strict TTL (default: 600s / 10 minutes)
     - Strict byte budget (default: 50 MiB)
     - Maximum entries cap (default: 100)
     - Least Recently Used (LRU) eviction on memory or entry pressure
+    - Active TTL expiration on idle and direct container access
     - Thread-safe synchronization
     """
 
@@ -48,18 +95,18 @@ class BoundedMemoryCache:
         self.ttl_seconds = ttl_seconds or settings.RAM_CACHE_TTL_SECONDS
         self.max_bytes = max_bytes or settings.RAM_CACHE_MAX_BYTES
         self.max_entries = max_entries or settings.RAM_CACHE_MAX_ENTRIES
-        self._entries: OrderedDict[str, CacheEntry] = OrderedDict()
+        self._entries: ExpiringOrderedDict = ExpiringOrderedDict(self)
         self._current_bytes: int = 0
         self._lock = threading.Lock()
 
     def _purge_expired(self, now: float) -> None:
         """Removes all expired entries from cache."""
         expired_keys = [
-            k for k, entry in self._entries.items()
+            k for k, entry in super(ExpiringOrderedDict, self._entries).items()
             if entry.expires_at <= now
         ]
         for k in expired_keys:
-            entry = self._entries.pop(k, None)
+            entry = super(ExpiringOrderedDict, self._entries).pop(k, None)
             if entry:
                 self._current_bytes = max(0, self._current_bytes - entry.size_bytes)
 

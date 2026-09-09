@@ -149,7 +149,7 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         price_id = line_items_data[0].get("price", {}).get("id")
 
     # Authoritative line items retrieval from Stripe API if missing from webhook payload
-    if not price_id and session_id and settings.STRIPE_SECRET_KEY and not settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+    if not price_id and session_id and settings.STRIPE_SECRET_KEY and settings.STRIPE_SECRET_KEY != "sk_test_mock":
         try:
             import stripe
             stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -238,7 +238,11 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any]):
         if ent.status == "canceled":
             logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late invoice.paid.")
             return
-        ent.status = "active"
+        if ent.plan_code is None:
+            logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
+            ent.status = "quarantined"
+        else:
+            ent.status = "active"
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()
 
@@ -253,7 +257,11 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
         if ent.status == "canceled":
             logger.warning(f"Subscription {sub_id} is already canceled. Ignoring stale subscription.updated.")
             return
-        ent.status = mapped_status
+        if mapped_status == "active" and ent.plan_code is None:
+            logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
+            ent.status = "quarantined"
+        else:
+            ent.status = mapped_status
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()
 

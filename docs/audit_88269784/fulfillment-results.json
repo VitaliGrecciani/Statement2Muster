@@ -1,0 +1,14 @@
+{
+  "async_without_expanded_line_items": [
+    {
+      "status": "quarantined",
+      "plan": null
+    }
+  ],
+  "same_purchase_after_known_price_arrives": [
+    {
+      "status": "active",
+      "plan": "lifetime"
+    }
+  ]
+}

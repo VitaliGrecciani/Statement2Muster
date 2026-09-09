@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import logging
 import datetime
@@ -33,7 +33,7 @@ class EmailDeliveryService:
     ) -> bool:
         """
         Sends verification OTP email to recipient.
-        Returns True on successful delivery, raises or returns False on failure.
+        Returns True on successful delivery, returns False on failure (C03).
         """
         from app.core.config import settings
 
@@ -45,51 +45,76 @@ class EmailDeliveryService:
             "expires_at": expires_at.isoformat()
         }
 
-        # 1. Always record in-memory for zero-disk inspection and testing
-        cls._test_inbox.append(entry)
-
-        # 2. Write to outbox file if path configured or available
-        try:
-            outbox_path = getattr(settings, "EMAIL_OUTBOX_PATH", "docs/audit_2026-09-09_round3/email_outbox.jsonl")
-            outbox_file = Path(outbox_path)
-            outbox_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(outbox_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
-        except Exception as e:
-            logger.debug(f"Outbox file write skipped: {e}")
-
-        # 3. Handle live SMTP delivery if configured
         backend = getattr(settings, "EMAIL_BACKEND", "memory").lower()
-        if backend == "smtp":
+
+        # Branch 1: Memory backend (RAM-only; zero disk persistence for Zero Durable Retention)
+        if backend == "memory":
+            cls._test_inbox.append(entry)
+            if len(cls._test_inbox) > 50:
+                cls._test_inbox.pop(0)
+            logger.info(f"Verification email recorded for {recipient} via backend 'memory'.")
+            return True
+
+        # Branch 2: File backend (dev / local test harness only)
+        elif backend == "file":
+            try:
+                outbox_path = getattr(settings, "EMAIL_OUTBOX_PATH", "docs/audit_2026-09-09_round3/email_outbox.jsonl")
+                outbox_file = Path(outbox_path)
+                if outbox_file.is_dir():
+                    logger.error(f"Configured outbox path is a directory, not a file: {outbox_path}")
+                    return False
+                outbox_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(outbox_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry) + "\n")
+                logger.info(f"Verification email recorded for {recipient} via backend 'file'.")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to write verification email to outbox file: {e}")
+                return False
+
+        # Branch 3: SMTP backend (standard library smtplib via thread, zero aiosmtplib dependency)
+        elif backend == "smtp":
             smtp_host = getattr(settings, "SMTP_HOST", None)
             if not smtp_host:
                 logger.error("SMTP backend selected but SMTP_HOST is not configured.")
                 return False
+
+            import asyncio
+            import smtplib
+            from email.message import EmailMessage
+
+            msg = EmailMessage()
+            msg["From"] = getattr(settings, "SMTP_FROM", "no-reply@statement2muster.com")
+            msg["To"] = recipient
+            msg["Subject"] = entry["subject"]
+            msg.set_content(f"Your Statement2Muster login code is: {code}\nThis code expires in 10 minutes.")
+
+            def _send_sync():
+                port = getattr(settings, "SMTP_PORT", 587)
+                username = getattr(settings, "SMTP_USER", None)
+                password = getattr(settings, "SMTP_PASSWORD", None)
+                if port == 465:
+                    with smtplib.SMTP_SSL(smtp_host, port, timeout=10) as server:
+                        if username and password:
+                            server.login(username, password)
+                        server.send_message(msg)
+                else:
+                    with smtplib.SMTP(smtp_host, port, timeout=10) as server:
+                        server.starttls()
+                        if username and password:
+                            server.login(username, password)
+                        server.send_message(msg)
+
             try:
-                import aiosmtplib
-                from email.message import EmailMessage
-
-                msg = EmailMessage()
-                msg["From"] = getattr(settings, "SMTP_FROM", "no-reply@statement2muster.com")
-                msg["To"] = recipient
-                msg["Subject"] = entry["subject"]
-                msg.set_content(f"Your Statement2Muster login code is: {code}\nThis code expires in 10 minutes.")
-
-                await aiosmtplib.send(
-                    msg,
-                    hostname=smtp_host,
-                    port=getattr(settings, "SMTP_PORT", 587),
-                    username=getattr(settings, "SMTP_USER", None),
-                    password=getattr(settings, "SMTP_PASSWORD", None),
-                    start_tls=True
-                )
+                await asyncio.to_thread(_send_sync)
                 logger.info(f"Verification email successfully delivered to {recipient} via SMTP.")
                 return True
             except Exception as e:
                 logger.error(f"Failed to send email via SMTP to {recipient}: {e}")
                 return False
 
-        logger.info(f"Verification email recorded for {recipient} via backend '{backend}'.")
-        return True
+        else:
+            logger.error(f"Unsupported email backend: {backend}")
+            return False
 
 email_service = EmailDeliveryService()

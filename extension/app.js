@@ -212,7 +212,7 @@ function formatBytes(bytes) {
 
 // Check Backend Health (Hybrid mode: in-browser engine is always active; local server is optional)
 async function checkBackendHealth() {
-  const candidates = ['http://127.0.0.1:8000', 'http://localhost:8000'];
+  const candidates = ['https://api.statement2muster.com', 'http://127.0.0.1:8000', 'http://localhost:8000'];
   for (const url of candidates) {
     try {
       const controller = new AbortController();
@@ -793,12 +793,18 @@ async function processBackendConversion(files) {
   const formatRadio = document.querySelector('input[name="export-format"]:checked');
   const selectedFormat = formatRadio ? formatRadio.value : 'datev';
 
-  // Read auth token from session or local storage
+  // Read auth token from local storage (primary) or session storage (fallback)
   let token = '';
   try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.session) {
-      const s = await chrome.storage.session.get('authToken');
-      token = s.authToken || '';
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      if (chrome.storage.local) {
+        const l = await chrome.storage.local.get('authToken');
+        token = (l && l.authToken) ? l.authToken : '';
+      }
+      if (!token && chrome.storage.session) {
+        const s = await chrome.storage.session.get('authToken');
+        token = (s && s.authToken) ? s.authToken : '';
+      }
     }
   } catch (e) {}
 
@@ -1033,7 +1039,10 @@ convertBtn.addEventListener('click', async () => {
       await processBackendConversion(selectedFiles);
       return;
     } catch (backendError) {
-      console.warn('Backend conversion failed, falling back to local client-side engine:', backendError);
+      console.error('Backend conversion failed:', backendError);
+      showStatus('error', `Server-Fehler: ${backendError.message || 'Verarbeitung fehlgeschlagen'}`);
+      checkState();
+      return;
     }
   }
 
@@ -1697,9 +1706,17 @@ if (btnOpenAuth) {
       const user = res.userSession;
       if (user && user.isLoggedIn) {
         if (confirm(`👤 Angemeldet als: ${user.name || user.email}\nTarif: ${user.plan || 'Standard'}\n\nMöchten Sie sich abmelden?`)) {
-          fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: 'POST' }).catch(() => {});
-          chrome.storage.local.remove(['userSession', 'authToken'], () => {
-            applyLoggedOutState();
+          chrome.storage.local.get(['authToken'], (tokenRes) => {
+            const tok = tokenRes ? tokenRes.authToken : null;
+            const logoutHeaders = {};
+            if (tok) logoutHeaders['Authorization'] = `Bearer ${tok}`;
+            fetch(`${apiBaseUrl}/api/v1/auth/logout`, { method: 'POST', headers: logoutHeaders }).catch(() => {});
+            chrome.storage.local.remove(['userSession', 'authToken'], () => {
+              if (chrome.storage && chrome.storage.session) {
+                chrome.storage.session.remove(['userSession', 'authToken']).catch(() => {});
+              }
+              applyLoggedOutState();
+            });
           });
         }
       } else {

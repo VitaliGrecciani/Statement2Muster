@@ -2,13 +2,14 @@ import uuid
 import secrets
 import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.db.session import get_db
-from app.db.models import Tenant, AuthChallenge
-from app.core.security import create_access_token, _PUB_KEY, get_jwks
+from app.db.models import Tenant, AuthChallenge, RevokedToken, AuthRateLimit
+from app.core.security import create_access_token, _PUB_KEY, get_jwks, revoke_token, hash_token
 from app.core.config import settings
 from app.services.quota_service import get_or_create_trial_entitlement
 
@@ -31,40 +32,57 @@ class TokenResponse(BaseModel):
 
 from app.services.email_service import email_service
 
-# Thread/process-safe structures for attempt budgets and rate limits (B01)
-# Key: email -> (failed_attempts_count, lockout_until_datetime)
-_failed_attempts: dict = {}
-# Key: email -> [request_timestamps]
-_request_code_history: dict = {}
-
 @router.post("/request-code")
 async def request_code(req: RequestCodeRequest, db: AsyncSession = Depends(get_db)):
     """
     Issues a single-use 6-digit OTP code with 10-minute TTL for email identity proof (A01).
-    Enforces request-rate budget and truthful delivery status via EmailDeliveryService.
-    Does NOT reset failed-attempts lockout counter (B01).
+    Enforces persistent request-rate budget (max 3/10m) and lockout via AuthRateLimit (C04).
+    Truthful delivery status via EmailDeliveryService (C03).
     """
     now = datetime.datetime.now(datetime.timezone.utc)
     
-    # 1. Rate-limit request-code calls (max 5 requests per 10 minutes)
-    req_times = _request_code_history.get(req.email, [])
-    cutoff = now - datetime.timedelta(minutes=10)
-    req_times = [t for t in req_times if t > cutoff]
-    if len(req_times) >= 5:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many verification code requests. Please wait a few minutes before requesting another code."
+    # 1. Persistent rate limit & lockout record (C04)
+    rl_query = select(AuthRateLimit).where(AuthRateLimit.email == req.email)
+    rl = (await db.execute(rl_query)).scalars().first()
+    if not rl:
+        rl = AuthRateLimit(
+            email=req.email,
+            failed_attempts=0,
+            request_count=0,
+            window_start=now
         )
-    req_times.append(now)
-    _request_code_history[req.email] = req_times
+        db.add(rl)
+        await db.flush()
 
     # 2. Check active lockout
-    attempts, lockout_until = _failed_attempts.get(req.email, (0, None))
-    if lockout_until and now < lockout_until:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed verification attempts. Please wait until the lockout period expires."
-        )
+    if rl.lockout_until:
+        lockout_dt = rl.lockout_until if rl.lockout_until.tzinfo else rl.lockout_until.replace(tzinfo=datetime.timezone.utc)
+        if now < lockout_dt:
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed verification attempts. Please wait until the lockout period expires."
+            )
+        else:
+            rl.lockout_until = None
+            rl.failed_attempts = 0
+
+    # 3. Rate-limit request-code calls (max 3 requests per 10 minutes - C04)
+    w_start = rl.window_start if (rl.window_start and rl.window_start.tzinfo) else (rl.window_start.replace(tzinfo=datetime.timezone.utc) if rl.window_start else None)
+    if not w_start or (now - w_start) > datetime.timedelta(minutes=10):
+        rl.window_start = now
+        rl.request_count = 1
+    else:
+        if rl.request_count >= 3:
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many verification code requests. Please wait a few minutes before requesting another code."
+            )
+        rl.request_count += 1
+
+    rl.updated_at = now
+    await db.flush()
 
     code = f"{secrets.randbelow(900000) + 100000}"
     expires = now + datetime.timedelta(minutes=10)
@@ -108,7 +126,7 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     10-minute RS256 Bearer JWT (ADR-001).
     Enforces proof-of-identity: token cannot be issued by email alone (A01).
     Enforces attempt budget: 5 failed attempts locks out the email for 15 minutes (429 Too Many Requests).
-    Lockout is persistent across request-code invocations (B01).
+    Lockout is persistent across request-code invocations (B01 / C04).
     """
     if not req.code:
         raise HTTPException(
@@ -117,26 +135,39 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
         )
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    attempts, lockout_until = _failed_attempts.get(req.email, (0, None))
     
-    # Check if currently locked out
-    if lockout_until and now < lockout_until:
+    rl_query = select(AuthRateLimit).where(AuthRateLimit.email == req.email)
+    rl = (await db.execute(rl_query)).scalars().first()
+    if not rl:
+        rl = AuthRateLimit(
+            email=req.email,
+            failed_attempts=0,
+            request_count=0,
+            window_start=now
+        )
+        db.add(rl)
+        await db.flush()
+
+    # Check active lockout
+    if rl.lockout_until:
+        lockout_dt = rl.lockout_until if rl.lockout_until.tzinfo else rl.lockout_until.replace(tzinfo=datetime.timezone.utc)
+        if now < lockout_dt:
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed verification attempts. Account is temporarily locked out."
+            )
+        else:
+            rl.lockout_until = None
+            rl.failed_attempts = 0
+
+    if rl.failed_attempts >= 5:
+        rl.lockout_until = now + datetime.timedelta(minutes=15)
+        rl.updated_at = now
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many failed verification attempts. Account is temporarily locked out."
-        )
-    if lockout_until and now >= lockout_until:
-        # Lockout period expired, reset counter
-        attempts = 0
-        lockout_until = None
-        _failed_attempts[req.email] = (attempts, lockout_until)
-
-    if attempts >= 5:
-        lockout_until = now + datetime.timedelta(minutes=15)
-        _failed_attempts[req.email] = (attempts, lockout_until)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed verification attempts. Please wait before retrying."
         )
 
     c_query = select(AuthChallenge).where(
@@ -147,14 +178,16 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     )
     challenge = (await db.execute(c_query)).scalars().first()
     if not challenge:
-        new_attempts = attempts + 1
-        new_lockout = (now + datetime.timedelta(minutes=15)) if new_attempts >= 5 else None
-        _failed_attempts[req.email] = (new_attempts, new_lockout)
-        if new_attempts >= 5:
+        rl.failed_attempts += 1
+        rl.updated_at = now
+        if rl.failed_attempts >= 5:
+            rl.lockout_until = now + datetime.timedelta(minutes=15)
+            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many failed verification attempts. Account is temporarily locked out."
             )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired verification code."
@@ -174,7 +207,10 @@ async def exchange_token(req: TokenRequest, db: AsyncSession = Depends(get_db)):
     await db.flush()
 
     # Success: clear failed attempts
-    _failed_attempts.pop(req.email, None)
+    rl.failed_attempts = 0
+    rl.lockout_until = None
+    rl.updated_at = now
+    await db.flush()
 
     query = select(Tenant).where(Tenant.email == req.email)
     res = await db.execute(query)
@@ -213,7 +249,41 @@ async def get_public_key():
     return {"algorithm": "RS256", "public_key": _PUB_KEY.decode()}
 
 @router.post("/logout")
-async def logout_endpoint():
-    """Client logout and session termination (B01)."""
+async def logout_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Client logout, token revocation, and session termination (B01 / C02)."""
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        try:
+            th = hash_token(token)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            exp_dt = now + datetime.timedelta(minutes=10)
+            try:
+                payload = jwt.decode(
+                    token,
+                    _PUB_KEY,
+                    algorithms=[settings.JWT_ALGORITHM],
+                    audience="statement2muster-api",
+                    issuer="statement2muster.com",
+                    options={"verify_exp": False}
+                )
+                if "exp" in payload:
+                    exp_dt = datetime.datetime.fromtimestamp(payload["exp"], tz=datetime.timezone.utc)
+            except Exception:
+                pass
+
+            revoke_token(token, exp_dt.timestamp())
+            revoked_rec = RevokedToken(
+                token_hash=th,
+                expires_at=exp_dt.replace(tzinfo=None)
+            )
+            await db.merge(revoked_rec)
+            await db.flush()
+        except Exception:
+            revoke_token(token)
+
     return {"message": "Session logged out successfully.", "status": "logged_out"}
 

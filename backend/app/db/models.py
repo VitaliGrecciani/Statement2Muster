@@ -95,3 +95,25 @@ class UsageReservation(Base):
         UniqueConstraint("tenant_id", "idempotency_key", name="uq_tenant_idempotency"),
         Index("idx_tenant_idempotency", "tenant_id", "idempotency_key"),
     )
+
+
+class RevokedToken(Base):
+    """Stores revoked RS256 Bearer JWTs (C02 / ADR-001)."""
+    __tablename__ = "revoked_tokens"
+
+    token_hash = Column(String(64), primary_key=True) # SHA-256 of the token
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+class AuthRateLimit(Base):
+    """Persistent rate limiting and lockout state across workers and restarts (C04)."""
+    __tablename__ = "auth_rate_limits"
+
+    email = Column(String(255), primary_key=True)
+    failed_attempts = Column(Integer, default=0, nullable=False)
+    lockout_until = Column(DateTime, nullable=True)
+    request_count = Column(Integer, default=0, nullable=False)
+    window_start = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=utcnow, nullable=False)
+

@@ -12,8 +12,8 @@
 
 | Komponente / Artefakt | Dateipfad | SHA-256 Prüfsumme | Status |
 |---|---|---|---|
-| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `6D7CF889E4D7F44E35C40D2ABC5A8A6912286160FF26D6E12827470352577C8C` | Aktualisiert & 100% verifiziert |
-| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `8F09D303C3E237A52EE29CEF4F0A844C134DE3860899DEB57D8FD732593783A4` | Aktualisiert & 100% verifiziert |
+| **Chrome Extension ZIP v1.0.2** | `dist/statement2muster-chrome-v1.0.2.zip` | `13EFD53EF4DAEA605FB75B85D31FE5976509847B7E92AA0EAF6215120F46A214` | Aktualisiert & 100% verifiziert |
+| **Firefox Extension ZIP v1.0.2** | `dist/statement2muster-firefox-v1.0.2.zip` | `88F793BF62663FDA9C1145F79B3E46D773B051B19C64C8D8F080E66360325A54` | Aktualisiert & 100% verifiziert |
 | **Backend Dockerfile** | `backend/Dockerfile` | `161D4D98E91952E162039D2C191902707F9EE8CEE6ECAC63E21BC4EC0792D0B6` | Verifiziert |
 | **Backend Dependencies** | `backend/requirements.txt` | `F04FF3426F27CB890902E6D0E813B9BB6F0A80C122A60B33E5030E2CCD31BE64` | Verifiziert |
 

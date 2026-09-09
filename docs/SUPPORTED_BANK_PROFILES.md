@@ -1,4 +1,4 @@
-﻿# Statement2Muster — Matrix der Unterstützten Bankprofile (Pilotbetrieb v1.0.2)
+# Statement2Muster — Matrix der Unterstützten Bankprofile (Pilotbetrieb v1.0.2)
 
 **Dokument-Version:** 1.0.2  
 **Gültig ab:** 9. September 2026  
@@ -7,14 +7,17 @@
 
 ---
 
-## 1. Übersicht & Zertifizierte Bankprofile
+## 1. Übersicht der Unterstützten Bankprofile (Synthetischer Pilotbetrieb v1.0.2)
 
-Statement2Muster v1.0.2 unterstützt für den Kanzlei-Pilotbetrieb fünf primäre Bank- und Zahlungsdienstleister-Profile des DACH-Raums. Die Formate werden zur Laufzeit automatisch im Arbeitsspeicher erkannt und in das kanonische Datenmodell (`CanonicalTransaction`) normalisiert.
+Statement2Muster v1.0.2 unterstützt für den Kanzlei-Pilotbetrieb fünf primäre Bank- und Zahlungsdienstleister-Profile des DACH-Raums für CSV- und PDF-Auszüge. Die Formate werden zur Laufzeit automatisch im Arbeitsspeicher erkannt und in das kanonische Datenmodell (`CanonicalTransaction`) normalisiert.
+
+> [!NOTE]
+> **Geltungsbereich & Abgrenzung:** Die Profile wurden im Rahmen synthetischer Testkorpora verifiziert. Es besteht keine formelle Zertifizierung durch DATEV eG oder BMD Systemhaus. XML-basierte Formate (CAMT.053) sowie reine Swift-Dateien (MT940) sind im API-Allowlist-Filter von Version 1.0.2 (`.csv`, `.pdf`, `.txt`) nicht freigegeben und werden abgewiesen.
 
 | Institut / Profil | Unterstützte Formate | Erkennungsmerkmale | Standard-Währung | Konten-Identifikation |
 |---|---|---|---|---|
-| **Sparkassen-Finanzgruppe** | CSV, PDF, MT940 | Spalten: `Auftragskonto`, `Buchungstag`, `Betrag`, `Verwendungszweck` | EUR | IBAN (`DE..` / `AT..`), Kontonummer |
-| **Volksbanken / Raiffeisenbanken** | CSV, PDF, CAMT.053 | Schlüsselwörter: `VR Bank`, `Volksbank`, `Raiffeisen`, `Buchungstag`, `Saldo nach Buchung` | EUR | IBAN, BLZ + Kontonummer |
+| **Sparkassen-Finanzgruppe** | CSV, PDF | Spalten: `Auftragskonto`, `Buchungstag`, `Betrag`, `Verwendungszweck` | EUR | IBAN (`DE..` / `AT..`), Kontonummer |
+| **Volksbanken / Raiffeisenbanken** | CSV, PDF | Schlüsselwörter: `VR Bank`, `Volksbank`, `Raiffeisen`, `Buchungstag`, `Saldo nach Buchung` | EUR | IBAN, BLZ + Kontonummer |
 | **Deutsche Bank / Postbank** | CSV, PDF | Spalten: `Buchungstag`, `Wert`, `Umsatzart`, `Begünstigter / Auftraggeber`, `Verwendungszweck`, `Betrag` | EUR | IBAN, Kontonummer |
 | **Wise Europe (ehem. TransferWise)** | CSV | Spalten: `TransferWise ID`, `Date`, `Amount`, `Currency`, `Description`, `Payment Reference`, `Running Balance` | EUR, USD, GBP | Wise Account ID / Currency Partition |
 | **American Express (DACH)** | PDF (digital & scan) | Kopf: `AMERICAN EXPRESS`, `Datum DD.MM.YY`, Kartennummer `3752-xxxxxx-22001`, Layout-Spalten | EUR | Kartennummer (letzte 5 Ziffern) |

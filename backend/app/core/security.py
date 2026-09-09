@@ -61,8 +61,74 @@ def create_access_token(
     encoded_jwt = jwt.encode(payload, _PRIV_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
+import hashlib
+import time
+import os
+
+# Thread-safe in-memory cache of revoked token hashes: hash -> expiration epoch
+_revoked_tokens: Dict[str, float] = {}
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def revoke_token(token: str, expires_at: Optional[float] = None) -> None:
+    """Revokes an active Bearer token until its expiration (C02)."""
+    th = hash_token(token)
+    if expires_at is None:
+        try:
+            payload = jwt.decode(
+                token,
+                _PUB_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                audience="statement2muster-api",
+                issuer="statement2muster.com",
+                options={"verify_exp": False}
+            )
+            expires_at = float(payload.get("exp", time.time() + 600))
+        except Exception:
+            expires_at = time.time() + 600
+    _revoked_tokens[th] = expires_at
+
+def is_token_revoked(token: str) -> bool:
+    """Checks whether token has been revoked in-memory or database."""
+    th = hash_token(token)
+    now = time.time()
+    exp = _revoked_tokens.get(th)
+    if exp is not None:
+        if exp > now:
+            return True
+        else:
+            _revoked_tokens.pop(th, None)
+            return False
+
+    # Multi-worker DB fallback for SQLite
+    try:
+        db_url = settings.DATABASE_URL
+        if "sqlite" in db_url:
+            path = db_url.split(":///")[-1]
+            if path and os.path.exists(path):
+                import sqlite3
+                conn = sqlite3.connect(path, timeout=0.5)
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT expires_at FROM revoked_tokens WHERE token_hash = ?", (th,))
+                    row = cursor.fetchone()
+                    if row:
+                        _revoked_tokens[th] = now + 600
+                        return True
+                finally:
+                    conn.close()
+    except Exception:
+        pass
+    return False
+
 def decode_access_token(token: str) -> Dict[str, Any]:
-    """Validates RS256 Bearer JWT against public key."""
+    """Validates RS256 Bearer JWT against public key and revocation list (C02)."""
+    if is_token_revoked(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please re-authenticate."
+        )
     try:
         payload = jwt.decode(
             token,

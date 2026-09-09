@@ -5,6 +5,7 @@ import os
 import uuid
 import hashlib
 import datetime
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from contextlib import asynccontextmanager
 
@@ -192,12 +193,23 @@ async def convert_statements(
             logger.info(f"Parsing file {file_idx+1}/{len(file_data)}: {len(content)} bytes in-memory")
 
             try:
-                file_txs, acc_summary = registry.parse_file(
-                    content=content,
-                    filename=filename,
-                    tenant_id=tenant_id,
-                    client_entity_id=client_entity_id
-                )
+                try:
+                    file_txs, acc_summary = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            registry.parse_file,
+                            content=content,
+                            filename=filename,
+                            tenant_id=tenant_id,
+                            client_entity_id=client_entity_id
+                        ),
+                        timeout=settings.PARSER_TIMEOUT_SECONDS
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Parser timed out after {settings.PARSER_TIMEOUT_SECONDS}s processing '{filename}'")
+                    raise HTTPException(
+                        status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                        detail=f"Parser timed out processing '{filename}'"
+                    )
                 if file_txs:
                     if len(file_txs) > settings.MAX_ROWS_PER_FILE:
                         raise HTTPException(
