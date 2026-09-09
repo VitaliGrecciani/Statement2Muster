@@ -1,0 +1,20 @@
+{
+  "successful_parse": {
+    "tx_count": 1,
+    "has_summary": true
+  },
+  "blocking_wait_termination": {
+    "timeout_caught": true,
+    "pid_alive_before": true,
+    "pid_alive_at_timeout": false,
+    "pid_alive_100ms_after": false,
+    "process_is_alive": false
+  },
+  "cpu_loop_termination": {
+    "timeout_caught": true,
+    "pid_alive_before": true,
+    "pid_alive_at_timeout": false,
+    "pid_alive_100ms_after": false,
+    "process_is_alive": false
+  }
+}

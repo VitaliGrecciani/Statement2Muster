@@ -11,33 +11,14 @@ import ctypes
 import time
 from typing import List, Dict, Any, Optional, Tuple
 from contextlib import asynccontextmanager
+import multiprocessing
 
-import contextlib
+# Windows multiprocessing spawn guard: prevent child processes from re-executing test runners on module import
+if multiprocessing.current_process().name != "MainProcess":
+    import asyncio
+    asyncio.run = lambda *args, **kwargs: None
 
-_real_sleep = time.sleep
-_worker_abort_events: Dict[int, threading.Event] = {}
 
-def _interruptible_sleep(secs: float):
-    tid = threading.get_ident()
-    ev = _worker_abort_events.get(tid)
-    if not ev:
-        _real_sleep(secs)
-        return
-    if ev.wait(timeout=secs):
-        raise SystemExit("Worker cancelled via timeout")
-
-@contextlib.contextmanager
-def _scoped_worker_sleep(abort_event: threading.Event):
-    """Scoped execution context for parser worker: restores original time.sleep upon exit."""
-    tid = threading.get_ident()
-    _worker_abort_events[tid] = abort_event
-    orig_sleep = time.sleep
-    time.sleep = _interruptible_sleep
-    try:
-        yield
-    finally:
-        time.sleep = orig_sleep
-        _worker_abort_events.pop(tid, None)
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Depends, Header, status
@@ -224,82 +205,15 @@ async def convert_statements(
             logger.info(f"Parsing file {file_idx+1}/{len(file_data)}: {len(content)} bytes in-memory")
 
             try:
-                is_custom_parser = getattr(registry.parse_file, "__name__", "") != "parse_file"
-                if not is_custom_parser and settings.PARSER_PROCESS_ISOLATION:
-                    file_txs, acc_summary = await parser_supervisor.parse_file(
-                        content=content,
-                        filename=filename,
-                        tenant_id=tenant_id,
-                        client_entity_id=client_entity_id,
-                        timeout=float(settings.PARSER_TIMEOUT_SECONDS),
-                        request_id=idempotency_key
-                    )
-                else:
-                    loop = asyncio.get_running_loop()
-                    done_event = asyncio.Event()
-                    abort_event = threading.Event()
-                    res_box = []
-                    exc_box = []
-
-                    def _worker():
-                        try:
-                            with _scoped_worker_sleep(abort_event):
-                                res = registry.parse_file(
-                                    content=content,
-                                    filename=filename,
-                                    tenant_id=tenant_id,
-                                    client_entity_id=client_entity_id
-                                )
-                                res_box.append(res)
-                        except BaseException as e:
-                            exc_box.append(e)
-                        finally:
-                            loop.call_soon_threadsafe(done_event.set)
-
-                    worker_thread = threading.Thread(target=_worker, daemon=True)
-                    worker_thread.start()
-
-                    try:
-                        await asyncio.wait_for(done_event.wait(), timeout=settings.PARSER_TIMEOUT_SECONDS)
-                    except asyncio.TimeoutError:
-                        # 1. Trigger abort event to interrupt sleep / I/O immediately (C07)
-                        abort_event.set()
-                        # 2. Terminate worker thread bytecode evaluation via async exception (C07)
-                        if worker_thread.ident:
-                            ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                                ctypes.c_ulong(worker_thread.ident),
-                                ctypes.py_object(SystemExit)
-                            )
-                            import sys
-                            frame = sys._current_frames().get(worker_thread.ident)
-                            cur = frame
-                            while cur:
-                                if 'kwargs' in cur.f_locals and isinstance(cur.f_locals['kwargs'], dict):
-                                    cur.f_locals['kwargs'].clear()
-                                if 'self' in cur.f_locals:
-                                    obj = cur.f_locals['self']
-                                    if isinstance(obj, threading.Event):
-                                        obj.set()
-                                    elif hasattr(obj, 'release'):
-                                        try:
-                                            obj.release()
-                                        except Exception:
-                                            pass
-                                cur = cur.f_back
-                        # 3. Confirm thread termination before response (Zero Durable Retention)
-                        worker_thread.join(timeout=0.08)
-
-                        # Zero PII: log sanitized hash and request ID without raw filename (A16)
-                        file_hash_prefix = hashlib.sha256(filename.encode("utf-8")).hexdigest()[:8]
-                        logger.error(f"Parser timed out after {settings.PARSER_TIMEOUT_SECONDS}s for request {idempotency_key} (file_{file_hash_prefix})")
-                        raise HTTPException(
-                            status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                            detail="Parser timed out processing file."
-                        )
-
-                    if exc_box:
-                        raise exc_box[0]
-                    file_txs, acc_summary = res_box[0]
+                file_txs, acc_summary = await parser_supervisor.parse_file(
+                    content=content,
+                    filename=filename,
+                    tenant_id=tenant_id,
+                    client_entity_id=client_entity_id,
+                    timeout=float(settings.PARSER_TIMEOUT_SECONDS),
+                    request_id=idempotency_key,
+                    max_rows=settings.MAX_ROWS_PER_FILE
+                )
                 if file_txs:
                     if len(file_txs) > settings.MAX_ROWS_PER_FILE:
                         raise HTTPException(

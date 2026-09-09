@@ -46,8 +46,9 @@ class Settings(BaseSettings):
     MAX_ROWS_PER_FILE: int = 10_000
     PARSER_TIMEOUT_SECONDS: int = 30
     OCR_TIMEOUT_SECONDS: int = 90
-    PARSER_PROCESS_ISOLATION: bool = os.getenv("PARSER_PROCESS_ISOLATION", "false").lower() in ("true", "1")
+    PARSER_PROCESS_ISOLATION: bool = os.getenv("PARSER_PROCESS_ISOLATION", "true").lower() in ("true", "1")
     PARSER_WORKER_CONCURRENCY: int = int(os.getenv("PARSER_WORKER_CONCURRENCY", "4"))
+    PARSER_MAX_QUEUE_DEPTH: int = int(os.getenv("PARSER_MAX_QUEUE_DEPTH", "8"))
     
     # RAM Cache Budget & Retention (B02 / B07)
     RAM_CACHE_TTL_SECONDS: int = 600                  # 10 minutes
