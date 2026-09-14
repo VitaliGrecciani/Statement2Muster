@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-09-14T11:18:57Z",
+  "environment": "Hetzner Cloud (Ubuntu Linux 6.8.0-137-generic)",
+  "container": "s2m-backend-api",
+  "image_id": "sha256:20d892a00069b45b527546e90bd368b48d6d244eda210cf8ed6b6b6102fbf128",
+  "cgroups": {
+    "memory_max_bytes": 536870912,
+    "memory_max_human": "512 MiB",
+    "cpu_max": "100000 100000",
+    "cpu_limit_human": "1.0 CPU"
+  },
+  "security": {
+    "user": "uid=10001(appuser) gid=10001(appuser) groups=10001(appuser)",
+    "unprivileged_uid": true,
+    "readonly_rootfs_enforced": true,
+    "tmpfs_mount": "tmpfs            64M  120K   64M   1% /tmp"
+  },
+  "healthz": {
+    "status_code": 200,
+    "body": {
+      "status": "healthy",
+      "service": "statement2muster-api",
+      "version": "1.0.2",
+      "database": "connected",
+      "zero_retention": "enforced"
+    }
+  },
+  "jwks": {
+    "status_code": 200,
+    "key_count": 1
+  },
+  "normal_conversion": {
+    "status_code": 200,
+    "success": true,
+    "transactions_count": 2
+  },
+  "row_limit_413": {
+    "status_code": 413,
+    "detail": "File 'oversize.csv' exceeds maximum allowed limit of 10000 rows."
+  },
+  "supervisor_wiring": {
+    "data": {
+      "concurrency": 2,
+      "queue_depth": 4,
+      "timeout_seconds": 30,
+      "process_isolation": true,
+      "email_backend": "smtp",
+      "environment": "production"
+    },
+    "concurrency_2": true,
+    "queue_depth_4": true,
+    "process_isolation_enforced": true,
+    "production_environment": true
+  },
+  "supervisor_real_timeout": {
+    "data": {
+      "status_code": 408,
+      "detail": "Parser admission timeout",
+      "active_children": []
+    },
+    "http_408_returned": true,
+    "live_children_after_response": [],
+    "clean_termination": true
+  },
+  "process_tree_verification": {
+    "running_processes_count": 1,
+    "processes": [
+      "10001               2764869             2764824             2                   11:17               ?                   00:00:02            /usr/local/bin/python3.11 /usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ],
+    "single_uvicorn_master_running": true,
+    "zero_zombies": true
+  },
+  "zero_retention_canary": {
+    "canary_iban": "CANARY_IBAN_DE999B487CFAA4014514",
+    "tmp_matches": "",
+    "tmp_clean": true,
+    "logs_matches": "",
+    "logs_clean": true
+  },
+  "smtp_configuration": {
+    "request_code_status": 502,
+    "request_code_response": {
+      "detail": "Failed to deliver verification code email. Please verify email address or try again."
+    },
+    "graceful_502_on_unreachable_smtp": true,
+    "safe_error_message": "Failed to deliver verification code email. Please verify email address or try again."
+  }
+}

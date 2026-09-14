@@ -1,0 +1,415 @@
+{
+  "timestamp": "2026-09-14T11:41:40Z",
+  "environment": "Hetzner Cloud (Ubuntu Linux 6.8.0-137-generic)",
+  "container": "s2m-backend-api",
+  "provenance": {
+    "git_build_commit": "c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e",
+    "git_audit_head_commit": "71b75089e4f600187a1b5f4e7800d1152de0a99a",
+    "image_id": "sha256:a08b5c98025262d635ef9cbd51d253f3618e498dc00a6cafe87825960606e346",
+    "container_id": "8105a6c17b1059139a856966fcfd1060877ce62241aaf6e71fae109d8be46d1c",
+    "key_packages": {
+      "aiosqlite": "0.22.1",
+      "fastapi": "0.110.0",
+      "pandas": "2.2.1",
+      "pydantic": "2.6.3",
+      "sqlalchemy": "2.0.52",
+      "starlette": "0.36.3",
+      "stripe": "15.6.1",
+      "uvicorn": "0.27.1"
+    },
+    "total_pip_packages": 54,
+    "pip_manifest_saved": "/opt/statement2muster/container_pip_manifest.json",
+    "mounts": [
+      {
+        "Type": "volume",
+        "Name": "statement2muster_s2m-data",
+        "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+        "Destination": "/app/data",
+        "Driver": "local",
+        "Mode": "rw",
+        "RW": true,
+        "Propagation": ""
+      }
+    ],
+    "source_manifest_files_count": 31,
+    "source_manifest_saved": "/opt/statement2muster/container_source_manifest.json",
+    "source_manifest": {
+      "main.py": "69a6e527720b278b4c59aef3eda721f4283fcab3d27778e7ef786a5fa9eae91f",
+      "services/__init__.py": "c952fde4981fdca232b56362500c998c90689bb4be2aab2e02497f4311cddab3",
+      "services/billing_service.py": "5d08ef269ae9b9590e7f08d9842610ed9a24befe52cf32d9c699d1b86a31389e",
+      "services/email_service.py": "42ee21dc40e5680a96064392d111332a8d53eea63e8085f2a1d98f6b51e83039",
+      "services/parser_process_supervisor.py": "a8ffa59b58b5cf7db97b538ca75c08ce5ee77c87232b6e0b77ab0c235a4c33a0",
+      "services/quota_service.py": "5faa2d6657b4c4987a44d98aaf7603e6cc081f1eab29f7e41c14e6c7d153055e",
+      "services/reconciliation_service.py": "cea49ce73e4246409d7a789908eac6a47aadae02824ca93506846d929a783fbe",
+      "db/__init__.py": "e389cbf2dff116cf00c82e9b7e3571af6279467d0d093bffa291410c054eba0a",
+      "db/models.py": "93f0f5b01d05c97f79c1720a8c047488f0c0fe54ffd275b86e0ceb1be7c403fc",
+      "db/session.py": "409990ec515aaa62c8064b1a02a6f964525142b63da4fff31582b4db5a2bb13f",
+      "api/__init__.py": "9e4465a14108263e19793726d23ca5c63be17d9bd23a853133e8378b5abaeb54",
+      "api/endpoints/__init__.py": "79203c5f8bc1e7bdcc4a33ad6a180a03128970d4b151e4d41723cc9a673fa0a6",
+      "api/endpoints/auth.py": "03980de2a0d746155226607f6e0460e4e8dee247a3b7b840862d29e803602ae0",
+      "api/endpoints/billing.py": "85f19a0da81d6bb85d7e69afcc6eff553c99d146e08d6338144f5176f0d7de28",
+      "api/endpoints/entitlements.py": "429ae2852291f00801ab9cf00db20f6e0575963a5ade1a48414056f0079aa1e1",
+      "exporters/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exporters/bmd.py": "dda4f78466b90bef16120667b0bad089ecf229145f5d72c48c2726351fc98ff2",
+      "exporters/datev.py": "f988a7855a31d1bca06e78ad8be3da4e049c8e7abd415f7c33efd4f65c04a0ac",
+      "exporters/muster_csv.py": "3a089c6247ac03f6d7181f6155ea7d63adb14a44c8080f3ab8ea16dd47aeacf3",
+      "parsers/__init__.py": "865a462957523cef784dd2c7c0f871bca8110e9db1afa5c77cf62190332b3816",
+      "parsers/amex_parser.py": "8188dcc69ce96a8f55ae84ab175a4c62c44f84c35364916b0338a04fcaba2d29",
+      "parsers/base.py": "84fa5b83b6a1e6178697365b626cdda91b6abe3e09a9a5f86aadcb02907d2a81",
+      "parsers/csv_parser.py": "f039daa320fd1ccbebbd4c4765048b3a3ae5cca4f633da45276ac68d860de535",
+      "parsers/registry.py": "b49fb86990de049d119c73748270c54bfa65d3797232d87b48d0c7bf55561fe7",
+      "core/__init__.py": "ba05044512f533853aff28ca0189c9a09fe89253ffb822c51eec266155eda5d3",
+      "core/cache.py": "5b632a7ae5daf9460e359327b2bba2b01e44c749010fcb3801f1303dcee66d33",
+      "core/config.py": "90c1bf028feff51444e23126f949956970764c318f7276adce42684209791fd6",
+      "core/middleware.py": "756b509b9cd4358da3f5f4369b1336e5286e31536325ddc661bc7821d6733f7a",
+      "core/security.py": "ae21cf57e3002a59adb3bd54471747a5ef8161ee1471572dd2f0637776acfdbd",
+      "schemas/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "schemas/canonical.py": "9bd1b309574390fc8a5a50a9ab87a1088195d3ab9df9f5be39765927ef824700"
+    },
+    "comparison_against_repo": {
+      "identical_files_count": 31,
+      "diff_count": 0,
+      "diffs": {},
+      "missing_in_container": [],
+      "extra_in_container": [],
+      "source_binding_verified": true
+    }
+  },
+  "cgroups": {
+    "memory_max_bytes": 536870912,
+    "memory_max_human": "512 MiB",
+    "cpu_max": "100000 100000",
+    "cpu_limit_human": "1.0 CPU"
+  },
+  "security": {
+    "user": "uid=10001(appuser) gid=10001(appuser) groups=10001(appuser)",
+    "unprivileged_uid": true,
+    "readonly_rootfs_enforced": true,
+    "tmpfs_mount": "tmpfs            64M     0   64M   0% /tmp"
+  },
+  "healthz": {
+    "status_code": 200,
+    "body": {
+      "status": "healthy",
+      "service": "statement2muster-api",
+      "version": "1.0.2",
+      "database": "connected",
+      "zero_retention": "enforced"
+    }
+  },
+  "supervisor_single_job_kill": {
+    "canary_fed_to_job": {
+      "iban": "DE89370400440532013000TIMEOUTEFF8C2E2",
+      "name": "Mustermann_Timeout_50e5ae"
+    },
+    "result": {
+      "spawned_pid": 91,
+      "handshake_pid": 91,
+      "handshake_matches_spawned": true,
+      "dead_after_kill": true,
+      "reaped_by_supervisor": true,
+      "slot_freed": true,
+      "status_code": 408,
+      "detail": "Parser timed out processing file.",
+      "duration_seconds": 0.211
+    }
+  },
+  "supervisor_crash_and_recovery": {
+    "canary_crash_fed": {
+      "iban": "DE89370400440532013000CRASH92F013EB",
+      "name": "Mustermann_Crash_3fa9d4"
+    },
+    "canary_recovery_fed": {
+      "iban": "DE89370400440532013000RECOVERYE0D7EFD3",
+      "name": "Mustermann_Recovery_f27c43"
+    },
+    "result": {
+      "crash_phase": {
+        "crashed_pid": 103,
+        "crashed_handshake": 103,
+        "handshake_matches_spawned": true,
+        "dead_after_crash": true,
+        "reaped_by_supervisor": true,
+        "supervisor_error": "Parser worker process crashed unexpectedly.",
+        "slot_freed": true
+      },
+      "recovery_phase": {
+        "recovery_pid": 105,
+        "recovery_handshake": 105,
+        "recovery_success": true,
+        "tx_count": 1,
+        "recovery_error": null,
+        "slot_freed": true
+      }
+    }
+  },
+  "supervisor_cpu_burn_recovery": {
+    "burn_pid": 116,
+    "burn_handshake": 116,
+    "handshake_matches_spawned": true,
+    "hard_kill_executed": true,
+    "reaped_by_supervisor": true,
+    "slot_freed_after_kill": true,
+    "timed_out_408": true,
+    "burn_duration_seconds": 0.21,
+    "subsequent_request_succeeded": true
+  },
+  "supervisor_cancellation_lifecycle": {
+    "cancel_spawned_pid": 126,
+    "cancel_handshake_pid": 126,
+    "handshake_confirmed": true,
+    "alive_before_cancel": true,
+    "cancelled_caught": true,
+    "dead_after_cancel": true,
+    "reaped_by_supervisor": true,
+    "slot_freed": true
+  },
+  "supervisor_overload_429": {
+    "overload_429_received": true,
+    "detail": "Parser queue depth exceeded. Please retry.",
+    "slot_freed_after_overload": true
+  },
+  "canary_matrix_zero_retention": {
+    "branches_tested": [
+      {
+        "branch": "success",
+        "expected_code": 200,
+        "actual_code": 200,
+        "canary_iban": "DE89370400440532013000SUCCESS7E1E6246",
+        "canary_name": "Mustermann_Success_92e9e5"
+      },
+      {
+        "branch": "413_oversize",
+        "expected_code": 413,
+        "actual_code": 413,
+        "canary_iban": "DE89370400440532013000OVERSIZE7FB48A5F",
+        "canary_name": "Mustermann_Oversize_921446"
+      },
+      {
+        "branch": "timeout",
+        "expected_code": 408,
+        "actual_code": 408,
+        "canary_iban": "DE89370400440532013000TIMEOUTEFF8C2E2",
+        "canary_name": "Mustermann_Timeout_50e5ae"
+      },
+      {
+        "branch": "crash",
+        "expected_code": "CRASH",
+        "actual_code": "CRASH",
+        "canary_iban": "DE89370400440532013000CRASH92F013EB",
+        "canary_name": "Mustermann_Crash_3fa9d4"
+      }
+    ],
+    "search_scope_access_verified": {
+      "tmpfs_writable": true,
+      "volume_accessible": true,
+      "docker_logs_captured": true
+    },
+    "search_conducted_pre_restart": true,
+    "all_canaries_clean": true,
+    "exit_code_interpretation": "Exit 1 = 0 matches found (CLEAN); Exit 0 = match found (LEAK); Exit > 1 = grep execution error",
+    "matrix": [
+      {
+        "canary_string": "DE89370400440532013000SUCCESS7E1E6246",
+        "type": "IBAN",
+        "branch": "success",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Success_92e9e5",
+        "type": "Name",
+        "branch": "success",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000OVERSIZE7FB48A5F",
+        "type": "IBAN",
+        "branch": "413_oversize",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Oversize_921446",
+        "type": "Name",
+        "branch": "413_oversize",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000TIMEOUTEFF8C2E2",
+        "type": "IBAN",
+        "branch": "timeout",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Timeout_50e5ae",
+        "type": "Name",
+        "branch": "timeout",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000CRASH92F013EB",
+        "type": "IBAN",
+        "branch": "crash",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Crash_3fa9d4",
+        "type": "Name",
+        "branch": "crash",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      }
+    ]
+  },
+  "database_persistence_restart": {
+    "db_file_stat": "-rw-r--r-- 1 appuser appuser 122880 Sep 14 11:41 /app/data/statement2muster_prod.db",
+    "container_restarted": true,
+    "healthz_post_restart": 200,
+    "tenant_found_post_restart": true,
+    "tenant_plan_preserved": true,
+    "post_restart_conversion_code": 200,
+    "persistence_confirmed": true
+  }
+}
