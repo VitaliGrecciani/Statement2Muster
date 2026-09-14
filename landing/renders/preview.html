@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>S2M Icon Scale & Contrast Matrix</title>
+<style>
+  body {
+    margin: 0;
+    padding: 32px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #11141B;
+    color: #F1F5F9;
+  }
+  h1 { font-size: 20px; margin-bottom: 8px; font-weight: 700; color: #FFFFFF; }
+  p { font-size: 13px; color: #94A3B8; margin-bottom: 24px; }
+  .grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .card {
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .card-dark {
+    background: #0B0D12;
+  }
+  .card-light {
+    background: #F8FAFC;
+    color: #0F172A;
+  }
+  .card-light h2 { color: #0F172A; }
+  .card-light .meta { color: #64748B; }
+  h2 { font-size: 15px; margin-top: 0; margin-bottom: 16px; font-weight: 600; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+  }
+  .row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .size-label {
+    width: 60px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: monospace;
+  }
+  .icon-actual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-actual img {
+    display: block;
+  }
+  .icon-zoomed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-zoomed img {
+    image-rendering: pixelated;
+  }
+  .meta {
+    font-size: 12px;
+    color: #94A3B8;
+  }
+</style>
+</head>
+<body>
+
+<h1>Statement2Muster — S2M Icon Scale & Contrast Matrix</h1>
+<p>Verifying raster sharpness across micro and standard sizes (16, 32, 48, 128 px) on Dark (#0B0D12) and Light (#F8FAFC) backgrounds per Chief Architect Directive.</p>
+
+<div class="grid-container">
+
+  <!-- DARK THEME COLUMN -->
+  <div class="card card-dark">
+    <h2>Dark Surface (#0B0D12)</h2>
+
+    <div class="row">
+      <div class="size-label">16 px</div>
+      <div class="icon-actual"><img src="../logo_s2m_micro.svg" width="16" height="16" alt="16"></div>
+      <div class="icon-zoomed"><img src="../logo_s2m_micro.svg" width="64" height="64" alt="16 zoom"></div>
+      <div class="meta">Micro SVG (Full-bleed, solid white/orange, no glow/shadow)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">32 px</div>
+      <div class="icon-actual"><img src="../logo_s2m_micro.svg" width="32" height="32" alt="32"></div>
+      <div class="icon-zoomed"><img src="../logo_s2m_micro.svg" width="64" height="64" alt="32 zoom"></div>
+      <div class="meta">Micro SVG (Browser tab 2x retina)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">48 px</div>
+      <div class="icon-actual"><img src="../logo_s2m.svg" width="48" height="48" alt="48"></div>
+      <div class="meta">Standard B2B Vector (Extension toolbar)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">128 px</div>
+      <div class="icon-actual"><img src="../logo_s2m.svg" width="128" height="128" alt="128"></div>
+      <div class="meta">Standard B2B Vector (App launcher / Header)</div>
+    </div>
+  </div>
+
+  <!-- LIGHT THEME COLUMN -->
+  <div class="card card-light">
+    <h2>Light Surface (#F8FAFC)</h2>
+
+    <div class="row">
+      <div class="size-label">16 px</div>
+      <div class="icon-actual"><img src="../logo_s2m_micro.svg" width="16" height="16" alt="16"></div>
+      <div class="icon-zoomed"><img src="../logo_s2m_micro.svg" width="64" height="64" alt="16 zoom"></div>
+      <div class="meta">Micro SVG (Favicon on light browser tab)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">32 px</div>
+      <div class="icon-actual"><img src="../logo_s2m_micro.svg" width="32" height="32" alt="32"></div>
+      <div class="icon-zoomed"><img src="../logo_s2m_micro.svg" width="64" height="64" alt="32 zoom"></div>
+      <div class="meta">Micro SVG (Light theme tab 2x)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">48 px</div>
+      <div class="icon-actual"><img src="../logo_s2m.svg" width="48" height="48" alt="48"></div>
+      <div class="meta">Standard B2B Vector (Light navbar)</div>
+    </div>
+
+    <div class="row">
+      <div class="size-label">128 px</div>
+      <div class="icon-actual"><img src="../logo_s2m.svg" width="128" height="128" alt="128"></div>
+      <div class="meta">Standard B2B Vector (Light docs/landing)</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
