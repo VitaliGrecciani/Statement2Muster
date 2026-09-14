@@ -199,9 +199,15 @@ async def commit_quota(db: AsyncSession, reservation: UsageReservation, successf
         reservation.committed_at = datetime.datetime.now(datetime.timezone.utc)
     else:
         reservation.status = "RELEASED"
-    await db.flush()
+    try:
+        await db.commit()
+    except Exception:
+        await db.flush()
 
 async def release_quota(db: AsyncSession, reservation: UsageReservation):
     """Releases reservation back to available quota pool on error."""
     reservation.status = "RELEASED"
-    await db.flush()
+    try:
+        await db.commit()
+    except Exception:
+        await db.flush()

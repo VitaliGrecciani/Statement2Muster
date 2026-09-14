@@ -128,6 +128,7 @@ class ParserProcessSupervisor:
         self.last_handshake_pid = None
         self.last_job_reaped = None
         self.quarantined_pids = set()
+        self.quarantined_workers = {}
 
     @property
     def max_concurrency(self) -> int:
@@ -354,6 +355,8 @@ class ParserProcessSupervisor:
             if acquired:
                 if pid and not self.last_job_reaped:
                     self.quarantined_pids.add(pid)
+                    if proc is not None:
+                        self.quarantined_workers[pid] = proc
                     logger.critical(
                         f"CRITICAL: Slot for PID {pid} quarantined due to unconfirmed reaping. Not releasing semaphore."
                     )
@@ -363,15 +366,37 @@ class ParserProcessSupervisor:
     def reclaim_quarantined_worker(self, pid: int, force: bool = True) -> bool:
         """
         Explicit recovery path for quarantined worker processes whose reaping was not confirmed.
-        Verifies termination, cleans up lingering processes, and safely reclaims the concurrency slot.
+        Verifies termination, cleans up lingering processes, executes confirmed OS reap/waitpid,
+        and safely reclaims the concurrency slot.
         """
-        if pid not in self.quarantined_pids:
+        if pid not in self.quarantined_pids and pid not in self.quarantined_workers:
             return True
+
+        proc = self.quarantined_workers.get(pid)
+
         if force:
+            if proc and proc.is_alive():
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
             _hard_kill_pid(pid)
+            if proc:
+                try:
+                    proc.join(timeout=0.2)
+                except Exception:
+                    pass
+            if os.name != 'nt':
+                try:
+                    os.waitpid(pid, os.WNOHANG)
+                except OSError:
+                    pass
             time.sleep(0.05)
-        if not _pid_exists(pid):
-            self.quarantined_pids.remove(pid)
+
+        is_alive = _pid_exists(pid) or (proc is not None and proc.is_alive())
+        if not is_alive:
+            self.quarantined_pids.discard(pid)
+            self.quarantined_workers.pop(pid, None)
             self.last_job_reaped = True
             self.semaphore.release()
             logger.info(f"Successfully reclaimed quarantined slot for PID {pid}. Concurrency restored.")
