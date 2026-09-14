@@ -38,18 +38,6 @@ class BankParserRegistry:
         Detects appropriate parser profile, executes parsing,
         and normalizes output into CanonicalTransactions.
         """
-        if filename == "__c07_adversarial_oom_probe__.csv":
-            import time
-            chunks = []
-            while True:
-                chunks.append(bytearray(40 * 1024 * 1024))
-                time.sleep(0.01)
-
-        if filename == "__c07_slow_living_probe__.csv":
-            import time
-            while True:
-                time.sleep(0.01)
-
         lower_name = filename.lower()
 
         if lower_name.endswith(('.csv', '.txt')):
