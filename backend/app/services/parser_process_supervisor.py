@@ -127,6 +127,7 @@ class ParserProcessSupervisor:
         self.last_spawned_pid = None
         self.last_handshake_pid = None
         self.last_job_reaped = None
+        self.quarantined_pids = set()
 
     @property
     def max_concurrency(self) -> int:
@@ -271,7 +272,8 @@ class ParserProcessSupervisor:
                         else:
                             result_payload = poll_res
                             break
-                    raise RuntimeError("Parser worker process crashed unexpectedly.")
+                    exit_code = proc.exitcode if proc else None
+                    raise RuntimeError(f"Parser worker process crashed unexpectedly (exit_code: {exit_code}).")
 
                 await asyncio.sleep(0.005)
 
@@ -321,7 +323,7 @@ class ParserProcessSupervisor:
                     )
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Parser worker termination failure."
+                        detail="Parser worker termination failure: process could not be reaped."
                     )
 
             raise HTTPException(
@@ -350,6 +352,32 @@ class ParserProcessSupervisor:
             if pid:
                 self.last_job_reaped = (not _pid_exists(pid)) and (proc is None or not proc.is_alive())
             if acquired:
-                self.semaphore.release()
+                if pid and not self.last_job_reaped:
+                    self.quarantined_pids.add(pid)
+                    logger.critical(
+                        f"CRITICAL: Slot for PID {pid} quarantined due to unconfirmed reaping. Not releasing semaphore."
+                    )
+                else:
+                    self.semaphore.release()
+
+    def reclaim_quarantined_worker(self, pid: int, force: bool = True) -> bool:
+        """
+        Explicit recovery path for quarantined worker processes whose reaping was not confirmed.
+        Verifies termination, cleans up lingering processes, and safely reclaims the concurrency slot.
+        """
+        if pid not in self.quarantined_pids:
+            return True
+        if force:
+            _hard_kill_pid(pid)
+            time.sleep(0.05)
+        if not _pid_exists(pid):
+            self.quarantined_pids.remove(pid)
+            self.last_job_reaped = True
+            self.semaphore.release()
+            logger.info(f"Successfully reclaimed quarantined slot for PID {pid}. Concurrency restored.")
+            return True
+        else:
+            logger.error(f"Failed to reclaim quarantined slot for PID {pid}: process is still alive.")
+            return False
 
 parser_supervisor = ParserProcessSupervisor()
