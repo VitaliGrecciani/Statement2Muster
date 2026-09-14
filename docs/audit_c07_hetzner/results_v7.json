@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-09-14T12:14:53Z",
+  "environment": "Hetzner Cloud (Ubuntu Linux 6.8.0-137-generic)",
+  "container": "s2m-backend-api",
+  "provenance": {
+    "git_build_commit": "559dac06918cacd5440df9d1c6fe85c72512a7a5",
+    "git_audit_head_commit": "559dac06918cacd5440df9d1c6fe85c72512a7a5",
+    "image_id": "sha256:3bc43a4394be73f5063004761ef9c03fa0527d8e866355421bb5639296e24239",
+    "container_id": "36163bb0fcae8dbb65c3f541ae081cd19d4762177d930b97a331c7351270f4f2",
+    "total_pip_packages": 54,
+    "key_packages": {
+      "aiosqlite": "0.22.1",
+      "fastapi": "0.110.0",
+      "pandas": "2.2.1",
+      "pydantic": "2.6.3",
+      "sqlalchemy": "2.0.52",
+      "starlette": "0.36.3",
+      "stripe": "15.6.1",
+      "uvicorn": "0.27.1"
+    },
+    "source_manifest_files_count": 31,
+    "source_comparison": {
+      "total_repo_files": 31,
+      "total_container_files": 31,
+      "lf_normalized_diff_count": 0,
+      "missing_in_container": [],
+      "extra_in_container": [],
+      "source_binding_verified": true
+    },
+    "source_binding_verified": true,
+    "independent_repo_manifest_used": true,
+    "mounts": [
+      {
+        "Type": "volume",
+        "Name": "statement2muster_s2m-data",
+        "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+        "Destination": "/app/data",
+        "Driver": "local",
+        "Mode": "rw",
+        "RW": true,
+        "Propagation": ""
+      }
+    ]
+  },
+  "cgroups": {
+    "memory_max_bytes": "536870912",
+    "memory_max_mib": 512.0,
+    "cpu_max": "100000 100000",
+    "limits_conforming": true
+  },
+  "security": {
+    "user_id": "uid=10001(appuser) gid=10001(appuser) groups=10001(appuser)",
+    "non_root_verified": true,
+    "readonly_rootfs_enforced": true,
+    "tmpfs_writable": true
+  },
+  "healthz": {},
+  "decision_22_p1_regression": {
+    "cgroup_memory_events_start": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "cgroup_memory_events_after_special_files": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "oom_kill_increment": 0,
+    "test_3_1_adversarial_filename_as_valid_csv": {
+      "filename": "__c07_adversarial_oom_probe__.csv",
+      "http_code": 200,
+      "parsed_transactions": 1,
+      "elapsed_seconds": 0.059,
+      "oom_triggered": false,
+      "passed": true
+    },
+    "test_3_2_slow_living_filename_as_valid_csv": {
+      "filename": "__c07_slow_living_probe__.csv",
+      "http_code": 200,
+      "parsed_transactions": 1,
+      "elapsed_seconds": 0.039,
+      "hang_triggered": false,
+      "passed": true
+    },
+    "test_3_3_adversarial_filename_as_invalid_data": {
+      "filename": "__c07_adversarial_oom_probe__.csv",
+      "http_code": 422,
+      "elapsed_seconds": 0.034,
+      "expected_format_error": true,
+      "passed": true
+    },
+    "test_3_4_subsequent_standard_request": {
+      "filename": "standard_statement.csv",
+      "http_code": 200,
+      "parsed_transactions": 1,
+      "elapsed_seconds": 0.037,
+      "passed": true
+    },
+    "sqlite_integrity_check": "ok",
+    "ledger_record_count": 4,
+    "all_p1_regressions_passed": true
+  },
+  "canary_matrix_zero_retention": {
+    "all_canaries_clean": true,
+    "exit_code_interpretation": "Exit 1 = CLEAN (0 matches); Exit 0 = LEAK; Exit > 1 = grep error",
+    "canary_checks": [
+      {
+        "string": "DE89370400440532013000V7CLEAN1",
+        "tmp_exit_code": 1,
+        "vol_exit_code": 1,
+        "log_exit_code": 1,
+        "all_clean": true
+      },
+      {
+        "string": "Mustermann_V7_Clean1",
+        "tmp_exit_code": 1,
+        "vol_exit_code": 1,
+        "log_exit_code": 1,
+        "all_clean": true
+      },
+      {
+        "string": "DE89370400440532013000V7CLEAN2",
+        "tmp_exit_code": 1,
+        "vol_exit_code": 1,
+        "log_exit_code": 1,
+        "all_clean": true
+      },
+      {
+        "string": "Mustermann_V7_Clean2",
+        "tmp_exit_code": 1,
+        "vol_exit_code": 1,
+        "log_exit_code": 1,
+        "all_clean": true
+      }
+    ]
+  },
+  "accepted_v6_recovery_reference": {
+    "status": "ACCEPTED_IN_DECISION_22",
+    "oom_route_and_quota": "Verified with cgroup oom_kill +1, HTTP 422, quota ledger RELEASED, subsequent HTTP 200 OK, PRAGMA integrity ok.",
+    "living_process_reclaim": "Verified with unmocked os.kill(pid, 0) alive, slot held at 3/4, reclaim_quarantined_worker join & waitpid, 0 zombies, slot restored to 4/4, subsequent parse ok."
+  }
+}

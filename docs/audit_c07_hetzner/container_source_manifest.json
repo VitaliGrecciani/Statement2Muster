@@ -22,7 +22,7 @@
   "parsers/amex_parser.py": "8188dcc69ce96a8f55ae84ab175a4c62c44f84c35364916b0338a04fcaba2d29",
   "parsers/base.py": "84fa5b83b6a1e6178697365b626cdda91b6abe3e09a9a5f86aadcb02907d2a81",
   "parsers/csv_parser.py": "f039daa320fd1ccbebbd4c4765048b3a3ae5cca4f633da45276ac68d860de535",
-  "parsers/registry.py": "06952afb6b0cf3ba3368d5c3deba27166ad8684725acb4b16a9f106696deab3c",
+  "parsers/registry.py": "b49fb86990de049d119c73748270c54bfa65d3797232d87b48d0c7bf55561fe7",
   "core/__init__.py": "ba05044512f533853aff28ca0189c9a09fe89253ffb822c51eec266155eda5d3",
   "core/cache.py": "5b632a7ae5daf9460e359327b2bba2b01e44c749010fcb3801f1303dcee66d33",
   "core/config.py": "90c1bf028feff51444e23126f949956970764c318f7276adce42684209791fd6",

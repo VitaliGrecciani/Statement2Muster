@@ -1,6 +1,6 @@
 services:
   api:
-    image: statement2muster-api:1.0.2
+    image: statement2muster-api:1.0.3
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -17,7 +17,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - PROJECT_NAME=Statement2Muster DACH
-      - VERSION=1.0.2
+      - VERSION=1.0.3
       - SQLITE_DB_PATH=/app/data/statement2muster_prod.db
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mock_production}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_mock_production}
