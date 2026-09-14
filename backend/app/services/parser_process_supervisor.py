@@ -53,6 +53,12 @@ def _worker_entrypoint(send_conn, content: bytes, filename: str, tenant_id: str,
     Communicates structured outcomes across IPC pipe.
     """
     try:
+        # 1. IPC Readiness Handshake: Confirm worker process is active with its OS PID
+        try:
+            send_conn.send(("READY", os.getpid()))
+        except Exception:
+            pass
+
         from app.parsers.registry import registry, UnsupportedFormatError
         txs, summary = registry.parse_file(
             content=content,
@@ -118,6 +124,9 @@ class ParserProcessSupervisor:
         self._semaphore = None
         self._sem_concurrency = None
         self.waiting_count = 0
+        self.last_spawned_pid = None
+        self.last_handshake_pid = None
+        self.last_job_reaped = None
 
     @property
     def max_concurrency(self) -> int:
@@ -227,6 +236,9 @@ class ParserProcessSupervisor:
             )
             proc.start()
             pid = proc.pid
+            self.last_spawned_pid = pid
+            self.last_handshake_pid = None
+            self.last_job_reaped = None
 
             loop = asyncio.get_running_loop()
 
@@ -244,13 +256,21 @@ class ParserProcessSupervisor:
 
                 poll_res = await loop.run_in_executor(None, _poll_result)
                 if poll_res is not None:
+                    if isinstance(poll_res, tuple) and len(poll_res) == 2 and poll_res[0] == "READY":
+                        self.last_handshake_pid = poll_res[1]
+                        logger.info(f"Parser worker (PID {self.last_handshake_pid}) confirmed ready via IPC handshake.")
+                        continue
                     result_payload = poll_res
                     break
 
                 if not proc.is_alive():
                     if recv_conn and recv_conn.poll(0):
-                        result_payload = recv_conn.recv()
-                        break
+                        poll_res = recv_conn.recv()
+                        if isinstance(poll_res, tuple) and len(poll_res) == 2 and poll_res[0] == "READY":
+                            self.last_handshake_pid = poll_res[1]
+                        else:
+                            result_payload = poll_res
+                            break
                     raise RuntimeError("Parser worker process crashed unexpectedly.")
 
                 await asyncio.sleep(0.005)
@@ -289,6 +309,7 @@ class ParserProcessSupervisor:
                         proc.join(timeout=0.1)
 
                 is_reaped = (not _pid_exists(pid)) and (proc is None or not proc.is_alive())
+                self.last_job_reaped = is_reaped
                 if is_reaped:
                     logger.error(
                         f"Parser worker (PID {pid}) timed out after {effective_timeout}s "
@@ -326,6 +347,8 @@ class ParserProcessSupervisor:
                 if pid:
                     _hard_kill_pid(pid)
                 proc.join(timeout=0.05)
+            if pid:
+                self.last_job_reaped = (not _pid_exists(pid)) and (proc is None or not proc.is_alive())
             if acquired:
                 self.semaphore.release()
 

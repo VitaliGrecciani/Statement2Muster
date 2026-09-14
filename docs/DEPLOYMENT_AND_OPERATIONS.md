@@ -21,8 +21,6 @@ Das Backend von Statement2Muster ist nach dem Prinzip des **Minimal Privileges**
 ## 2. Docker Compose Produktionsmanifest (`docker-compose.prod.yml`)
 
 ```yaml
-version: '3.8'
-
 services:
   api:
     image: statement2muster-api:1.0.2
@@ -44,14 +42,24 @@ services:
       - PROJECT_NAME=Statement2Muster DACH
       - VERSION=1.0.2
       - SQLITE_DB_PATH=/app/data/statement2muster_prod.db
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - JWT_PRIVATE_KEY_PEM=${JWT_PRIVATE_KEY_PEM}
-      - JWT_PUBLIC_KEY_PEM=${JWT_PUBLIC_KEY_PEM}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mock_production}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_mock_production}
+      - JWT_PRIVATE_KEY_PEM=${JWT_PRIVATE_KEY_PEM:-}
+      - JWT_PUBLIC_KEY_PEM=${JWT_PUBLIC_KEY_PEM:-}
+      - EMAIL_BACKEND=smtp
+      - SMTP_HOST=${SMTP_HOST:-host.docker.internal}
+      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-no-reply@statement2muster.com}
+      - PARSER_WORKER_CONCURRENCY=2
+      - PARSER_MAX_QUEUE_DEPTH=4
+      - PARSER_PROCESS_ISOLATION=true
+      - PARSER_TIMEOUT_SECONDS=30
     volumes:
       - s2m-data:/app/data:rw
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8100:8000"
     deploy:
       resources:
         limits:

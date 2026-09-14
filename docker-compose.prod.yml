@@ -1,0 +1,57 @@
+services:
+  api:
+    image: statement2muster-api:1.0.2
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: s2m-backend-api
+    restart: always
+    read_only: true
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=64M,noexec,nosuid,nodev
+    environment:
+      - ENVIRONMENT=production
+      - PROJECT_NAME=Statement2Muster DACH
+      - VERSION=1.0.2
+      - SQLITE_DB_PATH=/app/data/statement2muster_prod.db
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mock_production}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_mock_production}
+      - JWT_PRIVATE_KEY_PEM=${JWT_PRIVATE_KEY_PEM:-}
+      - JWT_PUBLIC_KEY_PEM=${JWT_PUBLIC_KEY_PEM:-}
+      - EMAIL_BACKEND=smtp
+      - SMTP_HOST=${SMTP_HOST:-host.docker.internal}
+      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-no-reply@statement2muster.com}
+      - PARSER_WORKER_CONCURRENCY=2
+      - PARSER_MAX_QUEUE_DEPTH=4
+      - PARSER_PROCESS_ISOLATION=true
+      - PARSER_TIMEOUT_SECONDS=30
+    volumes:
+      - s2m-data:/app/data:rw
+    ports:
+      - "127.0.0.1:8100:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  s2m-data:
+    driver: local

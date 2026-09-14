@@ -16,6 +16,7 @@ COPY ./app ./app
 
 # Create unprivileged user for Zero Retention & isolation
 RUN useradd -m -u 10001 -s /bin/bash appuser && \
+    mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
 USER appuser
