@@ -3,7 +3,7 @@
   "services/__init__.py": "c952fde4981fdca232b56362500c998c90689bb4be2aab2e02497f4311cddab3",
   "services/billing_service.py": "5d08ef269ae9b9590e7f08d9842610ed9a24befe52cf32d9c699d1b86a31389e",
   "services/email_service.py": "42ee21dc40e5680a96064392d111332a8d53eea63e8085f2a1d98f6b51e83039",
-  "services/parser_process_supervisor.py": "a8ffa59b58b5cf7db97b538ca75c08ce5ee77c87232b6e0b77ab0c235a4c33a0",
+  "services/parser_process_supervisor.py": "1337896659a239ec519bf60ce4fc3013c13a850372b5db343150299cf954e218",
   "services/quota_service.py": "5faa2d6657b4c4987a44d98aaf7603e6cc081f1eab29f7e41c14e6c7d153055e",
   "services/reconciliation_service.py": "cea49ce73e4246409d7a789908eac6a47aadae02824ca93506846d929a783fbe",
   "db/__init__.py": "e389cbf2dff116cf00c82e9b7e3571af6279467d0d093bffa291410c054eba0a",

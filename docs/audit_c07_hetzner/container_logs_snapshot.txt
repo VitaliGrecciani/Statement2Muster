@@ -1,0 +1,25 @@
+INFO:     127.0.0.1:49924 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.20.0.1:54136 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35820 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56908 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47132 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32900 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51108 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48830 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59064 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41696 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59274 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47176 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39170 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     172.20.0.1:58402 - "POST /api/v1/convert?format=json HTTP/1.1" 200 OK
+INFO:     172.20.0.1:58404 - "POST /api/v1/convert?format=json HTTP/1.1" 413 Request Entity Too Large
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
+INFO:statement2muster:Parsing file 1/1: 174 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 247) confirmed ready via IPC handshake.
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
+INFO:statement2muster:Parsing file 1/1: 1104908 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 250) confirmed ready via IPC handshake.

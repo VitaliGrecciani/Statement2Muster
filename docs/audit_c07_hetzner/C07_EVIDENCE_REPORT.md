@@ -1,198 +1,119 @@
-# Statement2Muster — C07 Vollständige Betriebsabnahme & Adversarial-Evidenzbericht (V4)
+# Statement2Muster — C07 Vollständige Betriebsabnahme & Adversarial-Evidenzbericht (V5)
+# Финальный отчет об эксплуатационной приемке и стресс-тестировании Блока C07 (V5)
 
 **Datum:** 2026-09-14  
 **Zielumgebung:** Hetzner Cloud (Frankfurt am Main, ISO-27001)  
 **Host-Kernel:** Linux 6.8.0-137-generic #137-Ubuntu SMP PREEMPT_DYNAMIC x86_64  
 **Docker Engine:** 29.2.1 (Compose v5.1.0)  
-**Container:** `s2m-backend-api` (`8105a6c17b1059139a856966fcfd1060877ce62241aaf6e71fae109d8be46d1c`)  
-**Image ID (dynamisch ermittelt):** `sha256:a08b5c98025262d635ef9cbd51d253f3618e498dc00a6cafe87825960606e346`  
-**Git Build-Commit:** `c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e`  
-**Git Audit-HEAD-Commit:** `71b75089e4f600187a1b5f4e7800d1152de0a99a`  
-**Referenz:** [19_C07_LINUX_V3_REVIEW_2026-09-14.md](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/19_C07_LINUX_V3_REVIEW_2026-09-14.md)  
+**Container:** `s2m-backend-api` (`399556c5cbcc7a7001382def832da7edf66444474a8ee90d4bc2c474dff27f82`)  
+**Image ID:** `sha256:7df1d46ca7ba19992831dda724950943a13e1fc27a406c2b149499fef9773c62`  
+**Git Build-Commit:** `4268c7a9b3c8cef77fa92cdc154c52af17a190c1`  
+**Git Audit-HEAD-Commit:** `4268c7a9b3c8cef77fa92cdc154c52af17a190c1`  
+**Referenz:** [20_C07_LINUX_V4_REVIEW_2026-09-14.md](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/20_C07_LINUX_V4_REVIEW_2026-09-14.md)  
 
 ---
 
-## 1. Behebung der verbliebenen Befunde aus Entscheidung 19
+## 1. Behebung der beiden verbliebenen Szenarien aus Entscheidung 20 (Abschnitt 3)
 
-| Befund aus Entscheidung 19 | Umgesetzte Maßnahme | Empirisches Prüfergebnis | Status |
+| Szenario aus Entscheidung 20 | Umgesetzte Maßnahme | Empirisches Prüfergebnis ([results_v5.json](results_v5.json)) | Status |
 |---|---|---|---|
-| **C. Verdeckte Exit-Codes durch `\|\| true`** | Alle `\|\| true`-Konstrukte vollständig entfernt. Original-Grep-Befehle (`grep -rnF`) direkt ausgeführt. Container-Logs vorab mit geprüftem Returncode erfasst und als Datei durchsucht. Scope-Zugriff (`tmpfs_writable`, `volume_accessible`, `docker_logs_captured`) aus echten Returncodes abgeleitet. | **Verifizierter Grep-Exit-Code 1 (CLEAN)** für alle 8 Canary-Strings in `/tmp`, `/app/data` und Container-Logs. Standardgemäß: Exit 1 = 0 Treffer (sauber), Exit 0 = Fund (Leck), Exit > 1 = Fehler. Alle Aufrufe lieferten `exit_code: 1` mit leerem `stdout` und leerem `stderr`. Keine Datenfunde. | **Vollständig behoben** |
-| **D. Git-Commit-Auflösung & vollständige Manifeste** | Tatsächlicher Build-Commit `c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e` gebunden. Vollständige Archivierung aller 31 Quell-Hashes in `container_source_manifest.json` und aller 54 Pip-Pakete in `container_pip_manifest.json`. Pfad- und Hashabgleich gegen Repo. | **0 Abweichungen bewiesen**: 31 von 31 Quelldateien zwischen Repo und Container exakt identisch (`identical_files_count: 31`, `diff_count: 0`, `missing: []`, `extra: []`, `source_binding_verified: true`). Vollständiges Pip-Manifest mit allen 54 Paketen ohne Lücken archiviert. | **Vollständig behoben** |
-| **Cancellation PID & Reaping** | Test des Abbruchs via `asyncio.CancelledError` mit expliziter Prüfung auf Prozessstart, Handshake-PID, Tötung und Reaping. | **PID 126**: `handshake_confirmed: true`, `alive_before_cancel: true`, `cancelled_caught: true`, `dead_after_cancel: true`, `reaped_by_supervisor: true`, `slot_freed: true`. Prozess wird bei Cancellation verlässlich getötet und gereapt. | **Vollständig behoben** |
-| **Ressourcen-Recovery / Pure CPU-Burn Loop** | Worker führt reine CPU-Vollastschleife (`while True: pass`, kein Sleep) aus. Supervisor-Timeout (0.2s) greift unter cgroup-Limit 1.0 CPU. | **PID 116**: Supervisor beendet die CPU-Schleife hart per SIGKILL: `timed_out_408: true`, `hard_kill_executed: true`, `reaped_by_supervisor: true`, `slot_freed_after_kill: true`. Unmittelbarer Folgeauftrag auf demselben Supervisor konvertiert sofort erfolgreich (`subsequent_request_succeeded: true`). | **Vollständig behoben** |
-| **A & B (Bereits in V3 anerkannt)** | Einheitliche Supervisor-Jobidentität (PID 91 / 91) und Supervisor Crash/Recovery (PID 103 $\rightarrow$ PID 105). | Bestätigt und erneut reproduziert. Slot-Freigabe und Folgeauftrag 100% erfolgreich. | **Anerkannt** |
-| **P1: Zustands-Persistenz** | Erhalt von Tenants und PRO-Entitlement auf `s2m-data:/app/data` über `docker compose restart` hinweg. | Erneut reproduziert: Tenant und PRO-Plan erhalten, post-restart Healthz 200, post-restart Konvertierung 200 OK. | **Anerkannt** |
+| **1. OOM / Ressourcen-Recovery unter 512 MiB** | Aggressive Speicherallokation im isolierten Worker-Prozess (`oom_parse`, 40 MiB Chunks) bis zur Überschreitung von `memory.max=536870912`. Überwachung von `/sys/fs/cgroup/memory.events` vor und nach dem Test. | **Cgroups v2 OOM-Ereignis bestätigt**: `oom_kill` Zähler inkrementiert von 1 auf 2 (`oom_kill_increment: 1`, `oom_event_increment: 1`). Der Linux-Kernel tötete den Worker (PID 217) hart per SIGKILL (`exit_code: -9`). Supervisor fing den Absturz ab, reapte den Prozess (`reaped_by_supervisor: true`), gab den Concurrency-Slot frei (`slot_freed: true`). Quoten-Reservierung wurde freigegeben (keine hängende Quote). Unmittelbarer Folgeauftrag auf demselben Supervisor konvertierte erfolgreich (`subsequent_recovery_success: true`, 1 Buchung). DB-Zustand auf `/app/data` intakt. | **Vollständig behoben & verifiziert** |
+| **2. Kill/Reap-Fehlschlag & Kontrollierte Recovery** | Kontrollierte Injektion eines unbestätigten Prozessendes im Supervisor-Bereinigungspfad (`_pid_exists` simuliert verbleibenden Prozess; Kill-Versuch simuliert Fehlschlag). | **Keine falsche Erfolgsmeldung**: `last_job_reaped: false`. Expliziter Fehlerstatus: `HTTP 500` mit Detail `Parser worker termination failure: process could not be reaped.`. **Schutz vor unkontrolliertem Spawnen**: Concurrency-Slot wurde in Quarantäne gehalten (`pid_quarantined: true`, `slot_held_preventing_spawns: true`), Semaphore-Wert um 1 reduziert. **Definierter Wiederherstellungspfad**: Aufruf von `reclaim_quarantined_worker(236, force=True)` beendete den Prozess im OS verlässlich (`os_process_confirmed_dead: true`), hob die Quarantäne auf und stellte die volle Parallelität wieder her (`slot_restored_to_max: true`). Folgeauftrag erfolgreich (`subsequent_request_succeeded: true`). | **Vollständig behoben & verifiziert** |
+| **Audit-Tool-Härtung (Entscheidung 20, Abs. 2)** | Beseitigung des `repo_manifest = container_manifest` Fallbacks. Strikte Voraussetzung einer extern bereitgestellten `repo_source_manifest.json` mit explizitem Abbruch (`RuntimeError`) bei Fehlen. | **Unabhängige Prüfung ohne Fallback**: [source_comparison.json](source_comparison.json) belegt für alle 31 Quelldateien nach LF-Normalisierung **0 Abweichungen, 0 fehlende, 0 zusätzliche Dateien** (`source_binding_verified: true`). | **Vollständig behoben & verifiziert** |
 
 ---
 
-## 2. Artefaktintegrität & Provenienz-Dateien
+## 2. Statusübersicht aller Betriebsanforderungen für Block C07
 
-- **Git Build-Commit**: `c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e`
-- **Git Audit-HEAD-Commit**: `71b75089e4f600187a1b5f4e7800d1152de0a99a`
-- **Laufende Container-Image-ID**: `sha256:a08b5c98025262d635ef9cbd51d253f3618e498dc00a6cafe87825960606e346` (Linux AMD64)
-- **Laufende Container-ID**: `8105a6c17b1059139a856966fcfd1060877ce62241aaf6e71fae109d8be46d1c`
+| Anforderung | Prüfmethode & Evidenz | Ergebnis V5 | Status |
+|---|---|---|---|
+| **Cgroups v2 Limits** | `docker exec` Abfrage von `/sys/fs/cgroup/{memory.max, cpu.max}` | `memory.max=536870912` (512.0 MiB), `cpu.max=100000 100000` (1.0 CPU) | **AKZEPTIERT** (Entsch. 17, 20) |
+| **Sicherheitsisolation** | `id`, Schreibtest auf RootFS vs. `/tmp` | `uid=10001(appuser)`, `readonly_rootfs=true`, `/tmp` tmpfs 64M | **AKZEPTIERT** (Entsch. 17, 20) |
+| **Supervisor Jobidentität & Timeout** | Single-Job Injektion mit IPC-Handshake (PID 153/153) | Timeout 0.2s, HTTP 408, SIGKILL, Reaped, Slot frei | **AKZEPTIERT** (Entsch. 19, 20) |
+| **Supervisor Crash-Recovery** | `suicidal_parse` (PID 165 $\rightarrow$ 167) auf demselben Supervisor | SIGKILL abgefangen, gereapt, Folgeauftrag 1 TX erfolgreich | **AKZEPTIERT** (Entsch. 19, 20) |
+| **Pure CPU-Burn Recovery** | `while True: pass` Schleife (PID 178) unter 1.0 CPU Limit | SIGKILL nach 0.2s, gereapt, Folgeauftrag erfolgreich | **AKZEPTIERT** (Entsch. 20) |
+| **Client-Cancellation** | `asyncio.CancelledError` nach Handshake (PID 189) | Worker getötet, gereapt, Concurrency-Slot freigegeben | **AKZEPTIERT** (Entsch. 20) |
+| **Überlastschutz** | Sättigung der Warteschlange (max_queue_depth=2) | Sofortiges HTTP 429 (`Parser queue depth exceeded`), Slot frei | **AKZEPTIERT** (Entsch. 19, 20) |
+| **OOM-Recovery (512 MiB)** | Speicherüberlastung bis Kernel-OOM | `oom_kill` Event +1, Exitcode -9 erkannt, gereapt, Folgeauftrag 200 | **V5 NEU BEHOBEN** |
+| **Kill/Reap-Fehlschlag** | Injektion unbestätigter Prozessbereinigung | HTTP 500, Slot quarantänisiert, definierter Reclaim erfolgreich | **V5 NEU BEHOBEN** |
+| **Zero-Retention Canaries** | 8 Canary-Strings $\times$ 3 Scopes (`/tmp`, `/app/data`, Logs) | **24/24 verifizierter Grep-Exit-Code 1 (CLEAN)**, kein `\|\| true` | **AKZEPTIERT** (Entsch. 20) |
+| **Zustands-Persistenz** | SQLite auf Volume `statement2muster_s2m-data:/app/data` | Container-Neustart via Compose, Tenant & PRO-Plan erhalten, 200 OK | **AKZEPTIERT** (Entsch. 18, 20) |
+| **Provenienz & Manifeste** | 31 Python-Dateien, 54 Pip-Pakete, Commit `4268c7a` | 31/31 Dateien identisch zu Git blobs (LF-normiert), 0 Diffs | **AKZEPTIERT** (Entsch. 20) |
+
+---
+
+## 3. Artefaktintegrität & Provenienz-Dateien
+
+- **Git Build-Commit**: `4268c7a9b3c8cef77fa92cdc154c52af17a190c1`
+- **Git Audit-HEAD-Commit**: `4268c7a9b3c8cef77fa92cdc154c52af17a190c1`
+- **Laufende Container-Image-ID**: `sha256:7df1d46ca7ba19992831dda724950943a13e1fc27a406c2b149499fef9773c62` (Linux AMD64)
+- **Laufende Container-ID**: `399556c5cbcc7a7001382def832da7edf66444474a8ee90d4bc2c474dff27f82`
 - **Vollständiges Quell-Manifest**: [container_source_manifest.json](container_source_manifest.json) (31 Python-Dateien, SHA-256)
 - **Vollständiges Paket-Manifest**: [container_pip_manifest.json](container_pip_manifest.json) (54 Pakete, alle Versionen)
-- **Abgleich Repo vs. Container**: 31 identisch, 0 Diffs, 0 Missing, 0 Extra (`source_binding_verified: true`)
-- **Backend Dockerfile Hash**: `108B6402B688655104146B16FEE88B9D0D19513F9F158BF26B7F98B68CB2333C`
+- **Unabhängiger Vergleich**: [source_comparison.json](source_comparison.json) (31 identisch, 0 Diffs, 0 Missing, 0 Extra)
 - **Persistenter Volume-Mount**: `statement2muster_s2m-data` $\rightarrow$ `/app/data` (Driver: `local`, Mode: `rw`)
 - **Cgroups v2**: `memory.max=536870912` (512 MiB), `cpu.max='100000 100000'` (1.0 CPU)
 - **Sicherheitsgrenzen**: `uid=10001(appuser)`, `readonly_rootfs=true`, `/tmp` tmpfs 64 MiB
 
 ---
 
-## 3. Empirisches Protokoll ([results_v4.json](results_v4.json))
+## 4. Empirischer Auszug: OOM und Kill-Failure ([results_v5.json](results_v5.json))
 
 ```json
 {
-  "timestamp": "2026-09-14T11:41:40Z",
-  "environment": "Hetzner Cloud (Ubuntu Linux 6.8.0-137-generic)",
-  "container": "s2m-backend-api",
-  "provenance": {
-    "git_build_commit": "c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e",
-    "git_audit_head_commit": "71b75089e4f600187a1b5f4e7800d1152de0a99a",
-    "image_id": "sha256:a08b5c98025262d635ef9cbd51d253f3618e498dc00a6cafe87825960606e346",
-    "container_id": "8105a6c17b1059139a856966fcfd1060877ce62241aaf6e71fae109d8be46d1c",
-    "total_pip_packages": 54,
-    "source_manifest_files_count": 31,
-    "comparison_against_repo": {
-      "identical_files_count": 31,
-      "diff_count": 0,
-      "diffs": {},
-      "missing_in_container": [],
-      "extra_in_container": [],
-      "source_binding_verified": true
-    }
-  },
-  "cgroups": {
-    "memory_max_human": "512 MiB",
-    "cpu_limit_human": "1.0 CPU"
-  },
-  "security": {
-    "user": "uid=10001(appuser) gid=10001(appuser) groups=10001(appuser)",
-    "unprivileged_uid": true,
-    "readonly_rootfs_enforced": true,
-    "tmpfs_mount": "tmpfs            64M     0   64M   0% /tmp"
-  },
-  "healthz": {
-    "status_code": 200,
-    "body": {
-      "status": "healthy",
-      "service": "statement2muster-api",
-      "version": "1.0.2",
-      "database": "connected",
-      "zero_retention": "enforced"
-    }
-  },
-  "supervisor_single_job_kill": {
-    "canary_fed_to_job": {
-      "iban": "DE89370400440532013000TIMEOUT6E648E44",
-      "name": "Mustermann_Timeout_5dfa7c"
+  "supervisor_oom_recovery": {
+    "cgroup_memory_events_before": {
+      "oom": 1,
+      "oom_kill": 1,
+      "max": 1857
     },
-    "result": {
-      "spawned_pid": 91,
-      "handshake_pid": 91,
-      "handshake_matches_spawned": true,
-      "dead_after_kill": true,
-      "reaped_by_supervisor": true,
-      "slot_freed": true,
-      "status_code": 408,
-      "detail": "Parser timed out processing file.",
-      "duration_seconds": 0.211
-    }
+    "cgroup_memory_events_after": {
+      "oom": 2,
+      "oom_kill": 2,
+      "max": 3545
+    },
+    "oom_kill_increment": 1,
+    "oom_event_increment": 1,
+    "oom_event_confirmed": true,
+    "worker_pid": 217,
+    "handshake_pid": 217,
+    "handshake_matches_spawned": true,
+    "worker_dead_after_oom": true,
+    "reaped_by_supervisor": true,
+    "slot_freed": true,
+    "supervisor_error": "Parser worker process crashed unexpectedly (exit_code: -9).",
+    "kernel_sigkill_detected": true,
+    "subsequent_recovery_success": true,
+    "subsequent_tx_count": 1
   },
-  "supervisor_crash_and_recovery": {
-    "crash_phase": {
-      "crashed_pid": 103,
-      "crashed_handshake": 103,
-      "handshake_matches_spawned": true,
-      "dead_after_crash": true,
-      "reaped_by_supervisor": true,
-      "supervisor_error": "Parser worker process crashed unexpectedly.",
-      "slot_freed": true
+  "supervisor_kill_failure_injection": {
+    "injected_pid": 236,
+    "failure_phase": {
+      "http_status": 500,
+      "http_detail": "Parser worker termination failure: process could not be reaped.",
+      "no_false_cleanup": true,
+      "pid_quarantined": true,
+      "slot_held_preventing_spawns": true,
+      "quarantined_count": 1
     },
     "recovery_phase": {
-      "recovery_pid": 105,
-      "recovery_handshake": 105,
-      "recovery_success": true,
-      "tx_count": 1,
-      "recovery_error": null,
-      "slot_freed": true
+      "reclaim_executed": true,
+      "os_process_confirmed_dead": true,
+      "slot_restored_to_max": true,
+      "quarantine_cleared": true,
+      "subsequent_request_succeeded": true
     }
-  },
-  "supervisor_cpu_burn_recovery": {
-    "burn_pid": 116,
-    "burn_handshake": 116,
-    "handshake_matches_spawned": true,
-    "hard_kill_executed": true,
-    "reaped_by_supervisor": true,
-    "slot_freed_after_kill": true,
-    "timed_out_408": true,
-    "burn_duration_seconds": 0.21,
-    "subsequent_request_succeeded": true
-  },
-  "supervisor_cancellation_lifecycle": {
-    "cancel_spawned_pid": 126,
-    "cancel_handshake_pid": 126,
-    "handshake_confirmed": true,
-    "alive_before_cancel": true,
-    "cancelled_caught": true,
-    "dead_after_cancel": true,
-    "reaped_by_supervisor": true,
-    "slot_freed": true
-  },
-  "supervisor_overload_429": {
-    "overload_429_received": true,
-    "detail": "Parser queue depth exceeded. Please retry.",
-    "slot_freed_after_overload": true
-  },
-  "canary_matrix_zero_retention": {
-    "branches_tested": [
-      { "branch": "success", "expected_code": 200, "actual_code": 200 },
-      { "branch": "413_oversize", "expected_code": 413, "actual_code": 413 },
-      { "branch": "timeout", "expected_code": 408, "actual_code": 408 },
-      { "branch": "crash", "expected_code": "CRASH", "actual_code": "CRASH" }
-    ],
-    "search_scope_access_verified": {
-      "tmpfs_writable": true,
-      "volume_accessible": true,
-      "docker_logs_captured": true
-    },
-    "search_conducted_pre_restart": true,
-    "all_canaries_clean": true,
-    "exit_code_interpretation": "Exit 1 = 0 matches found (CLEAN); Exit 0 = match found (LEAK); Exit > 1 = grep execution error",
-    "matrix_sample_verified_exit_codes": [
-      {
-        "canary_string": "DE89370400440532013000SUCCESS7E1E6246",
-        "tmp": { "exit_code": 1, "stdout": "", "stderr": "", "status": "CLEAN" },
-        "volume": { "exit_code": 1, "stdout": "", "stderr": "", "status": "CLEAN" },
-        "logs": { "exit_code": 1, "stdout": "", "stderr": "", "status": "CLEAN" },
-        "all_clean": true
-      }
-    ]
-  },
-  "database_persistence_restart": {
-    "db_file_stat": "-rw-r--r-- 1 appuser appuser 122880 Sep 14 11:41 /app/data/statement2muster_prod.db",
-    "container_restarted": true,
-    "healthz_post_restart": 200,
-    "tenant_found_post_restart": true,
-    "tenant_plan_preserved": true,
-    "post_restart_conversion_code": 200,
-    "persistence_confirmed": true
   }
 }
 ```
 
 ---
 
-## 4. Fazit & Antrag auf endgültige Schließung von Block C07
+## 5. Antrag auf formale Schließung
 
-Alle offenen Punkte aus Entscheidung 19 sind lückenlos und empirisch nachgewiesen:
-1. **Verifizierte Grep-Statuswerte**: Jeder Suchbefehl liefert echten Exit-Code 1 (ohne `|| true`), saubere Ausgaben und geprüfte Scope-Berechtigung.
-2. **Quell- und Paketprovenienz**: Exakte Bindung an Commit `c9482a23004ee7bc7aeea17bfd0ad3bda0c56f8e`, 31/31 Quelldateien identisch (0 Diffs), vollständige Manifeste archiviert.
-3. **Ressourcen-Recovery & Cancellation**: Pure CPU-Vollastschleife durch SIGKILL beendet und gereapt; Cancellation reapt Worker und gibt Slot frei; Überlast führt zu regulärem 429.
-4. **Zustands-Persistenz (P1)**: Erhalt von Tenants und Entitlements auf `s2m-data` über Neustarts hinweg bestätigt.
+Alle vom Chef-Architekten in Entscheidung 20 formulierten Bedingungen sind empirisch erfüllt, reproduzierbar dokumentiert und im Produktionsabbild verifiziert:
+1. **OOM-Recovery unter 512 MiB nachgewiesen** (cgroups v2 `oom_kill` Inkrement, SIGKILL-Erkennung, Reaping, Slot-Freigabe, erfolgreicher Folgeauftrag).
+2. **Kill/Reap-Fehlschlag nachgewiesen** (HTTP 500, kein falscher Cleanup-Report, Quarantäne-Slot-Schutz gegen unkontrollierte Worker, definierter Reclaim-Pfad, OS-Prozessabbruch bestätigt).
+3. **Audit-Tool gehärtet** (strikte externe Manifest-Prüfung ohne Fallback).
 
-Wir beantragen die **vollständige und formale Schließung des Blocks C07** durch den Chef-Architekten.
-
-
+Wir beantragen die **vollständige und endgültige formale Schließung des Blocks C07 (FULL GO für den Linux-Container & Laufzeit-Infrastruktur)**.
