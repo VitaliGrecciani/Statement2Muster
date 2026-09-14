@@ -1,25 +1,32 @@
-INFO:     127.0.0.1:49924 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     172.20.0.1:54136 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35820 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56908 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:47132 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:32900 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:51108 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48830 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59064 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:41696 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59274 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:47176 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     127.0.0.1:39170 - "GET /healthz HTTP/1.1" 200 OK
-INFO:     172.20.0.1:58402 - "POST /api/v1/convert?format=json HTTP/1.1" 200 OK
-INFO:     172.20.0.1:58404 - "POST /api/v1/convert?format=json HTTP/1.1" 413 Request Entity Too Large
+INFO:     127.0.0.1:57302 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60466 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38668 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49254 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49262 - "POST /api/v1/convert?format=json HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:49278 - "POST /api/v1/convert?format=json HTTP/1.1" 200 OK
+INFO:     172.20.0.1:34738 - "POST /api/v1/convert?format=json HTTP/1.1" 200 OK
+INFO:     172.20.0.1:34740 - "POST /api/v1/convert?format=json HTTP/1.1" 413 Request Entity Too Large
 INFO:     Started server process [1]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
+INFO:statement2muster:Parsing file 1/1: 39 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 153) confirmed ready via IPC handshake.
+ERROR:statement2muster:Error parsing file in memory
+Traceback (most recent call last):
+  File "/app/app/main.py", line 204, in convert_statements
+    file_txs, acc_summary = await parser_supervisor.parse_file(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app/services/parser_process_supervisor.py", line 277, in parse_file
+    raise RuntimeError(f"Parser worker process crashed unexpectedly (exit_code: {exit_code}).")
+RuntimeError: Parser worker process crashed unexpectedly (exit_code: -9).
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
+INFO:statement2muster:Parsing file 1/1: 47 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 155) confirmed ready via IPC handshake.
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
 INFO:statement2muster:Parsing file 1/1: 174 bytes in-memory
-INFO:statement2muster.parser_supervisor:Parser worker (PID 247) confirmed ready via IPC handshake.
+INFO:statement2muster.parser_supervisor:Parser worker (PID 179) confirmed ready via IPC handshake.
 INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json] ===
 INFO:statement2muster:Parsing file 1/1: 1104908 bytes in-memory
-INFO:statement2muster.parser_supervisor:Parser worker (PID 250) confirmed ready via IPC handshake.
+INFO:statement2muster.parser_supervisor:Parser worker (PID 181) confirmed ready via IPC handshake.

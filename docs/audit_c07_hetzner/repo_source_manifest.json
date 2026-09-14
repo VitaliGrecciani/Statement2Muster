@@ -21,13 +21,13 @@
   "parsers/amex_parser.py": "8188dcc69ce96a8f55ae84ab175a4c62c44f84c35364916b0338a04fcaba2d29",
   "parsers/base.py": "1fd4e73b81334a6a93a5ad9f67f977d410d1558fcc52c6572090541bb9df3df1",
   "parsers/csv_parser.py": "a90e3fb8571e0e4c81c5b6fb27f6c46a2d1bb20e9627371bc37c1cc5a9712d57",
-  "parsers/registry.py": "f975bb9e37ffcaa5b6db8d49a06445eb79952d67ec3139bb998450678c0606e8",
+  "parsers/registry.py": "ef2a1f47e32569209e699bb65369491c94bf67af70ed308cbea16f75ecd4a936",
   "schemas/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "schemas/canonical.py": "42e6f96f9497210bc67d649b128c89129928e0a986febf303797923f79f7f4a4",
   "services/__init__.py": "c952fde4981fdca232b56362500c998c90689bb4be2aab2e02497f4311cddab3",
   "services/billing_service.py": "5d08ef269ae9b9590e7f08d9842610ed9a24befe52cf32d9c699d1b86a31389e",
   "services/email_service.py": "89ab7d9d4a0a1f02a3ecb8a9f9a9a01db5b5547b35199be6cc9c9cf6a50e46be",
-  "services/parser_process_supervisor.py": "71e185df600c845e9c2d7f33f15f53bf411d7be1963908428863b1add3611ea3",
-  "services/quota_service.py": "5faa2d6657b4c4987a44d98aaf7603e6cc081f1eab29f7e41c14e6c7d153055e",
+  "services/parser_process_supervisor.py": "a8e5924229510f47134af7e462dae0de75a446b5e18573287e2486c7e4627060",
+  "services/quota_service.py": "11e5404bf0b9fcd161ab29735dfa2b00139fcc22b1d2eb3a6f0eda422f6b1623",
   "services/reconciliation_service.py": "da53ab7b8d749467b351153548936805f89dabc8398d93bdf684054b0796b2a1"
 }

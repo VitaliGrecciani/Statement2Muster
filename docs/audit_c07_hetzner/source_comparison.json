@@ -1,7 +1,6 @@
 {
   "total_repo_files": 31,
   "total_container_files": 31,
-  "raw_byte_diff_count": 10,
   "lf_normalized_diff_count": 0,
   "missing_in_container": [],
   "extra_in_container": [],

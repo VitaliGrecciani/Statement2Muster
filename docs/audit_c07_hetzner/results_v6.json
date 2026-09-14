@@ -1,0 +1,441 @@
+{
+  "timestamp": "2026-09-14T12:07:48Z",
+  "environment": "Hetzner Cloud (Ubuntu Linux 6.8.0-137-generic)",
+  "container": "s2m-backend-api",
+  "provenance": {
+    "git_build_commit": "68623f958eca217b9da7bd20ceb8b625ec39ff79",
+    "git_audit_head_commit": "68623f958eca217b9da7bd20ceb8b625ec39ff79",
+    "image_id": "sha256:0b25c85e41f79593d7fe073aee4360f9e1f56703684815385eee4e0614e4a1ca",
+    "container_id": "5ace931ab2b439b8cd655772abcf144318753bc4d1e2a07a3af5e87082b92603",
+    "total_pip_packages": 54,
+    "key_packages": {
+      "aiosqlite": "0.22.1",
+      "fastapi": "0.110.0",
+      "pandas": "2.2.1",
+      "pydantic": "2.6.3",
+      "sqlalchemy": "2.0.52",
+      "starlette": "0.36.3",
+      "stripe": "15.6.1",
+      "uvicorn": "0.27.1"
+    },
+    "source_manifest_files_count": 31,
+    "source_comparison": {
+      "total_repo_files": 31,
+      "total_container_files": 31,
+      "lf_normalized_diff_count": 0,
+      "missing_in_container": [],
+      "extra_in_container": [],
+      "source_binding_verified": true
+    },
+    "source_binding_verified": true,
+    "independent_repo_manifest_used": true,
+    "mounts": [
+      {
+        "Type": "volume",
+        "Name": "statement2muster_s2m-data",
+        "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+        "Destination": "/app/data",
+        "Driver": "local",
+        "Mode": "rw",
+        "RW": true,
+        "Propagation": ""
+      }
+    ]
+  },
+  "cgroups": {
+    "memory_max_bytes": "536870912",
+    "memory_max_mib": 512.0,
+    "cpu_max": "100000 100000",
+    "limits_conforming": true
+  },
+  "security": {
+    "user_id": "uid=10001(appuser) gid=10001(appuser) groups=10001(appuser)",
+    "non_root_verified": true,
+    "readonly_rootfs_enforced": true,
+    "tmpfs_writable": true
+  },
+  "healthz": {},
+  "supervisor_single_job_kill": {
+    "canary_fed_to_job": {
+      "iban": "DE89370400440532013000TIMEOUT1C493373",
+      "name": "Mustermann_Timeout_873a11"
+    },
+    "result": {
+      "spawned_pid": 89,
+      "handshake_pid": 89,
+      "handshake_matches_spawned": true,
+      "dead_after_kill": true,
+      "reaped_by_supervisor": true,
+      "slot_freed": true,
+      "status_code": 408,
+      "detail": "Parser timed out processing file.",
+      "duration_seconds": 0.21
+    }
+  },
+  "supervisor_crash_and_recovery": {
+    "canary_crash_fed": {
+      "iban": "DE89370400440532013000CRASH8469DC2E",
+      "name": "Mustermann_Crash_f6730f"
+    },
+    "canary_recovery_fed": {
+      "iban": "DE89370400440532013000RECOVERY05821CF3",
+      "name": "Mustermann_Recovery_658c74"
+    },
+    "result": {
+      "crash_phase": {
+        "crashed_pid": 101,
+        "crashed_handshake": 101,
+        "handshake_matches_spawned": true,
+        "dead_after_crash": true,
+        "reaped_by_supervisor": true,
+        "supervisor_error": "Parser worker process crashed unexpectedly (exit_code: -9).",
+        "slot_freed": true
+      },
+      "recovery_phase": {
+        "recovery_pid": 103,
+        "recovery_handshake": 103,
+        "recovery_success": true,
+        "tx_count": 1,
+        "recovery_error": null,
+        "slot_freed": true
+      }
+    }
+  },
+  "supervisor_cpu_burn_recovery": {
+    "burn_pid": 120,
+    "burn_handshake": 120,
+    "handshake_matches_spawned": true,
+    "hard_kill_executed": true,
+    "reaped_by_supervisor": true,
+    "slot_freed_after_kill": true,
+    "timed_out_408": true,
+    "burn_duration_seconds": 0.207,
+    "subsequent_request_succeeded": true
+  },
+  "supervisor_cancellation_lifecycle": {
+    "cancel_spawned_pid": 130,
+    "cancel_handshake_pid": 130,
+    "handshake_confirmed": true,
+    "alive_before_cancel": true,
+    "cancelled_caught": true,
+    "dead_after_cancel": true,
+    "reaped_by_supervisor": true,
+    "slot_freed": true
+  },
+  "supervisor_overload_429": {
+    "overload_429_received": true,
+    "detail": "Parser queue depth exceeded. Please retry.",
+    "slot_freed_after_overload": true
+  },
+  "supervisor_oom_route_and_quota": {
+    "cgroup_events_before": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "cgroup_events_after": {
+      "low": 0,
+      "high": 0,
+      "max": 2092,
+      "oom": 1,
+      "oom_kill": 1,
+      "oom_group_kill": 0
+    },
+    "oom_kill_increment": 1,
+    "oom_event_increment": 1,
+    "oom_cgroup_event_confirmed": true,
+    "oom_http_response_code": 422,
+    "db_reservations_after_oom": [
+      {
+        "id": "a128425cd0a64330ad5581450e068764",
+        "units": 1,
+        "status": "RELEASED"
+      }
+    ],
+    "has_hung_reserved_records": false,
+    "quota_properly_released": true,
+    "subsequent_http_response_code": 200,
+    "subsequent_transactions_parsed": 1,
+    "final_db_ledger_state": [
+      {
+        "id": "a128425cd0a64330ad5581450e068764",
+        "units": 1,
+        "status": "RELEASED"
+      },
+      {
+        "id": "b97be9a1b67443d597e72c1b7d078ecf",
+        "units": 1,
+        "status": "COMMITTED"
+      }
+    ],
+    "sqlite_integrity_check": "ok",
+    "overall_oom_route_success": true
+  },
+  "supervisor_genuine_kill_failure": {
+    "target_pid": 162,
+    "failure_phase": {
+      "http_status": 500,
+      "http_detail": "Parser worker termination failure: process could not be reaped.",
+      "no_false_cleanup": true,
+      "pid_quarantined": true,
+      "stored_process_reference": true,
+      "slot_held_preventing_spawns": true,
+      "genuinely_alive_in_os_before_reclaim": true
+    },
+    "recovery_phase": {
+      "reclaim_executed": true,
+      "os_confirmed_dead": true,
+      "no_zombie_left": true,
+      "slot_restored_to_max": true,
+      "quarantine_cleared": true,
+      "subsequent_request_succeeded": true
+    },
+    "overall_kill_failure_success": true
+  },
+  "canary_matrix_zero_retention": {
+    "branches_tested": [
+      {
+        "branch": "success",
+        "expected_code": 200,
+        "actual_code": 200,
+        "canary_iban": "DE89370400440532013000SUCCESSE8863636",
+        "canary_name": "Mustermann_Success_84b429"
+      },
+      {
+        "branch": "413_oversize",
+        "expected_code": 413,
+        "actual_code": 413,
+        "canary_iban": "DE89370400440532013000OVERSIZE860FB175",
+        "canary_name": "Mustermann_Oversize_42d95a"
+      },
+      {
+        "branch": "timeout",
+        "expected_code": 408,
+        "actual_code": 408,
+        "canary_iban": "DE89370400440532013000TIMEOUT1C493373",
+        "canary_name": "Mustermann_Timeout_873a11"
+      },
+      {
+        "branch": "crash",
+        "expected_code": "CRASH",
+        "actual_code": "CRASH",
+        "canary_iban": "DE89370400440532013000CRASH8469DC2E",
+        "canary_name": "Mustermann_Crash_f6730f"
+      }
+    ],
+    "search_scope_access_verified": {
+      "tmpfs_writable": true,
+      "volume_accessible": true,
+      "docker_logs_captured": true
+    },
+    "search_conducted_pre_restart": true,
+    "all_canaries_clean": true,
+    "exit_code_interpretation": "Exit 1 = 0 matches found (CLEAN); Exit 0 = match found (LEAK); Exit > 1 = grep execution error",
+    "matrix": [
+      {
+        "canary_string": "DE89370400440532013000SUCCESSE8863636",
+        "type": "IBAN",
+        "branch": "success",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Success_84b429",
+        "type": "Name",
+        "branch": "success",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000OVERSIZE860FB175",
+        "type": "IBAN",
+        "branch": "413_oversize",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Oversize_42d95a",
+        "type": "Name",
+        "branch": "413_oversize",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000TIMEOUT1C493373",
+        "type": "IBAN",
+        "branch": "timeout",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Timeout_873a11",
+        "type": "Name",
+        "branch": "timeout",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "DE89370400440532013000CRASH8469DC2E",
+        "type": "IBAN",
+        "branch": "crash",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      },
+      {
+        "canary_string": "Mustermann_Crash_f6730f",
+        "type": "Name",
+        "branch": "crash",
+        "tmp": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "volume": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "logs": {
+          "exit_code": 1,
+          "stdout": "",
+          "stderr": "",
+          "status": "CLEAN"
+        },
+        "all_clean": true
+      }
+    ]
+  },
+  "database_persistence_restart": {
+    "db_file_stat": "-rw-r--r-- 1 appuser appuser 131072 Sep 14 12:08 /app/data/statement2muster_prod.db",
+    "container_restarted": true,
+    "healthz_post_restart": 200,
+    "tenant_found_post_restart": true,
+    "tenant_plan_preserved": true,
+    "post_restart_conversion_code": 200,
+    "persistence_confirmed": true
+  }
+}
