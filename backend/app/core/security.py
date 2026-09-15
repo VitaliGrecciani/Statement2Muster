@@ -92,9 +92,12 @@ def revoke_token(token: str, expires_at: Optional[float] = None) -> None:
 def is_token_revoked(token: str) -> bool:
     """Checks whether token has been revoked in-memory or database.
     
-    Fail-closed (Decision 26):
-    If the revocation registry is unreachable, corrupt, or missing from disk,
-    raises HTTP 503 Service Unavailable instead of falsely returning False (fail-open).
+    Fail-closed (Decisions 26 & 27):
+    - If RAM cache entry is valid and unexpired: return True.
+    - If RAM cache entry has expired: pop it and continue to authoritative SQLite registry check.
+    - If SQLite registry is unreachable, corrupt, or missing: raise HTTP 503 Service Unavailable.
+    - If SQLite registry contains active unexpired revocation: cache it until actual token expiry and return True.
+    - If SQLite registry confirms token is not revoked: return False.
     """
     th = hash_token(token)
     now = time.time()
@@ -104,9 +107,9 @@ def is_token_revoked(token: str) -> bool:
             return True
         else:
             _revoked_tokens.pop(th, None)
-            return False
+            # Do NOT return False: cache expired, fall through to authoritative SQLite check!
 
-    # Multi-worker DB fallback for SQLite
+    # Authoritative SQLite registry check
     db_url = settings.DATABASE_URL
     if "sqlite" in db_url:
         path = db_url.split(":///")[-1]
@@ -123,7 +126,29 @@ def is_token_revoked(token: str) -> bool:
                 cursor.execute("SELECT expires_at FROM revoked_tokens WHERE token_hash = ?", (th,))
                 row = cursor.fetchone()
                 if row:
-                    _revoked_tokens[th] = now + 600
+                    db_exp_val = row[0]
+                    db_exp_epoch = None
+                    if isinstance(db_exp_val, (int, float)):
+                        db_exp_epoch = float(db_exp_val)
+                    elif isinstance(db_exp_val, str):
+                        try:
+                            dt = datetime.datetime.fromisoformat(db_exp_val.replace(" ", "T"))
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=datetime.timezone.utc)
+                            db_exp_epoch = dt.timestamp()
+                        except Exception:
+                            db_exp_epoch = now + 600
+                    elif isinstance(db_exp_val, datetime.datetime):
+                        if db_exp_val.tzinfo is None:
+                            dt = db_exp_val.replace(tzinfo=datetime.timezone.utc)
+                        else:
+                            dt = db_exp_val
+                        db_exp_epoch = dt.timestamp()
+                    else:
+                        db_exp_epoch = now + 600
+
+                    if db_exp_epoch and db_exp_epoch > now:
+                        _revoked_tokens[th] = db_exp_epoch
                     return True
                 return False
             finally:

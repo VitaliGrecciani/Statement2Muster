@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-15T10:46:47Z",
+  "timestamp": "2026-09-15T20:09:01Z",
   "test_suite": "Chain 2: Fault Tolerance, Fail-Closed Revocation, Multi-Worker Isolation & DB Migrations",
   "provenance": {
     "decision_ref": "Architect Decision 26",
@@ -11,11 +11,13 @@
       "db_error_code": 503,
       "error_type": "service_unavailable",
       "post_recovery_status": 401,
+      "expired_cache_fallthrough_verified": true,
       "p1_verified": true
     },
     "scenario2_multi_worker_revocation": {
       "status": "PASS",
-      "memory_purged": true,
+      "independent_os_process": true,
+      "subprocess_returncode": 0,
       "sqlite_persistence_confirmed": true
     },
     "scenario3_migration_and_subsequent_ops": {

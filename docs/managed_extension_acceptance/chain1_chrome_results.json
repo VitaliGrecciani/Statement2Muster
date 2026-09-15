@@ -1,19 +1,19 @@
 {
-  "timestamp": "2026-09-15T11:04:56Z",
+  "timestamp": "2026-09-15T20:14:19Z",
   "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "d133bcf0e18be98b57b2ed61b82480123dd1a90a",
+    "git_commit": "c38eaed34fe5c4cde904397dad7840444b18d439",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
     "extension_zip_sha256": "5C69289A79A68CA37F93A84E12048C2638A5531FBB78F7D3D1025F43F72D156E",
     "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
     "firefox_zip_sha256": "3FFEC60A357FC240850AFCA5A3158C5FA7AFF0E2B90D92208B7A5BCA131D103E",
     "pilot_scope": "Chrome-only pilot (Phase 1). Firefox packaged and verified, excluded from active UI testing.",
     "api_url": "http://127.0.0.1:8000",
-    "backend_image": "statement2muster-api:1.0.3",
-    "backend_image_id": "sha256:3bc43a4394be73f5063004761ef9c03fa0527d8e866355421bb5639296e24239",
-    "backend_container_id": "394ebba48da1",
+    "backend_image": "statement2muster-api:1.0.5",
+    "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
+    "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "ckpcljjpclikilcljohajcillpcnlhnh"
+    "extension_id": "bgiifpkodapjinkgpfgooagiodlaacpn"
   },
   "steps": {
     "step1_initial_load": {
@@ -25,6 +25,7 @@
     "step2_otp_auth": {
       "status": "PASS",
       "auth_btn_label": "vitogr24",
+      "otp_delivery_source": "Resend API (Delivered Email)",
       "storage": {
         "has_token": true,
         "plan": "pro",
@@ -37,11 +38,16 @@
       "preview_rows_count": 10,
       "reconciliation_badge": "\n            \u2139\n            Einzelbeleg (kein Saldo)\n          ",
       "bearer_jwt_transmitted": true,
-      "export_verified": {
+      "real_download_verified": {
         "filename": "EXTF_Buchungsstapel.csv",
+        "bytes_size": 1489,
+        "encoding": "windows-1252",
         "starts_with_extf": true,
         "lines_count": 12,
-        "bookings_count": 10
+        "bookings_count": 10,
+        "total_soll_eur": 4465.0,
+        "total_haben_eur": 1765.0,
+        "net_saldo_eur": 2700.0
       },
       "screenshot": "screenshots/06_preview_rendered.png"
     },
@@ -52,6 +58,8 @@
       "402_status": "Server-Fehler: Kontingent ersch\u00f6pft. Bitte upgraden Sie Ihren Plan.",
       "429_status": "Server-Fehler: Zu viele Anfragen. Bitte warten Sie 60 Sekunden.",
       "network_err_status": "Server-Fehler: Failed to fetch",
+      "delayed_timeout_status": "Server-Fehler: Failed to fetch",
+      "ui_recovered_after_timeout": true,
       "no_silent_fallback_confirmed": true,
       "screenshot": "screenshots/07_error_corrupted_file.png"
     },
@@ -62,6 +70,11 @@
       "server_revocation_401": true,
       "server_response_detail": "Token has been revoked. Please re-authenticate.",
       "browser_restart_cleared": true,
+      "explicit_relogin_verified": {
+        "success": true,
+        "relogin_auth_label": "vitogr24",
+        "screenshot": "screenshots/11_relogin_after_restart.png"
+      },
       "screenshot": "screenshots/08_logged_out_state.png"
     },
     "step6_history_clear": {

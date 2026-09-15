@@ -8,6 +8,7 @@ import asyncio
 import sqlite3
 import shutil
 import tempfile
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
@@ -120,18 +121,36 @@ async def run_chain2_hardening():
             assert resp_401.status_code == 401
             assert "revoked" in resp_401.json().get("detail", "").lower()
 
+        # 1.4 Decision 27 Verification: Expired RAM cache entry (exp <= now) MUST fall through to DB
+        print("[1.4] Testing expired RAM cache entry fallthrough to SQLite...")
+        _revoked_tokens[th] = time.time() - 10 # expired in RAM
+        with patch("sqlite3.connect", side_effect=sqlite3.OperationalError("Simulated DB lock during cache fallthrough")):
+            try:
+                is_token_revoked(test_token)
+                cache_fallthrough_status = "FAIL_OPEN"
+            except HTTPException as exc:
+                cache_fallthrough_status = "FAIL_CLOSED_503" if exc.status_code == 503 else f"ERROR_{exc.status_code}"
+                print(f"      Expired cache fallthrough correctly raised HTTPException({exc.status_code}): {exc.detail}")
+        assert cache_fallthrough_status == "FAIL_CLOSED_503", "Decision 27: Expired cache did not raise 503 on DB error!"
+
+        # 1.5 When DB is accessible, expired RAM cache entry falls through and confirms revocation (401)
+        _revoked_tokens[th] = time.time() - 10
+        assert is_token_revoked(test_token) is True
+        print("      Expired cache fallthrough with accessible DB correctly verified revocation.")
+
         report["scenarios"]["scenario1_fail_closed_revocation"] = {
             "status": "PASS",
             "db_error_code": 503,
             "error_type": "service_unavailable",
             "post_recovery_status": 401,
+            "expired_cache_fallthrough_verified": True,
             "p1_verified": True
         }
 
         # -------------------------------------------------------------
-        # SCENARIO 2: COLD RESTART / MULTI-WORKER PERSISTENCE
+        # SCENARIO 2: INDEPENDENT OS PROCESS MULTI-WORKER PERSISTENCE (Decision 27)
         # -------------------------------------------------------------
-        print("\n--- Scenario 2: Multi-Worker / Cold Restart Revocation Persistence ---")
+        print("\n--- Scenario 2: Real Independent OS Subprocess Multi-Worker Persistence ---")
         worker_db_path = temp_dir / "worker_test.db"
         switch_db(worker_db_path)
         await init_db()
@@ -145,18 +164,31 @@ async def run_chain2_hardening():
             logout_res = await ac.post("/api/v1/auth/logout", headers={"Authorization": f"Bearer {w_token}"})
             assert logout_res.status_code == 200
 
-        # Purge memory cache completely (simulating fresh second worker / process restart)
-        _revoked_tokens.clear()
-        assert len(_revoked_tokens) == 0
-
-        # Worker 2 verifies revocation from DB
-        is_rev_w2 = is_token_revoked(w_token)
-        assert is_rev_w2 is True
-        print(f"[2.1] Fresh worker instance with empty memory verified revocation from SQLite: {is_rev_w2}")
+        # Execute an independent OS Python process with completely separate memory space (Decision 27 requirement)
+        backend_dir_str = str(BASE_DIR / 'backend').replace('\\', '/')
+        worker_db_str = str(worker_db_path).replace('\\', '/')
+        subprocess_code = (
+            f"import sys, os\n"
+            f"sys.path.insert(0, '{backend_dir_str}')\n"
+            f"from app.core.config import settings\n"
+            f"settings.DATABASE_URL = 'sqlite+aiosqlite:///{worker_db_str}'\n"
+            f"from app.core.security import is_token_revoked\n"
+            f"token = '{w_token}'\n"
+            f"rev = is_token_revoked(token)\n"
+            f"print(f'SUBPROCESS_REVOKED:{{rev}}')\n"
+            f"sys.exit(0 if rev is True else 1)\n"
+        )
+        
+        py_exe = sys.executable
+        sub_proc = subprocess.run([py_exe, "-c", subprocess_code], capture_output=True, text=True)
+        print(f"[2.1] Independent OS Worker 2 process exited with code {sub_proc.returncode}. Output: {sub_proc.stdout.strip()}")
+        assert sub_proc.returncode == 0, f"Worker 2 subprocess failed: {sub_proc.stderr}"
+        assert "SUBPROCESS_REVOKED:True" in sub_proc.stdout
 
         report["scenarios"]["scenario2_multi_worker_revocation"] = {
             "status": "PASS",
-            "memory_purged": True,
+            "independent_os_process": True,
+            "subprocess_returncode": sub_proc.returncode,
             "sqlite_persistence_confirmed": True
         }
 

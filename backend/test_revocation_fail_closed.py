@@ -122,3 +122,64 @@ async def test_revocation_recovered_and_confirmed_401(tmp_path):
         )
         assert resp.status_code == 401
         assert "revoked" in resp.json().get("detail", "").lower()
+
+def test_revocation_expired_ram_cache_falls_through_to_db_operational_error_503(tmp_path):
+    """Decision 27 Verification: Expired RAM cache entry MUST fall through to SQLite.
+    If SQLite encounters OperationalError, it must raise 503, NEVER return False.
+    """
+    test_db = tmp_path / "test_exp_cache.db"
+    test_db.touch()
+    settings.DATABASE_URL = f"sqlite+aiosqlite:///{test_db}"
+
+    token = create_access_token(user_id="cache_exp@test.com", tenant_id="t_exp")
+    from app.core.security import hash_token
+    th = hash_token(token)
+
+    # Set expired cache entry: exp = 999 while now = 1000
+    _revoked_tokens[th] = time.time() - 10
+
+    with patch("sqlite3.connect", side_effect=sqlite3.OperationalError("Simulated DB lock during cache fallthrough")):
+        with pytest.raises(HTTPException) as exc_info:
+            is_token_revoked(token)
+        assert exc_info.value.status_code == 503
+        assert "Revocation registry unavailable" in exc_info.value.detail
+
+def test_revocation_expired_ram_cache_falls_through_to_db_confirmed_revocation(tmp_path):
+    """Decision 27 Verification: Expired RAM cache entry MUST fall through to SQLite and confirm revocation."""
+    test_db = tmp_path / "test_exp_cache2.db"
+    conn = sqlite3.connect(str(test_db))
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE revoked_tokens (
+        token_hash VARCHAR(64) PRIMARY KEY,
+        revoked_at DATETIME NOT NULL,
+        expires_at DATETIME NOT NULL
+    );
+    """)
+    conn.commit()
+    conn.close()
+
+    settings.DATABASE_URL = f"sqlite+aiosqlite:///{test_db}"
+    token = create_access_token(user_id="cache_exp2@test.com", tenant_id="t_exp2")
+    from app.core.security import hash_token
+    import datetime
+    th = hash_token(token)
+
+    # Populate SQLite with valid revocation record
+    conn = sqlite3.connect(str(test_db))
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO revoked_tokens (token_hash, revoked_at, expires_at) VALUES (?, ?, ?)",
+        (th, datetime.datetime.now(), datetime.datetime.now() + datetime.timedelta(minutes=10))
+    )
+    conn.commit()
+    conn.close()
+
+    # Set expired RAM cache entry (exp in past)
+    _revoked_tokens[th] = time.time() - 5
+
+    # Must fall through, read SQLite, and confirm revocation
+    assert is_token_revoked(token) is True
+    # Cache must be updated to future
+    assert _revoked_tokens[th] > time.time()
+

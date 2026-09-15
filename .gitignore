@@ -30,12 +30,13 @@ extension_firefox_build/
 *.sqlite
 *.sqlite3
 
-# Do NOT ignore landing & extension assets
+# Do NOT ignore landing & extension assets & acceptance evidence
 !landing/logo.png
 !landing/**/*.png
 !landing/**/*.jpg
 !extension/**/*.png
 !extension/icons/*
+!docs/managed_extension_acceptance/**/*
 
 # Env & Secrets
 .env
