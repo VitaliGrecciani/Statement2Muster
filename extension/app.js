@@ -1715,7 +1715,7 @@ if (btnOpenAuth) {
               if (chrome.storage && chrome.storage.session) {
                 chrome.storage.session.remove(['userSession', 'authToken']).catch(() => {});
               }
-              applyLoggedOutState();
+              initAuthState();
             });
           });
         }

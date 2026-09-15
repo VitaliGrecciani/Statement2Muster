@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-09-15T09:36:20Z",
+  "test_name": "Chain 2: Revocation Persistence, Multi-Worker Isolation & DB Migrations",
+  "scenarios": {
+    "scenario1_revocation_persistence": {
+      "status": "PASS",
+      "in_memory_purged": true,
+      "sqlite_persistence_confirmed": true,
+      "second_worker_api_status": 401,
+      "second_worker_api_detail": "Token has been revoked. Please re-authenticate."
+    },
+    "scenario2_db_migration_idempotency": {
+      "status": "PASS",
+      "columns_added": [
+        "tenants.version",
+        "entitlements.payment_intent",
+        "usage_reservations.request_hash"
+      ],
+      "legacy_data_preserved": {
+        "tenant": "legacy_tax_firm@kanzlei.de",
+        "plan": "pro",
+        "units": 1,
+        "revoked_token_hash": "hash_legacy_revoked_token"
+      },
+      "idempotent_runs": 3
+    }
+  },
+  "overall_status": "PASSED"
+}

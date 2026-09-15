@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-09-15T09:25:58Z",
+  "test_name": "Chain 1: Managed Extension UI Acceptance (Chrome)",
+  "provenance": {
+    "git_commit": "a2795554249a6f4b0fb2da651308c7e04c5e6f61",
+    "extension_zip": "statement2muster-chrome-v1.0.2.zip",
+    "extension_zip_sha256": "5C69289A79A68CA37F93A84E12048C2638A5531FBB78F7D3D1025F43F72D156E",
+    "api_url": "http://127.0.0.1:8000",
+    "backend_image": "statement2muster-api:1.0.3",
+    "browser": "Playwright Chromium (v1234) / System Chrome 152",
+    "extension_id": "filphcmladimjlihceldhffjjbebpakn"
+  },
+  "steps": {
+    "step1_initial_load": {
+      "status": "PASS",
+      "badge_text": "Server Engine aktiv",
+      "auth_label": "Anmelden",
+      "screenshot": "screenshots/01_sidepanel_initial.png"
+    },
+    "step2_otp_auth": {
+      "status": "PASS",
+      "auth_btn_label": "vitogr24",
+      "storage": {
+        "has_token": true,
+        "plan": "pro",
+        "email": "vitogr24@gmail.com"
+      },
+      "screenshot": "screenshots/04_authenticated_state.png"
+    },
+    "step3_api_convert": {
+      "status": "PASS",
+      "preview_rows_count": 10,
+      "reconciliation_badge": "\n            \u2139\n            Einzelbeleg (kein Saldo)\n          ",
+      "bearer_jwt_transmitted": true,
+      "screenshot": "screenshots/06_preview_rendered.png"
+    },
+    "step4_negative_handling": {
+      "status": "PASS",
+      "status_visible": true,
+      "error_message": "Server-Fehler: Keine Buchungss\u00e4tze in den bereitgestellten Dateien gefunden oder Formate werden nicht unterst\u00fctzt.",
+      "no_silent_fallback": true,
+      "screenshot": "screenshots/07_error_corrupted_file.png"
+    },
+    "step5_logout_and_revocation": {
+      "status": "PASS",
+      "client_logged_out": true,
+      "client_token_cleared": true,
+      "server_revocation_401": true,
+      "server_response_detail": "Token has been revoked. Please re-authenticate.",
+      "screenshot": "screenshots/08_logged_out_state.png"
+    },
+    "step6_history_clear": {
+      "status": "PASS",
+      "items_before": 1,
+      "items_after": 0,
+      "screenshot": "screenshots/10_history_cleared.png"
+    }
+  },
+  "overall_status": "PASSED"
+}

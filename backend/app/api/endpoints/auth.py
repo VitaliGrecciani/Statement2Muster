@@ -327,6 +327,7 @@ async def logout_endpoint(
             )
             await db.merge(revoked_rec)
             await db.flush()
+            await db.commit()
         except Exception:
             revoke_token(token)
 
