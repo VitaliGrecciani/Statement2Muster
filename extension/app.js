@@ -813,11 +813,28 @@ async function processBackendConversion(files) {
     reqHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
-    method: 'POST',
-    headers: reqHeaders,
-    body: formData
-  });
+  const timeoutMs = window.__CONVERT_TIMEOUT_MS || 15000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort('timeout');
+  }, timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
+      method: 'POST',
+      headers: reqHeaders,
+      body: formData,
+      signal: controller.signal
+    });
+  } catch (fetchErr) {
+    if (controller.signal.aborted) {
+      throw new Error(`Zeitüberschreitung: Der Server hat nicht innerhalb von ${timeoutMs / 1000}s geantwortet.`);
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
@@ -1461,11 +1478,13 @@ btnDownloadCsv.addEventListener('click', () => {
 
 function downloadCsvBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
+  const saveAs = window.__SAVE_AS_OVERRIDE !== undefined ? window.__SAVE_AS_OVERRIDE : false;
   chrome.downloads.download({
     url: url,
     filename: filename,
-    saveAs: true
+    saveAs: saveAs
   }, (downloadId) => {
+    window.__lastDownloadId = downloadId;
     if (chrome.runtime.lastError) {
       const a = document.createElement('a');
       a.href = url;

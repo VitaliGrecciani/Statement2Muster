@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-09-15T20:14:19Z",
+  "timestamp": "2026-09-15T20:33:20Z",
   "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "c38eaed34fe5c4cde904397dad7840444b18d439",
+    "git_commit": "76f66a33ffd38e2dae84bc108d301ef5f2778f9b",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
-    "extension_zip_sha256": "5C69289A79A68CA37F93A84E12048C2638A5531FBB78F7D3D1025F43F72D156E",
+    "extension_zip_sha256": "787B8F3475D3D8EAC9AF50769A491603DCADB62960FE29EBCFCF955ADE65AC8D",
     "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
     "firefox_zip_sha256": "3FFEC60A357FC240850AFCA5A3158C5FA7AFF0E2B90D92208B7A5BCA131D103E",
     "pilot_scope": "Chrome-only pilot (Phase 1). Firefox packaged and verified, excluded from active UI testing.",
@@ -13,7 +13,7 @@
     "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
     "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "bgiifpkodapjinkgpfgooagiodlaacpn"
+    "extension_id": "bcgnjeadneilhheljokdlobpkckkamej"
   },
   "steps": {
     "step1_initial_load": {
@@ -39,7 +39,10 @@
       "reconciliation_badge": "\n            \u2139\n            Einzelbeleg (kein Saldo)\n          ",
       "bearer_jwt_transmitted": true,
       "real_download_verified": {
-        "filename": "EXTF_Buchungsstapel.csv",
+        "unpatched_native_download": true,
+        "download_id": 1,
+        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-pP1dAE\\32dbe99b-d2c7-441c-8903-58f8bbef6016",
+        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-pP1dAE\\32dbe99b-d2c7-441c-8903-58f8bbef6016",
         "bytes_size": 1489,
         "encoding": "windows-1252",
         "starts_with_extf": true,
@@ -58,7 +61,8 @@
       "402_status": "Server-Fehler: Kontingent ersch\u00f6pft. Bitte upgraden Sie Ihren Plan.",
       "429_status": "Server-Fehler: Zu viele Anfragen. Bitte warten Sie 60 Sekunden.",
       "network_err_status": "Server-Fehler: Failed to fetch",
-      "delayed_timeout_status": "Server-Fehler: Failed to fetch",
+      "delayed_timeout_status": "Server-Fehler: Zeit\u00fcberschreitung: Der Server hat nicht innerhalb von 3s geantwortet.",
+      "client_side_abort_controller_verified": true,
       "ui_recovered_after_timeout": true,
       "no_silent_fallback_confirmed": true,
       "screenshot": "screenshots/07_error_corrupted_file.png"

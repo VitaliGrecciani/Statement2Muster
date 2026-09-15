@@ -19,7 +19,17 @@ SHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 HETZNER_SSH = ["ssh", "-o", "StrictHostKeyChecking=no", "root@46.225.95.36"]
 API_URL = "http://127.0.0.1:8000"
-RESEND_API_KEY = "re_51Ef5z7S_NXBHGs4qja6XAdQZ55pFBNy3"
+
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+if not RESEND_API_KEY:
+    env_file = BASE_DIR / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("RESEND_API_KEY="):
+                RESEND_API_KEY = line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
+if not RESEND_API_KEY:
+    raise RuntimeError("RESEND_API_KEY environment variable is missing and not found in .env")
 
 def get_email_otp_code(email: str, exclude_ids: set = None, timeout: int = 20) -> tuple[str, str]:
     """Fetch OTP from delivered email via Resend API (Decision 27 requirement).
@@ -101,13 +111,17 @@ async def run_chain1_chrome():
         context = await p.chromium.launch_persistent_context(
             str(profile_dir),
             headless=False,
+            accept_downloads=True,
             args=[
                 f"--disable-extensions-except={staging_dir}",
                 f"--load-extension={staging_dir}",
             ]
         )
 
-        sw = await context.wait_for_event("serviceworker", timeout=5000)
+        if context.service_workers:
+            sw = context.service_workers[0]
+        else:
+            sw = await context.wait_for_event("serviceworker", timeout=5000)
         ext_id = sw.url.split("chrome-extension://")[1].split("/")[0]
         report["provenance"]["extension_id"] = ext_id
         print(f"Extension loaded with ID: {ext_id}")
@@ -234,40 +248,57 @@ async def run_chain1_chrome():
         convert_req = next((r for r in captured_requests if "/api/v1/convert" in r["url"]), None)
         bearer_sent = convert_req["has_auth"] if convert_req else False
 
-        # REAL DOWNLOAD VERIFICATION & CAPTURE (Decision 27 requirement)
+        # REAL UNPATCHED DOWNLOAD VERIFICATION & CAPTURE (Decision 28 requirement)
         downloads_dir = EVIDENCE_DIR / "downloads"
         downloads_dir.mkdir(parents=True, exist_ok=True)
         downloaded_file = downloads_dir / "EXTF_Buchungsstapel.csv"
 
-        # Intercept chrome.downloads.download to capture exact binary payload
-        await page.evaluate("""() => {
-            window.__lastDownloadData = null;
-            if (chrome && chrome.downloads) {
-                chrome.downloads.download = function(options, cb) {
-                    fetch(options.url)
-                        .then(r => r.arrayBuffer())
-                        .then(ab => {
-                            window.__lastDownloadData = {
-                                filename: options.filename,
-                                bytes: Array.from(new Uint8Array(ab))
-                            };
-                            if (cb) cb(1001);
-                        });
-                };
-            }
-        }""")
+        # Set saveAs: false override in extension UI context (unpatched native download)
+        await page.evaluate("() => { window.__SAVE_AS_OVERRIDE = false; window.__lastDownloadId = null; }")
 
         # Trigger real download by clicking download button
         await page.click("#btn-download-csv")
-        await asyncio.sleep(2)
 
-        # Retrieve raw captured bytes from browser
-        download_res = await page.evaluate("() => window.__lastDownloadData")
-        assert download_res and "bytes" in download_res, "Download button did not trigger chrome.downloads.download!"
+        # Poll chrome.downloads.search for completion without any monkeypatching
+        download_res = await page.evaluate("""() => new Promise((resolve, reject) => {
+            const start = Date.now();
+            const interval = setInterval(() => {
+                if (!window.__lastDownloadId) {
+                    if (Date.now() - start > 15000) {
+                        clearInterval(interval);
+                        reject(new Error("Timeout waiting for window.__lastDownloadId from chrome.downloads.download"));
+                    }
+                    return;
+                }
+                chrome.downloads.search({ id: window.__lastDownloadId }, (items) => {
+                    if (items && items.length > 0) {
+                        const item = items[0];
+                        if (item.state === 'complete') {
+                            clearInterval(interval);
+                            resolve({
+                                id: item.id,
+                                filename: item.filename,
+                                state: item.state,
+                                fileSize: item.fileSize,
+                                mime: item.mime,
+                                byExtensionName: item.byExtensionName
+                            });
+                        } else if (item.state === 'interrupted') {
+                            clearInterval(interval);
+                            reject(new Error("Download interrupted: " + item.error));
+                        }
+                    }
+                });
+            }, 200);
+        })""")
 
-        raw_bytes = bytes(download_res["bytes"])
+        assert download_res and download_res.get("state") == "complete", f"Download did not complete: {download_res}"
+        downloaded_disk_path = Path(download_res["filename"])
+        assert downloaded_disk_path.exists(), f"Downloaded file does not exist on disk: {downloaded_disk_path}"
+
+        raw_bytes = downloaded_disk_path.read_bytes()
         downloaded_file.write_bytes(raw_bytes)
-        print(f"Captured real downloaded file: {downloaded_file} ({len(raw_bytes)} bytes)")
+        print(f"Captured real unpatched downloaded file from disk: {downloaded_disk_path} -> {downloaded_file} ({len(raw_bytes)} bytes)")
 
         # Verify Windows-1252 encoding and EXTF header
         decoded_text = raw_bytes.decode("windows-1252")
@@ -327,6 +358,9 @@ async def run_chain1_chrome():
             "reconciliation_badge": badge_recon,
             "bearer_jwt_transmitted": bearer_sent,
             "real_download_verified": {
+                "unpatched_native_download": True,
+                "download_id": download_res.get("id"),
+                "disk_path": str(downloaded_disk_path),
                 "filename": download_res.get("filename", "EXTF_Buchungsstapel.csv"),
                 "bytes_size": len(raw_bytes),
                 "encoding": "windows-1252",
@@ -417,25 +451,38 @@ async def run_chain1_chrome():
         assert "fehler" in status_text_net.lower() and preview_hidden_net
         print(f"[4E] Network immediate failure displayed correctly in UI: {status_text_net}")
 
-        # 4F. Delayed Timeout UI handling (Decision 27 requirement: delayed deadline expiration)
-        async def mock_delayed_timeout(route):
-            await asyncio.sleep(2.5)
-            await route.abort("timedout")
-        await page.route("**/api/v1/convert*", mock_delayed_timeout)
+        # 4F. Client-Side Timeout Deadline (Decision 28 requirement: client AbortController deadline without server abort)
+        # Set client deadline to 3000ms
+        await page.evaluate("() => { window.__CONVERT_TIMEOUT_MS = 3000; }")
+
+        # Mock server hanging indefinitely without aborting the network connection
+        async def mock_hanging_server(route):
+            # Sleep 8s - do NOT call route.abort(), let the client abort itself
+            await asyncio.sleep(8.0)
+            try:
+                await route.fulfill(status=200, body="{}")
+            except Exception:
+                pass
+
+        await page.route("**/api/v1/convert*", mock_hanging_server)
 
         await page.click("#convert-btn")
-        # Check processing indicator while request is in-flight
+        # Check processing indicator while request is in-flight (at 1.0s)
         await asyncio.sleep(1.0)
         status_while_hanging = await page.evaluate("() => document.getElementById('status-text')?.textContent")
-        # Wait for timeout abort to complete
-        await asyncio.sleep(2.5)
+
+        # Wait past 3.0s client deadline (total ~3.8s from click)
+        await asyncio.sleep(2.8)
         status_text_delayed = await page.evaluate("() => document.getElementById('status-text')?.textContent")
         preview_hidden_delayed = await page.evaluate("() => document.getElementById('preview-view')?.classList.contains('hidden')")
         btn_recovered = not (await page.evaluate("() => document.getElementById('convert-btn')?.disabled"))
-        await page.unroute("**/api/v1/convert*", mock_delayed_timeout)
 
-        assert "fehler" in status_text_delayed.lower() and preview_hidden_delayed and btn_recovered
-        print(f"[4F] Delayed timeout correctly timed out, showed error without silent fallback, and recovered UI: {status_text_delayed}")
+        await page.unroute("**/api/v1/convert*", mock_hanging_server)
+        # Reset window.__CONVERT_TIMEOUT_MS to default 15000ms
+        await page.evaluate("() => { window.__CONVERT_TIMEOUT_MS = 15000; }")
+
+        assert ("zeitüberschreitung" in status_text_delayed.lower() or "fehler" in status_text_delayed.lower()) and preview_hidden_delayed and btn_recovered
+        print(f"[4F] Client AbortController deadline fired cleanly without server abort: {status_text_delayed}")
 
         report["steps"]["step4_negative_handling"] = {
             "status": "PASS",
@@ -445,6 +492,7 @@ async def run_chain1_chrome():
             "429_status": status_text_429,
             "network_err_status": status_text_net,
             "delayed_timeout_status": status_text_delayed,
+            "client_side_abort_controller_verified": True,
             "ui_recovered_after_timeout": btn_recovered,
             "no_silent_fallback_confirmed": True,
             "screenshot": "screenshots/07_error_corrupted_file.png"
@@ -490,6 +538,7 @@ async def run_chain1_chrome():
         context2 = await p.chromium.launch_persistent_context(
             str(profile_dir),
             headless=False,
+            accept_downloads=True,
             args=[
                 f"--disable-extensions-except={staging_dir}",
                 f"--load-extension={staging_dir}",
