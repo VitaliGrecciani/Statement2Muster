@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-09-15T20:35:56Z",
+  "timestamp": "2026-09-15T20:42:28Z",
   "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "823e33fc759bcceb674ec36677ce91c6770b9898",
+    "git_commit": "9b22082077916afd8d2ea021de8e0b9bab2c58a8",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
-    "extension_zip_sha256": "787B8F3475D3D8EAC9AF50769A491603DCADB62960FE29EBCFCF955ADE65AC8D",
+    "extension_zip_sha256": "AC771E0D538A5C1AEE747C39AF89A6DE7889125462CC6A1309C164B7DFDF09EB",
     "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
     "firefox_zip_sha256": "3FFEC60A357FC240850AFCA5A3158C5FA7AFF0E2B90D92208B7A5BCA131D103E",
     "pilot_scope": "Chrome-only pilot (Phase 1). Firefox packaged and verified, excluded from active UI testing.",
@@ -13,7 +13,7 @@
     "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
     "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "bebgcfmkadcoiepfcddiicaldkklebla"
+    "extension_id": "dmbndnafbdmhokbjmchegmaoenjalhmj"
   },
   "steps": {
     "step1_initial_load": {
@@ -41,8 +41,8 @@
       "real_download_verified": {
         "unpatched_native_download": true,
         "download_id": 1,
-        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-tGCFmg\\5fe0c99e-eedc-4908-a86a-160762bb6b3d",
-        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-tGCFmg\\5fe0c99e-eedc-4908-a86a-160762bb6b3d",
+        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-94GS11\\828464b6-66f2-4bfc-ab3d-94bcb192d352",
+        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-94GS11\\828464b6-66f2-4bfc-ab3d-94bcb192d352",
         "bytes_size": 1489,
         "encoding": "windows-1252",
         "starts_with_extf": true,
@@ -61,8 +61,11 @@
       "402_status": "Server-Fehler: Kontingent ersch\u00f6pft. Bitte upgraden Sie Ihren Plan.",
       "429_status": "Server-Fehler: Zu viele Anfragen. Bitte warten Sie 60 Sekunden.",
       "network_err_status": "Server-Fehler: Failed to fetch",
-      "delayed_timeout_status": "Server-Fehler: Zeit\u00fcberschreitung: Der Server hat nicht innerhalb von 3s geantwortet.",
+      "pre_headers_delayed_timeout_status": "Server-Fehler: Zeit\u00fcberschreitung: Der Server hat nicht innerhalb von 3s geantwortet.",
+      "hanging_body_stream_timeout_status": "Server-Fehler: Zeit\u00fcberschreitung: Der Server hat nicht innerhalb von 3s geantwortet.",
+      "subsequent_request_recovered_rows": 10,
       "client_side_abort_controller_verified": true,
+      "response_body_deadline_verified": true,
       "ui_recovered_after_timeout": true,
       "no_silent_fallback_confirmed": true,
       "screenshot": "screenshots/07_error_corrupted_file.png"
@@ -83,7 +86,7 @@
     },
     "step6_history_clear": {
       "status": "PASS",
-      "items_before": 1,
+      "items_before": 2,
       "items_after": 0,
       "storage_purged": {
         "historyCount": 0,

@@ -821,6 +821,8 @@ async function processBackendConversion(files) {
 
   let response;
   let buffer;
+  let reconStatus = 'UNVERIFIED';
+  let isMixed = false;
   try {
     response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
       method: 'POST',
@@ -835,10 +837,10 @@ async function processBackendConversion(files) {
     }
 
     // Extract reconciliation and audit headers
-    const reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
+    reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
     updateReconciliationBadge(reconStatus);
 
-    const isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
+    isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
     const accountsRaw = response.headers.get('X-Accounts-Found') || '[]';
     currentDuplicatesCount = parseInt(response.headers.get('X-Duplicates-Count') || '0', 10);
     
