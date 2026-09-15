@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-09-15T20:33:20Z",
+  "timestamp": "2026-09-15T20:35:56Z",
   "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "76f66a33ffd38e2dae84bc108d301ef5f2778f9b",
+    "git_commit": "823e33fc759bcceb674ec36677ce91c6770b9898",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
     "extension_zip_sha256": "787B8F3475D3D8EAC9AF50769A491603DCADB62960FE29EBCFCF955ADE65AC8D",
     "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
@@ -13,7 +13,7 @@
     "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
     "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "bcgnjeadneilhheljokdlobpkckkamej"
+    "extension_id": "bebgcfmkadcoiepfcddiicaldkklebla"
   },
   "steps": {
     "step1_initial_load": {
@@ -41,8 +41,8 @@
       "real_download_verified": {
         "unpatched_native_download": true,
         "download_id": 1,
-        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-pP1dAE\\32dbe99b-d2c7-441c-8903-58f8bbef6016",
-        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-pP1dAE\\32dbe99b-d2c7-441c-8903-58f8bbef6016",
+        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-tGCFmg\\5fe0c99e-eedc-4908-a86a-160762bb6b3d",
+        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-tGCFmg\\5fe0c99e-eedc-4908-a86a-160762bb6b3d",
         "bytes_size": 1489,
         "encoding": "windows-1252",
         "starts_with_extf": true,
