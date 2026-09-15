@@ -1,14 +1,19 @@
 {
-  "timestamp": "2026-09-15T09:25:58Z",
-  "test_name": "Chain 1: Managed Extension UI Acceptance (Chrome)",
+  "timestamp": "2026-09-15T11:04:56Z",
+  "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "a2795554249a6f4b0fb2da651308c7e04c5e6f61",
+    "git_commit": "d133bcf0e18be98b57b2ed61b82480123dd1a90a",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
     "extension_zip_sha256": "5C69289A79A68CA37F93A84E12048C2638A5531FBB78F7D3D1025F43F72D156E",
+    "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
+    "firefox_zip_sha256": "3FFEC60A357FC240850AFCA5A3158C5FA7AFF0E2B90D92208B7A5BCA131D103E",
+    "pilot_scope": "Chrome-only pilot (Phase 1). Firefox packaged and verified, excluded from active UI testing.",
     "api_url": "http://127.0.0.1:8000",
     "backend_image": "statement2muster-api:1.0.3",
+    "backend_image_id": "sha256:3bc43a4394be73f5063004761ef9c03fa0527d8e866355421bb5639296e24239",
+    "backend_container_id": "394ebba48da1",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "filphcmladimjlihceldhffjjbebpakn"
+    "extension_id": "ckpcljjpclikilcljohajcillpcnlhnh"
   },
   "steps": {
     "step1_initial_load": {
@@ -27,18 +32,27 @@
       },
       "screenshot": "screenshots/04_authenticated_state.png"
     },
-    "step3_api_convert": {
+    "step3_api_convert_and_export": {
       "status": "PASS",
       "preview_rows_count": 10,
       "reconciliation_badge": "\n            \u2139\n            Einzelbeleg (kein Saldo)\n          ",
       "bearer_jwt_transmitted": true,
+      "export_verified": {
+        "filename": "EXTF_Buchungsstapel.csv",
+        "starts_with_extf": true,
+        "lines_count": 12,
+        "bookings_count": 10
+      },
       "screenshot": "screenshots/06_preview_rendered.png"
     },
     "step4_negative_handling": {
       "status": "PASS",
-      "status_visible": true,
-      "error_message": "Server-Fehler: Keine Buchungss\u00e4tze in den bereitgestellten Dateien gefunden oder Formate werden nicht unterst\u00fctzt.",
-      "no_silent_fallback": true,
+      "422_status": "Server-Fehler: Keine Buchungss\u00e4tze in den bereitgestellten Dateien gefunden oder Formate werden nicht unterst\u00fctzt.",
+      "401_status": "Server-Fehler: Session abgelaufen. Bitte erneut anmelden.",
+      "402_status": "Server-Fehler: Kontingent ersch\u00f6pft. Bitte upgraden Sie Ihren Plan.",
+      "429_status": "Server-Fehler: Zu viele Anfragen. Bitte warten Sie 60 Sekunden.",
+      "network_err_status": "Server-Fehler: Failed to fetch",
+      "no_silent_fallback_confirmed": true,
       "screenshot": "screenshots/07_error_corrupted_file.png"
     },
     "step5_logout_and_revocation": {
@@ -47,12 +61,18 @@
       "client_token_cleared": true,
       "server_revocation_401": true,
       "server_response_detail": "Token has been revoked. Please re-authenticate.",
+      "browser_restart_cleared": true,
       "screenshot": "screenshots/08_logged_out_state.png"
     },
     "step6_history_clear": {
       "status": "PASS",
       "items_before": 1,
       "items_after": 0,
+      "storage_purged": {
+        "historyCount": 0,
+        "hasLastCsv": false,
+        "hasAccounts": false
+      },
       "screenshot": "screenshots/10_history_cleared.png"
     }
   },

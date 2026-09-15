@@ -1,28 +1,42 @@
 {
-  "timestamp": "2026-09-15T09:36:20Z",
-  "test_name": "Chain 2: Revocation Persistence, Multi-Worker Isolation & DB Migrations",
+  "timestamp": "2026-09-15T10:46:47Z",
+  "test_suite": "Chain 2: Fault Tolerance, Fail-Closed Revocation, Multi-Worker Isolation & DB Migrations",
+  "provenance": {
+    "decision_ref": "Architect Decision 26",
+    "p1_issue": "Fail-open SQLite error handling remediated to fail-closed HTTP 503"
+  },
   "scenarios": {
-    "scenario1_revocation_persistence": {
+    "scenario1_fail_closed_revocation": {
       "status": "PASS",
-      "in_memory_purged": true,
-      "sqlite_persistence_confirmed": true,
-      "second_worker_api_status": 401,
-      "second_worker_api_detail": "Token has been revoked. Please re-authenticate."
+      "db_error_code": 503,
+      "error_type": "service_unavailable",
+      "post_recovery_status": 401,
+      "p1_verified": true
     },
-    "scenario2_db_migration_idempotency": {
+    "scenario2_multi_worker_revocation": {
       "status": "PASS",
-      "columns_added": [
+      "memory_purged": true,
+      "sqlite_persistence_confirmed": true
+    },
+    "scenario3_migration_and_subsequent_ops": {
+      "status": "PASS",
+      "columns_migrated": [
         "tenants.version",
         "entitlements.payment_intent",
         "usage_reservations.request_hash"
       ],
-      "legacy_data_preserved": {
-        "tenant": "legacy_tax_firm@kanzlei.de",
-        "plan": "pro",
-        "units": 1,
-        "revoked_token_hash": "hash_legacy_revoked_token"
-      },
-      "idempotent_runs": 3
+      "idempotency_runs": 3,
+      "post_migration_login": "PASS",
+      "post_migration_json_conversion": "PASS",
+      "post_migration_datev_extf": "PASS",
+      "extf_lines_count": 12,
+      "transactions_reconciled": 10
+    },
+    "scenario4_worker_error_and_security_boundary": {
+      "status": "PASS",
+      "malformed_input_status": 422,
+      "recovered_worker_status": 200,
+      "revocation_at_middleware_boundary": 401
     }
   },
   "overall_status": "PASSED"

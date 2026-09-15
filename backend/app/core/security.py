@@ -90,7 +90,12 @@ def revoke_token(token: str, expires_at: Optional[float] = None) -> None:
     _revoked_tokens[th] = expires_at
 
 def is_token_revoked(token: str) -> bool:
-    """Checks whether token has been revoked in-memory or database."""
+    """Checks whether token has been revoked in-memory or database.
+    
+    Fail-closed (Decision 26):
+    If the revocation registry is unreachable, corrupt, or missing from disk,
+    raises HTTP 503 Service Unavailable instead of falsely returning False (fail-open).
+    """
     th = hash_token(token)
     now = time.time()
     exp = _revoked_tokens.get(th)
@@ -102,24 +107,34 @@ def is_token_revoked(token: str) -> bool:
             return False
 
     # Multi-worker DB fallback for SQLite
-    try:
-        db_url = settings.DATABASE_URL
-        if "sqlite" in db_url:
-            path = db_url.split(":///")[-1]
-            if path and os.path.exists(path):
-                import sqlite3
-                conn = sqlite3.connect(path, timeout=0.5)
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT expires_at FROM revoked_tokens WHERE token_hash = ?", (th,))
-                    row = cursor.fetchone()
-                    if row:
-                        _revoked_tokens[th] = now + 600
-                        return True
-                finally:
-                    conn.close()
-    except Exception:
-        pass
+    db_url = settings.DATABASE_URL
+    if "sqlite" in db_url:
+        path = db_url.split(":///")[-1]
+        if not path or not os.path.exists(path):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Revocation registry unavailable. Operation rejected for security."
+            )
+        import sqlite3
+        try:
+            conn = sqlite3.connect(path, timeout=1.0)
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT expires_at FROM revoked_tokens WHERE token_hash = ?", (th,))
+                row = cursor.fetchone()
+                if row:
+                    _revoked_tokens[th] = now + 600
+                    return True
+                return False
+            finally:
+                conn.close()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Revocation registry unavailable. Operation rejected for security."
+            ) from exc
     return False
 
 def decode_access_token(token: str) -> Dict[str, Any]:

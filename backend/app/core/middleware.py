@@ -50,9 +50,10 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                 # Store tenant info in request state for downstream handlers
                 request.state.tenant = payload
             except HTTPException as exc:
+                err_type = "unauthorized" if exc.status_code == 401 else "service_unavailable" if exc.status_code == 503 else "error"
                 return Response(
                     content=json.dumps({
-                        "error": "unauthorized",
+                        "error": err_type,
                         "detail": exc.detail
                     }),
                     status_code=exc.status_code,
