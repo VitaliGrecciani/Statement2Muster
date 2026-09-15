@@ -90,7 +90,7 @@ async def run_chain1_chrome():
         "api_url": API_URL,
         "backend_image": "statement2muster-api:1.0.5",
         "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
-        "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
+        "backend_container_id": "80f72a466692b821f1d505bdfa988e47474b339d7b09e378b1a202fb648c8329",
         "browser": "Playwright Chromium (v1234) / System Chrome 152"
     }
 

@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-09-15T20:42:28Z",
+  "timestamp": "2026-09-15T20:55:35Z",
   "test_name": "Chain 1: Hardened Managed Extension Acceptance (Chrome)",
   "provenance": {
-    "git_commit": "9b22082077916afd8d2ea021de8e0b9bab2c58a8",
+    "git_commit": "0c006b2f359c7c54be1ce95522f242efaab833aa",
     "extension_zip": "statement2muster-chrome-v1.0.2.zip",
     "extension_zip_sha256": "AC771E0D538A5C1AEE747C39AF89A6DE7889125462CC6A1309C164B7DFDF09EB",
     "firefox_zip": "statement2muster-firefox-v1.0.2.zip",
@@ -11,9 +11,9 @@
     "api_url": "http://127.0.0.1:8000",
     "backend_image": "statement2muster-api:1.0.5",
     "backend_image_id": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
-    "backend_container_id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
+    "backend_container_id": "80f72a466692b821f1d505bdfa988e47474b339d7b09e378b1a202fb648c8329",
     "browser": "Playwright Chromium (v1234) / System Chrome 152",
-    "extension_id": "dmbndnafbdmhokbjmchegmaoenjalhmj"
+    "extension_id": "ehcpofjopkjdcfhbaneikohpmejkecee"
   },
   "steps": {
     "step1_initial_load": {
@@ -41,8 +41,8 @@
       "real_download_verified": {
         "unpatched_native_download": true,
         "download_id": 1,
-        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-94GS11\\828464b6-66f2-4bfc-ab3d-94bcb192d352",
-        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-94GS11\\828464b6-66f2-4bfc-ab3d-94bcb192d352",
+        "disk_path": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-OAzfWa\\3a660add-2db0-4713-bcb1-79aaab197ea7",
+        "filename": "C:\\Users\\zorik\\AppData\\Local\\Temp\\playwright-artifacts-OAzfWa\\3a660add-2db0-4713-bcb1-79aaab197ea7",
         "bytes_size": 1489,
         "encoding": "windows-1252",
         "starts_with_extf": true,

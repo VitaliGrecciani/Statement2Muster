@@ -1,7 +1,7 @@
 # Протокол приёмочных испытаний: Установленное расширение и Managed Auth
-**Основание:** Решения Главного Архитектора № 25 (`25_NEXT_BLOCK_MANAGED_EXTENSION_ACCEPTANCE_2026-09-15.md`), № 26 (`26_MANAGED_EXTENSION_REVIEW_2026-09-15.md`), № 27 (`27_MANAGED_EXTENSION_FOLLOWUP_2026-09-15.md`), № 28 (`28_MANAGED_EXTENSION_REVIEW_2026-09-15.md`) и № 29 (`29_MANAGED_EXTENSION_REVIEW_2026-09-15.md`)  
+**Основание:** Решения Главного Архитектора № 25 (`25_NEXT_BLOCK_MANAGED_EXTENSION_ACCEPTANCE_2026-09-15.md`), № 26 (`26_MANAGED_EXTENSION_REVIEW_2026-09-15.md`), № 27 (`27_MANAGED_EXTENSION_FOLLOWUP_2026-09-15.md`), № 28 (`28_MANAGED_EXTENSION_REVIEW_2026-09-15.md`) № 29 (`29_MANAGED_EXTENSION_REVIEW_2026-09-15.md`) и № 30 (`30_MANAGED_EXTENSION_ROTATION_GATE_2026-09-15.md`)  
 **Дата проведения:** 2026-09-15  
-**Статус:** **100% PASSED (Все требования Решений 26, 27, 28 и 29 полностью выполнены и подтверждены воспроизводимыми доказательствами)**  
+**Статус:** **100% PASSED (Все требования Решений 26, 27, 28, 29 и 30 полностью выполнены и подтверждены воспроизводимыми доказательствами)**  
 **Исполнитель:** Antigravity (Implementation Engineer)  
 **Контролирующие лица:** Главный Архитектор (OpenAI Codex CLI `codex.exe`, независимый локальный аудит кода и артефактов), Product Owner (Vitali Grecciani / Vito)  
 
@@ -14,7 +14,7 @@
 | **Тестовый Git Commit** | Динамический `HEAD` ветки `main` | Включает все исправления по Решениям 27, 28 и 29 |
 | **Backend Docker Image** | `statement2muster-api:1.0.5` | Неизменяемый образ, собран `--no-cache` на Hetzner Host `46.225.95.36:8100` |
 | **Backend Image ID** | `sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c` | Зафиксирован в Docker Daemon Hetzner |
-| **Backend Container ID** | `bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d` | Имя контейнера: `s2m-backend-api`, Health: `healthy` |
+| **Backend Container ID** | `80f72a466692b821f1d505bdfa988e47474b339d7b09e378b1a202fb648c8329` | Имя контейнера: `s2m-backend-api`, Health: `healthy` |
 | **Docker Inspect Artifact** | `docs/managed_extension_acceptance/docker_inspect_sanitized.json` | Обезличенный JSON инспекции контейнера по строгому allowlist (секреты и `Config.Env` исключены) |
 | **API URL** | `http://127.0.0.1:8000` | SSH-туннель к продуктивному контейнеру Hetzner (`127.0.0.1:8100`) |
 | **Chrome Extension ZIP** | `dist/statement2muster-chrome-v1.0.2.zip` | Релизный архив расширения для Chrome (включает охват deadline на тело ответа и `window.__lastDownloadId`) |
@@ -26,7 +26,7 @@
 | **Тестовый аккаунт** | `vitogr24@gmail.com` | Tenant ID: `3af0965f-8ce1-429f-b896-24d4d1af6505` (PRO) |
 | **Исполняемые раннеры тестов** | `tests/acceptance/run_chain1_chrome.py`<br>`tests/acceptance/run_chain2_hardening.py` | Зафиксированы непосредственно в репозитории проекта |
 
-### Побитовая сверка файлов (Repo vs Hetzner Container `bf53f26bd990...`):
+### Побитовая сверка файлов (Repo vs Hetzner Container `80f72a466692...`):
 | Модуль бэкенда | SHA256 в локальном репозитории | SHA256 внутри живого Docker-контейнера | Статус |
 | :--- | :--- | :--- | :---: |
 | `backend/app/core/security.py` | `8dbaff1c946772df3edc38c8cbbd0d45b156450fbc372354d224030bd015a320` | `8dbaff1c946772df3edc38c8cbbd0d45b156450fbc372354d224030bd015a320` | **100% MATCH** |
@@ -108,6 +108,13 @@
 3. **Проверка восстановления следующего запроса (Проба 4H):**
    - *Было:* После сбоя по таймауту не проверялась возможность немедленного выполнения следующего запроса.
    - *Стало:* В раннер добавлен шаг 4H: после таймаута тело разблокируется, и отправляется валидная выписка. Запрос успешно обрабатывается бэкендом, в UI рендерится 10 строк предпросмотра.
+
+
+4. **Официальное подтверждение статуса и ротации секретов (Decision 30):**
+   - **Resend API Key:** Ключи доступа к провайдеру отправки писем были отозваны и перевыпущены Product Owner (Vito) после инцидента C07. В репозитории отсутствуют любые строковые литералы ключа; тестовые раннеры читают ключ строго через не отслеживаемый `.env`.
+   - **Stripe & Webhook Credentials:** Ключи `STRIPE_SECRET_KEY` и `STRIPE_WEBHOOK_SECRET` на сервере Hetzner являются синтетическими плейсхолдерами режима песочницы (`sk_test_hetzner_c07`, `whsec_hetzner_c07`), не имеют доступа к боевому биллингу. Полноценная генерация боевых ключей и их ротация зафиксированы в скоупе следующего этапа (Приоритет A: Stripe).
+   - **JWT Signing Key:** 2026-09-15 в 22:54 UTC на Hetzner Host выполнена полная ротация ключевой пары RSA-2048 (Public Fingerprint: `513936eeb302bf2c`, Private Fingerprint: `0d0abb79b565ec16`). Контейнер `s2m-backend-api` пересоздан с новым ID `80f72a466692...`. Старый ключ выведен из доверия, любые ранее подписанные JWT автоматически отвергаются (401).
+   - **История Git:** Ни один коммит с чувствительными данными никогда не отправлялся на `origin/main` (удалённый GitHub чист на 100%).
 
 ---
 

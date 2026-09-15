@@ -1,7 +1,7 @@
 [
   {
-    "Id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
-    "Created": "2026-09-15T20:09:54.41017458Z",
+    "Id": "80f72a466692b821f1d505bdfa988e47474b339d7b09e378b1a202fb648c8329",
+    "Created": "2026-09-15T20:54:57.149976335Z",
     "Path": "uvicorn",
     "Args": [
       "app.main:app",
@@ -17,42 +17,18 @@
       "Restarting": false,
       "OOMKilled": false,
       "Dead": false,
-      "Pid": 3459875,
+      "Pid": 600287,
       "ExitCode": 0,
       "Error": "",
-      "StartedAt": "2026-09-15T20:09:55.138157574Z",
+      "StartedAt": "2026-09-15T20:54:57.830866476Z",
       "FinishedAt": "0001-01-01T00:00:00Z",
       "Health": {
         "Status": "healthy",
         "FailingStreak": 0,
         "Log": [
           {
-            "Start": "2026-09-15T20:27:31.965008385Z",
-            "End": "2026-09-15T20:27:32.208728131Z",
-            "ExitCode": 0,
-            "Output": ""
-          },
-          {
-            "Start": "2026-09-15T20:27:47.209743222Z",
-            "End": "2026-09-15T20:27:47.432951154Z",
-            "ExitCode": 0,
-            "Output": ""
-          },
-          {
-            "Start": "2026-09-15T20:28:02.434330004Z",
-            "End": "2026-09-15T20:28:02.653492987Z",
-            "ExitCode": 0,
-            "Output": ""
-          },
-          {
-            "Start": "2026-09-15T20:28:17.654494034Z",
-            "End": "2026-09-15T20:28:17.899813587Z",
-            "ExitCode": 0,
-            "Output": ""
-          },
-          {
-            "Start": "2026-09-15T20:28:32.900777712Z",
-            "End": "2026-09-15T20:28:33.148078046Z",
+            "Start": "2026-09-15T20:55:02.965694494Z",
+            "End": "2026-09-15T20:55:03.193817506Z",
             "ExitCode": 0,
             "Output": ""
           }
@@ -91,7 +67,7 @@
         "8000/tcp": {}
       },
       "Labels": {
-        "com.docker.compose.config-hash": "de4ac854b6b1e79db0384df9f4ab8d4213c2038915078fe9bdec7ef31ab19224",
+        "com.docker.compose.config-hash": "151ff2dfa07e539844f5e27197d205a6341b28f4ed09d7fc2866fe71d9694f09",
         "com.docker.compose.container-number": "1",
         "com.docker.compose.depends_on": "",
         "com.docker.compose.image": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
@@ -103,7 +79,7 @@
         "com.docker.compose.service": "api",
         "com.docker.compose.version": "5.1.0"
       },
-      "Env_Policy": "SANITIZED: Environment variables excluded per Decision 29 security policy"
+      "Env_Policy": "SANITIZED: Environment variables excluded per Decision 29/30 security policy"
     },
     "HostConfig": {
       "Binds": [
