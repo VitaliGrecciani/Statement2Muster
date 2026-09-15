@@ -820,6 +820,7 @@ async function processBackendConversion(files) {
   }, timeoutMs);
 
   let response;
+  let buffer;
   try {
     response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
       method: 'POST',
@@ -827,6 +828,27 @@ async function processBackendConversion(files) {
       body: formData,
       signal: controller.signal
     });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server Fehler: ${response.status}`);
+    }
+
+    // Extract reconciliation and audit headers
+    const reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
+    updateReconciliationBadge(reconStatus);
+
+    const isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
+    const accountsRaw = response.headers.get('X-Accounts-Found') || '[]';
+    currentDuplicatesCount = parseInt(response.headers.get('X-Duplicates-Count') || '0', 10);
+    
+    try {
+      currentAccountsFound = JSON.parse(accountsRaw);
+    } catch (e) {
+      currentAccountsFound = [];
+    }
+
+    buffer = await response.arrayBuffer();
   } catch (fetchErr) {
     if (controller.signal.aborted) {
       throw new Error(`Zeitüberschreitung: Der Server hat nicht innerhalb von ${timeoutMs / 1000}s geantwortet.`);
@@ -836,26 +858,6 @@ async function processBackendConversion(files) {
     clearTimeout(timeoutId);
   }
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.detail || `Server Fehler: ${response.status}`);
-  }
-
-  // Extract reconciliation and audit headers
-  const reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
-  updateReconciliationBadge(reconStatus);
-
-  const isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
-  const accountsRaw = response.headers.get('X-Accounts-Found') || '[]';
-  currentDuplicatesCount = parseInt(response.headers.get('X-Duplicates-Count') || '0', 10);
-  
-  try {
-    currentAccountsFound = JSON.parse(accountsRaw);
-  } catch (e) {
-    currentAccountsFound = [];
-  }
-
-  const buffer = await response.arrayBuffer();
   const decoder = new TextDecoder('windows-1252');
   const csvText = decoder.decode(buffer);
   

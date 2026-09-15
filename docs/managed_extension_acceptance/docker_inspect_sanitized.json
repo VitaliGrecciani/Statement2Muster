@@ -1,0 +1,137 @@
+[
+  {
+    "Id": "bf53f26bd990b8c1e471c3e5e94f528a4dc0e05796c62febb8fb7ed831c4895d",
+    "Created": "2026-09-15T20:09:54.41017458Z",
+    "Path": "uvicorn",
+    "Args": [
+      "app.main:app",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8000"
+    ],
+    "State": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 3459875,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-09-15T20:09:55.138157574Z",
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "Health": {
+        "Status": "healthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-09-15T20:27:31.965008385Z",
+            "End": "2026-09-15T20:27:32.208728131Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-09-15T20:27:47.209743222Z",
+            "End": "2026-09-15T20:27:47.432951154Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-09-15T20:28:02.434330004Z",
+            "End": "2026-09-15T20:28:02.653492987Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-09-15T20:28:17.654494034Z",
+            "End": "2026-09-15T20:28:17.899813587Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-09-15T20:28:32.900777712Z",
+            "End": "2026-09-15T20:28:33.148078046Z",
+            "ExitCode": 0,
+            "Output": ""
+          }
+        ]
+      }
+    },
+    "Image": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
+    "Name": "/s2m-backend-api",
+    "RestartCount": 0,
+    "Driver": "overlayfs",
+    "Platform": "linux",
+    "Mounts": [
+      {
+        "Type": "volume",
+        "Name": "statement2muster_s2m-data",
+        "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+        "Destination": "/app/data",
+        "Driver": "local",
+        "Mode": "rw",
+        "RW": true,
+        "Propagation": ""
+      }
+    ],
+    "Config": {
+      "Image": "statement2muster-api:1.0.5",
+      "Cmd": [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "WorkingDir": "/app",
+      "ExposedPorts": {
+        "8000/tcp": {}
+      },
+      "Labels": {
+        "com.docker.compose.config-hash": "de4ac854b6b1e79db0384df9f4ab8d4213c2038915078fe9bdec7ef31ab19224",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "",
+        "com.docker.compose.image": "sha256:039d44e6c728192b56a29bf025abfcbfff0158d71debb662dd16fac3c86b7b9c",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "statement2muster",
+        "com.docker.compose.project.config_files": "/opt/statement2muster/docker-compose.prod.yml",
+        "com.docker.compose.project.working_dir": "/opt/statement2muster",
+        "com.docker.compose.replace": "s2m-backend-api",
+        "com.docker.compose.service": "api",
+        "com.docker.compose.version": "5.1.0"
+      },
+      "Env_Policy": "SANITIZED: Environment variables excluded per Decision 29 security policy"
+    },
+    "HostConfig": {
+      "Binds": [
+        "statement2muster_s2m-data:/app/data:rw"
+      ],
+      "PortBindings": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8100"
+          }
+        ]
+      },
+      "RestartPolicy": {
+        "Name": "always",
+        "MaximumRetryCount": 0
+      },
+      "ReadonlyRootfs": true
+    },
+    "NetworkSettings": {
+      "Ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8100"
+          }
+        ]
+      }
+    }
+  }
+]

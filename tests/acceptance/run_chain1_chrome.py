@@ -484,6 +484,60 @@ async def run_chain1_chrome():
         assert ("zeitüberschreitung" in status_text_delayed.lower() or "fehler" in status_text_delayed.lower()) and preview_hidden_delayed and btn_recovered
         print(f"[4F] Client AbortController deadline fired cleanly without server abort: {status_text_delayed}")
 
+        # 4G. Hanging Response Body Stream Timeout (Decision 29 requirement: deadline covers response body reading)
+        print("[4G] Testing hanging response body stream timeout...")
+        async def handle_hanging_body(reader, writer):
+            req = await reader.read(2048)
+            headers = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: text/csv; charset=windows-1252\r\n"
+                b"Transfer-Encoding: chunked\r\n"
+                b"Access-Control-Allow-Origin: *\r\n"
+                b"Access-Control-Expose-Headers: *\r\n"
+                b"\r\n"
+            )
+            writer.write(headers)
+            await writer.drain()
+            try:
+                await asyncio.sleep(8.0)
+            except asyncio.CancelledError:
+                pass
+            finally:
+                writer.close()
+                await writer.wait_closed()
+
+        mock_server = await asyncio.start_server(handle_hanging_body, "127.0.0.1", 8998)
+
+        await page.evaluate("() => { window.__CONVERT_TIMEOUT_MS = 3000; }")
+        await page.route("**/api/v1/convert*", lambda route: route.continue_(url="http://127.0.0.1:8998"))
+
+        await page.click("#convert-btn")
+        # Check processing indicator while request is in-flight (at 1.0s)
+        await asyncio.sleep(1.0)
+        status_4g_inflight = await page.evaluate("() => document.getElementById('status-text')?.textContent")
+
+        # Wait past 3.0s client deadline (total ~3.8s from click)
+        await asyncio.sleep(2.8)
+        status_text_4g = await page.evaluate("() => document.getElementById('status-text')?.textContent")
+        preview_hidden_4g = await page.evaluate("() => document.getElementById('preview-view')?.classList.contains('hidden')")
+        btn_recovered_4g = not (await page.evaluate("() => document.getElementById('convert-btn')?.disabled"))
+
+        await page.unroute("**/api/v1/convert*")
+        await page.evaluate("() => { window.__CONVERT_TIMEOUT_MS = 15000; }")
+        mock_server.close()
+        await mock_server.wait_closed()
+
+        assert ("zeitüberschreitung" in status_text_4g.lower() or "fehler" in status_text_4g.lower()) and preview_hidden_4g and btn_recovered_4g
+        print(f"[4G] Client AbortController deadline correctly aborted hanging body stream: {status_text_4g}")
+
+        # 4H. Subsequent Request Recovery (Decision 29 requirement: subsequent request succeeds after timeout)
+        print("[4H] Testing subsequent request recovery after timeout...")
+        await page.click("#convert-btn")
+        await page.wait_for_selector("#preview-view:not(.hidden)", timeout=10000)
+        recovered_rows = await page.evaluate("() => document.querySelectorAll('#preview-table-body tr').length")
+        assert recovered_rows == 10, f"Expected 10 preview rows on recovery, got {recovered_rows}"
+        print(f"[4H] Subsequent conversion request succeeded and recovered UI cleanly: {recovered_rows} rows rendered.")
+
         report["steps"]["step4_negative_handling"] = {
             "status": "PASS",
             "422_status": status_text_422,
@@ -491,9 +545,12 @@ async def run_chain1_chrome():
             "402_status": status_text_402,
             "429_status": status_text_429,
             "network_err_status": status_text_net,
-            "delayed_timeout_status": status_text_delayed,
+            "pre_headers_delayed_timeout_status": status_text_delayed,
+            "hanging_body_stream_timeout_status": status_text_4g,
+            "subsequent_request_recovered_rows": recovered_rows,
             "client_side_abort_controller_verified": True,
-            "ui_recovered_after_timeout": btn_recovered,
+            "response_body_deadline_verified": True,
+            "ui_recovered_after_timeout": btn_recovered_4g,
             "no_silent_fallback_confirmed": True,
             "screenshot": "screenshots/07_error_corrupted_file.png"
         }
