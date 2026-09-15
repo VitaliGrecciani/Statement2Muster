@@ -55,15 +55,24 @@ class StructuredCsvParser(BaseBankParser):
                 detail=f"File '{filename}' exceeds maximum allowed limit of {max_rows} rows."
             )
 
-        date_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['datum', 'date', 'tag', 'zeitraum', 'buchung'])), None)
-        text_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['text', 'verwendungszweck', 'empfänger', 'partner', 'beschreibung', 'details', 'name', 'zahlungsgrund'])), None)
+        date_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['buchungstag', 'buchungsdatum', 'datum', 'date', 'tag', 'zeitraum', 'buchung'])), None)
         amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount', 'umsatz', 'summe', 'wert'])), None)
         curr_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['währung', 'waehrung', 'currency', 'wkz', 'curr'])), None)
-        ref_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['beleg', 'referenz', 'reference', 'transaktion', 'auftrags'])), None)
-
         saldo_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['saldo nach buchung', 'kontostand nach', 'endsaldo', 'saldo'])), None)
         iban_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['auftragskonto', 'iban', 'kontonummer'])), None)
         bank_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['bankname', 'institut', 'bank'])), None)
+
+        # Counterparty / Partner column
+        partner_col = next((c for c in df.columns if c != iban_col and any(k in str(c).lower() for k in ['beguenstigter', 'begünstigter', 'zahlungspflichtiger', 'empfänger', 'empfaenger', 'partner', 'karteninhaber'])), None)
+
+        # Purpose / Verwendungszweck column
+        purpose_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['verwendungszweck', 'zahlungsgrund', 'zweck'])), None)
+
+        # General text / description column
+        text_col = next((c for c in df.columns if c not in (iban_col, partner_col, purpose_col) and any(k in str(c).lower() for k in ['beschreibung', 'description', 'text', 'details', 'name', 'buchungstext'])), None)
+
+        # Dedicated reference column (must not be the bank account itself)
+        ref_col = next((c for c in df.columns if c not in (iban_col, partner_col, purpose_col, text_col) and any(k in str(c).lower() for k in ['referenz', 'reference', 'beleg', 'transaktion', 'auftragsnummer', 'mandatsreferenz'])), None)
 
         if not date_col or not amount_col:
             return [], None
@@ -105,8 +114,44 @@ class StructuredCsvParser(BaseBankParser):
                 row_account_id = str(row[iban_col]).strip().replace(" ", "")
 
             curr = str(row[curr_col]).strip() if (curr_col and pd.notna(row[curr_col])) else (detected_curr or "EUR")
-            desc = str(row[text_col]).strip() if (text_col and pd.notna(row[text_col])) else ""
-            ref = str(row[ref_col]).strip() if (ref_col and pd.notna(row[ref_col])) else f"CSV-{idx+1}"
+
+            # Construct clear, professional booking description
+            text_parts = []
+            if partner_col and pd.notna(row[partner_col]):
+                p_val = str(row[partner_col]).strip()
+                if p_val:
+                    text_parts.append(p_val)
+            if purpose_col and pd.notna(row[purpose_col]):
+                purp_val = str(row[purpose_col]).strip()
+                if purp_val and purp_val not in text_parts:
+                    text_parts.append(purp_val)
+            elif text_col and pd.notna(row[text_col]):
+                t_val = str(row[text_col]).strip()
+                if t_val and t_val not in text_parts:
+                    text_parts.append(t_val)
+
+            if text_parts:
+                desc = " - ".join(text_parts)
+            elif text_col and pd.notna(row[text_col]):
+                desc = str(row[text_col]).strip()
+            elif purpose_col and pd.notna(row[purpose_col]):
+                desc = str(row[purpose_col]).strip()
+            else:
+                desc = ""
+
+            # Reference extraction: dedicated column or regex invoice pattern
+            ref = ""
+            if ref_col and pd.notna(row[ref_col]):
+                ref = str(row[ref_col]).strip()
+
+            if not ref and purpose_col and pd.notna(row[purpose_col]):
+                p_str = str(row[purpose_col]).strip()
+                match = re.search(r'\b(?:RE-|RE\s+|Rechnung\s*(?:Nr\.?)?\s*|Rg\.?\s*|INV-|Invoice\s*(?:No\.?)?\s*)([A-Za-z0-9\-_/]+)\b', p_str, re.IGNORECASE)
+                if match:
+                    ref = match.group(0).strip()
+
+            if not ref:
+                ref = f"CSV-{idx+1}"
 
             if saldo_col and pd.notna(row[saldo_col]):
                 raw_saldo = str(row[saldo_col]).strip()
