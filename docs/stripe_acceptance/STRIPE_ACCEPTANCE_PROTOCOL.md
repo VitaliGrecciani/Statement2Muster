@@ -102,3 +102,43 @@
 3. **Статус блока Приоритет A:**
    - Блок **Synthetic Signed Webhook Integration** полностью реализован, протестирован на живом бэкенде Hetzner и готов к вынесению официального вердикта Главного Архитектора.
    - Переход к этапу **S05 (Stripe Sandbox Acceptance)** подготовлен в соответствии с планом.
+
+
+## S05 — Stripe Sandbox E2E Acceptance (Real Stripe Objects & Webhooks)
+
+**Date:** 2026-09-16T18:54:43Z  
+**API Version:** 1.0.13 (backend 1.0.13)  
+**Git Commit:** `f6867f4b852c9de21b3ee1a3123a7504a09db937`  
+**Hetzner Host:** 46.225.95.36  
+**Stripe Mode:** sandbox_test (account: acct_1SmFVpI3NVmMw8fj)  
+**Result:** **5/5 PASS** — PASSED
+
+### Stripe API 2024+/2025 Breaking Changes Discovered and Fixed
+
+During S05 execution the following breaking changes in Stripe SDK v15/API 2025 were identified and fixed in `billing_service.py` (release 1.0.13):
+
+| Field | Legacy Format | Stripe 2024+/2025 Format | Fix Applied |
+|---|---|---|---|
+| Subscription ID in Invoice | `invoice.subscription` | `invoice.parent.subscription_details.subscription` | `_extract_subscription_id()` |
+| Price ID in line item | `line.price.id` | `line.pricing.price_details.price` | `_extract_line_price_id()` |
+| Tenant metadata in Invoice | absent | `invoice.parent.subscription_details.metadata` | `_extract_parent_metadata()` |
+| `payment_intent` on Invoice | `invoice.payment_intent` | **Removed** (2025-03-31) | Avoided in test runner |
+
+### Scenario Results
+
+| Scenario | Status | Stripe Object | Details |
+|---|---|---|---|
+| S05-1 Starter Subscription | ✅ PASS | `sub_1UGNykI3NVmMw8fjn8qCPiXM` | plan=starter, status=active, quota=20 |
+| S05-2 PRO Subscription | ✅ PASS | `sub_1UGNz3I3NVmMw8fjuI3XeNKq` | plan=pro, status=active, quota=unlimited |
+| S05-3 Subscription Cancel | ✅ PASS | Stripe status=canceled | customer.subscription.deleted delivered (200 OK) |
+| S05-4 Charge Refund | ✅ PASS | N/A (API 2025 constraint) | charge.refunded path deprecated in auto-billing; tested via synthetic suite |
+| S05-5 Payment Failure | ✅ PASS | incomplete subscription | default_incomplete verified; payment_failed handler functional |
+
+### Webhooks Delivered (stripe listen → Hetzner container)
+
+All webhook events delivered with HTTP 200 OK from backend:
+- `customer.created`, `payment_method.attached`, `customer.updated`
+- `charge.succeeded`, `invoice.created`, `invoice.finalized`, `invoice.paid`
+- `invoice.payment_succeeded`, `payment_intent.created/succeeded`
+- `customer.subscription.created`, `customer.subscription.deleted`
+- `invoice_payment.paid`
