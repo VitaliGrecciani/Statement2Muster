@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-09-16T12:19:14Z",
+  "timestamp": "2026-09-16T12:29:42Z",
   "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
-  "architect_decision": "Decision 35 (35_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
+  "architect_decision": "Decision 36 (36_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
   "provenance": {
-    "git_commit": "f4f0cbdf17541675bc1f25eec130150a64a355d4",
+    "git_commit": "6f03c77cfb699b55aee0e95816cab0776fda42fb",
     "api_url": "http://127.0.0.1:8000",
     "hetzner_host": "46.225.95.36",
-    "backend_image": "statement2muster-api:1.0.10",
-    "backend_image_id": "sha256:71ab4c494be9e483839be75e6b0d7fb88fe6546f3232717debb4cfdd825590fc",
-    "backend_container_id": "69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1",
+    "backend_image": "statement2muster-api:1.0.11",
+    "backend_image_id": "sha256:c2a89e67abae8ebce0502973db83b9d5e659cec5847278cf97f39e0fdbbc38e1",
+    "backend_container_id": "173b145cb5f491e11252aed5bcb293e1ce1ad403af8466b5389ce51f4ed417dd",
     "stripe_mode": "sandbox",
     "webhook_secret_prefix": "whsec_he..."
   },
@@ -27,7 +27,7 @@
     },
     "scenario_04_subscription_renewal": {
       "status": "PASS",
-      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T12:19:17."
+      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T12:29:45."
     },
     "scenario_05_payment_failed": {
       "status": "PASS",
@@ -127,11 +127,11 @@
     },
     "scenario_29_decision35_quota_reset_sub_first_then_invoice": {
       "status": "PASS",
-      "details": "Decision 35 Permutation 1: Starter exhausted in Period N (429) -> subscription.updated then invoice.paid for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+      "details": "Decision 36 Permutation 1 (S.created > I.created, S delivered first): Starter exhausted in Period N (429) -> subscription.updated (created=202) then delayed invoice.paid (created=201) correctly advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
     },
     "scenario_30_decision35_quota_reset_invoice_first_then_sub": {
       "status": "PASS",
-      "details": "Decision 35 Permutation 2: Starter exhausted in Period N (429) -> invoice.paid then subscription.updated for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+      "details": "Decision 36 Permutation 2 (I.created < S.created, I delivered first): Starter exhausted in Period N (429) -> invoice.paid (created=201) then subscription.updated (created=202) for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
     }
   },
   "overall_status": "PASSED",
