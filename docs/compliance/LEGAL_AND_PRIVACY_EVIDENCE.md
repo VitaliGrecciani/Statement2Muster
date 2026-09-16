@@ -1,11 +1,12 @@
 # Statement2Muster — Legal, Privacy & Compliance Evidence Dossier
 
-**Status:** Updated per Chief Architect Decision № 43  
+**Status:** Updated per Chief Architect Decision № 44 (Full Closure Stage 2)  
 **Datum:** 2026-09-16  
 **Projekt:** Statement2Muster DACH (Grecciani Labs)  
 **Inhaber / Diensteanbieter:** Vitali Grecciani (Einzelunternehmer, Roseggergasse 37, 3400 Klosterneuburg, Österreich)  
 **Aufsichtsbehörde:** Österreichische Datenschutzbehörde (DSB), Barichgasse 40-42, 1030 Wien  
-**Referenz-Register:** [DPA & Contracts Registry](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/DPA_AND_CONTRACTS_REGISTRY.md)
+**Referenz-Register:** [DPA & Contracts Registry](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/DPA_AND_CONTRACTS_REGISTRY.md)  
+**Pilot-AVV-Vorlage:** [Muster-AVV für Kanzleien](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/AVV_PILOT_MUSTER_VORLAGE.md)  
 
 ---
 
@@ -14,7 +15,7 @@
 Statement2Muster stellt spezialisierte Softwarewerkzeuge zur Strukturierung und Konvertierung digitaler Bank- und Kreditkartenauszüge in normierte Zielformate des Rechnungswesens (**DATEV Format EXTF** und **BMD NTCS**) bereit.
 
 Der Dienst richtet sich primär an Gewerbetreibende, Steuerberater und Wirtschaftsprüfer (B2B) im DACH-Raum und beachtet:
-- **Verordnung (EU) 2016/679 (DSGVO):** Transparente Rechenschaftslegung (Art. 5 Abs. 2 DSGVO), Bereitstellung eines standardisierten Auftragsverarbeitungsvertrags (AVV) nach Art. 28 DSGVO und Absicherung grenzüberschreitender Hilfsdienste nach Art. 46 DSGVO.
+- **Verordnung (EU) 2016/679 (DSGVO):** Transparente Rechenschaftslegung (Art. 5 Abs. 2 DSGVO), Bereitstellung eines standardisierten Auftragsverarbeitungsvertrags (AVV) nach Art. 28 DSGVO, Bereitstellung bilateraler Kanzlei-AVV-Muster für Pilotbetriebe und Absicherung grenzüberschreitender Hilfsdienste nach Art. 46 DSGVO.
 - **E-Commerce-Gesetz (ECG):** Anbieterkennzeichnung gemäß § 5 ECG.
 - **Mediengesetz (MedienG):** Offenlegungspflichten gemäß § 25 MedienG.
 - **Telekommunikationsgesetz (TKG 2021):** Strikte Einhaltung des § 165 Abs. 3 TKG 2021 (einwilligungsfreier Verzicht auf Tracking- oder Werbe-Cookies).
@@ -30,22 +31,27 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 * **Dienstleister:** **Hetzner Online GmbH** (Industriestr. 25, 91710 Gunzenhausen, Deutschland).
 * **Standort:** ISO/IEC 27001-zertifiziertes Rechenzentrum in **Frankfurt am Main, Deutschland**.
 * **Aufgabe:** Ausführung des Docker-Containers `statement2muster-api`, Parsing und Strukturierung von Auszugsdaten in `tmpfs` / RAM.
-* **Garantie:** Die Auszugsverarbeitung verbleibt zu 100% in Deutschland. **Kein externer Hilfsdienstleister (weder Stripe noch Resend noch ImprovMX) erhält im regulären Konvertierungspfad Zugriff auf hochgeladene Auszüge oder Buchungsinhalte.**
+* **Garantie:** Die Auszugsverarbeitung verbleibt zu 100% in Deutschland. **Kein externer Hilfsdienstleister (weder Stripe noch Resend noch ImprovMX noch Apple) erhält im regulären Konvertierungspfad Zugriff auf hochgeladene Auszüge oder Buchungsinhalte.**
 
 ### Pipeline 2: Kaufmännische Abrechnung und Zahlungsabwicklung
 * **Dienstleister:** **Stripe Payments Europe, Ltd.** (Dublin, Irland).
 * **Aufgabe:** Abrechnung von Lizenzen und Abonnements.
 * **Rolle:** Eigenständiger Verantwortlicher für Zahlungs- und Kreditkartendaten; Auftragsverarbeiter für kaufmännische Kundenstammdaten.
 * **Übertragene Daten:** E-Mail-Adresse, Zahlungsbetrag, Stripe Customer ID, Stripe Subscription ID. Keine Bankauszüge.
+* **Vertrag:** Stripe DPA (Stand 16.02.2024).
 
 ### Pipeline 3: Transaktionale Login-Zustellung (OTP) & Support
 * **Dienstleister für OTP-Zustellung:** **Plus Five Five, Inc. (dba Resend)**, San Francisco, CA, USA (Delaware Corp).
-  * **Rolle:** Auftragsverarbeiter für E-Mail-Zustellung.
+  * **Rolle:** Auftragsverarbeiter für E-Mail-Zustellung von Einmalpasswörtern.
   * **Daten:** E-Mail-Adresse und temporärer 6-stelliger Einmalcode (Gültigkeit: 10 Minuten).
-  * **Übermittlungsgrundlage:** Resend Data Processing Addendum (DPA) mit Standardvertragsklauseln der EU (SCCs) gemäß Art. 46 Abs. 2 lit. c DSGVO.
+  * **Exakte Vertragsfassung & Übermittlungsgrundlage:** *Resend Data Processing Addendum (DPA)* — **Last update: August 27th, 2026** mit Standardvertragsklauseln der EU (SCCs) gemäß Art. 46 Abs. 2 lit. c DSGVO (Modul 2 Controller-to-Processor und Modul 3 Processor-to-Processor).
 * **Dienstleister für Support-MX-Routing:** **ImprovMX Inc.**, Claymont, DE, USA (Delaware Corp).
-  * **Rolle:** E-Mail-Forwarding von `support@statement2muster.com` an das Kanzlei-Postfach des Verantwortlichen (`vitali@grecciani.com`, gehostet bei Apple Inc. / iCloud Mail mit TLS-Verschlüsselung).
-  * **Daten:** Freiwillige Support-E-Mails. Sollte ein Nutzer freiwillig Beispieldateien per E-Mail übersenden, werden diese streng vertraulich zur Ticketlösung verarbeitet und danach gelöscht.
+  * **Rolle:** Auftragsverarbeiter für flüchtiges E-Mail-Routing / MX-Forwarding von `support@statement2muster.com` an das Kanzlei-Postfach des Verantwortlichen (`vitali@grecciani.com`).
+  * **Vertrag & Übermittlung:** ImprovMX Terms of Service & Privacy Policy inkl. DSGVO-Standardbedingungen und EU-SCCs.
+* **Dienstleister für Kanzlei-Zielpostfach:** **Apple Distribution International Ltd. / Apple Inc.** (Irland / USA).
+  * **Rolle:** Hosting-Provider / Auftragsverarbeiter für das Kanzlei-Zielpostfach `vitali@grecciani.com` (Apple iCloud Mail for Custom Domains).
+  * **Vertrag & Übermittlung:** Apple iCloud Nutzungsbedingungen (EU), Apple Privacy Policy, Data Privacy Framework (DPF) / EU-Standardvertragsklauseln. Zugriff durch den Verantwortlichen gesichert über TLS und Apple 2FA (Hardware/Biometrie).
+  * **Freiwillige Dateianhänge:** Der reguläre Konvertierungspfad leitet niemals Auszugsdateien an E-Mail-Dienste weiter. Sollte ein Nutzer freiwillig Beispieldateien per E-Mail übersenden, werden diese streng vertraulich zur Ticketlösung verarbeitet und danach gelöscht.
 
 ---
 
@@ -57,8 +63,8 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
    - Auf den Servern findet keine persistente Speicherung von Auszugsinhalten auf Festplatten oder SSDs statt (Zero Durable Retention).
 2. **Idempotenter RAM-Ergebnis-Cache:**
    - Gemäß Konfiguration `RAM_CACHE_TTL_SECONDS = 600` wird das Konvertierungsergebnis für **maximal 10 Minuten ab Zwischenspeicherung** in einem flüchtigen Arbeitsspeicher-Cache gehalten (`idempotent_result_cache`).
-   - Zweck: Ermöglicht dem Benutzer, bei Verbindungsabbrüchen oder wiederholten Abrufen desselben Formats das identische Ergebnis ohne erneutes Parsing und ohne Kontingentverlust abzurufen. Der Cache-Schlüssel ist formatspezifisch.
-   - Nach Ablauf von 10 Minuten oder bei einem Server-Neustart wird der Cache automatisch aus dem RAM freigegeben.
+   - Zweck: Ermöglicht dem Benutzer, bei Verbindungsabbrüchen oder wiederholten Abrufen desselben Zielformats das identische Ergebnis ohne erneuten Parsing-Aufwand und ohne Kontingentverlust abzurufen. Der Cache-Schlüssel ist formatspezifisch.
+   - Nach Ablauf von 10 Minuten oder bei einem Server-Neustart wird der Cache automatisch aus dem flüchtigen RAM freigegeben (Memory Deallocation / Garbage Collection).
 3. **Datenbank-Isolation (Zero Statement Retention):**
    - Die Datenbank speichert ausschließlich administrative Identitäten (`users`, `entitlements`, `revoked_tokens`).
    - Es existieren keine Tabellen für Buchungstexte, IBANs oder Auszugstransaktionen.
@@ -79,23 +85,26 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 
 ---
 
-## 4. Status der öffentlich publizierten Dokumente
+## 4. Status der öffentlich publizierten Dokumente & AVV-Prozess
 
-| Dokument | URL-Pfad | Wesentliche Inhalte & Anpassungen | Status |
+| Dokument | URL-Pfad / Ablage | Wesentliche Inhalte & Anpassungen | Status |
 |---|---|---|---|
 | **Impressum** | `/impressum` | Anbieterkennzeichnung § 5 ECG / § 25 MedienG (Vitali Grecciani, Klosterneuburg) | **Live & verifiziert** |
-| **Datenschutz** | `/datenschutz` | Art. 13/14 DSGVO: RAM/tmpfs, TTL 600s ab Zwischenspeicherung, Hetzner, Stripe, Resend (Plus Five Five Inc., SCCs), ImprovMX -> iCloud Mail, Chrome-Historie (15 Einträge mit csvText und totalSum), DSB Wien | **Aktualisiert (Decision 43)** |
-| **AVV** | `/avv` | Art. 28 DSGVO: TOMs § 5 (tmpfs, RAM TTL 600s, lokale 15-Einträge-Historie), § 6 getrennte Subprozessoren (Hetzner Kern-Prozessor; Stripe/Resend/ImprovMX Hilfsdienste) | **Aktualisiert (Decision 43)** |
+| **Datenschutz** | `/datenschutz` | Art. 13/14 DSGVO: RAM/tmpfs, TTL 600s ab Zwischenspeicherung, Hetzner, Stripe, Resend (DPA Stand 27.08.2026, SCCs), ImprovMX -> Apple iCloud Mail (DPF/SCCs), Chrome-Historie (15 Einträge mit csvText und totalSum), DSB Wien | **Aktualisiert (Decision 44)** |
+| **AVV (Online)** | `/avv` | Art. 28 DSGVO: TOMs § 5 (tmpfs, RAM TTL 600s idempotenter Replay ohne Kontingentverlust, lokale 15-Einträge-Historie), § 6 getrennte Subprozessoren (Hetzner Kern-Prozessor; Stripe/Resend 27.08.2026/ImprovMX/Apple Hilfsdienste), § 9 RAM Deallocation | **Aktualisiert (Decision 44)** |
+| **Muster-AVV (Bilateral)** | `docs/compliance/AVV_PILOT_MUSTER_VORLAGE.md` | Vollständige druckreife zweisprachig/deutsche AVV-Vereinbarung inkl. Anlagen (TOMs, Subprozessoren) zur individuellen Gegenzeichnung für Kanzleien und Pilot-Betriebe vor der Verarbeitung von Echtdaten | **Neu erstellt (Decision 44)** |
 | **AGB** | `/agb` | B2B/B2C-Bedingungen, Lizenzierung (Starter, PRO, Lifetime), Kündigungsregeln | **Live & verifiziert** |
 | **Widerruf** | `/widerruf` | Verbraucher-Widerruf (14 Tage) + 14-Tage Geld-zurück-Garantie | **Live & verifiziert** |
 
 ---
 
-## 5. Konformitätsfazit für das Audit
+## 5. Konformitätsfazit für das Audit (Abschluss Stage 2)
 
-Mit den in коммит 191ebec und nachfolgenden Schritten vorgenommenen Anpassungen:
-1. Sind alle Punkte aus **Решение № 43** vollständig adressiert:
-   - Der genaue Umfang der clientseitigen Chrome-Historie (bis zu 15 Einträge, `csvText`, `totalSum`) ist in Datenschutz, AVV und Dossier transparent offengelegt.
-   - Der Zweck des RAM-Caches ist exakt als formatspezifischer idempotenter Replay-Cache mit 600s TTL ab Zwischenspeicherung beschrieben.
-   - Das [DPA & Contracts Registry](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/DPA_AND_CONTRACTS_REGISTRY.md) enthält die vollständige Support-E-Mail-Kette (inkl. Ziel-Postfach iCloud Mail), die Regelung für freiwillige E-Mail-Anhänge sowie das Bestätigungs-Statement des Account-Inhabers (Vitali Grecciani).
-   - Die Kernverarbeitung der Bankdaten verbleibt zu 100% auf Hetzner in Frankfurt am Main.
+Mit den in коммит `[HEAD]` vorgenommenen Anpassungen:
+1. Sind alle Vorgaben aus **Решение № 44** des Hauptarchitekten restlos erfüllt:
+   - **Почтовые договоры:** ImprovMX (Rolle Auftragsverarbeiter für flüchtiges Inbound-Routing, Terms & Privacy inkl. EU-SCCs) und Apple Distribution International Ltd. / Apple Inc. (Hosting des Kanzlei-Postfachs `vitali@grecciani.com`, Apple iCloud Terms, DPF/SCCs, TLS & 2FA) sind mit genauen Rollen und Rechtsgrundlagen dokumentiert.
+   - **Точные редакции:** Das Resend DPA ist mit der exakten offiziellen Fassung (**Stand: 27. August 2026**) unter Einbindung der EU-Standardvertragsklauseln (SCCs 2021/914) referenziert.
+   - **Клиентский AVV:** Das Abschlussverfahren für Kanzleikunden ist zweistufig und rechtssicher geregelt. Für den Pilotbetrieb und Kanzleien steht eine druck- und zeichnungsreife Individualvereinbarung ([`AVV_PILOT_MUSTER_VORLAGE.md`](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/AVV_PILOT_MUSTER_VORLAGE.md)) bereit, die vor der Verarbeitung von Echtdaten bilateral gegengezeichnet und archiviert wird.
+   - **Остаточная редактура:** Das Versprechen „ohne erneuten Datei-Upload“ in `landing/avv.html` § 5 wurde bereinigt; die Löschungsgarantie in § 9 wurde präzise auf die systemseitige Freigabe im flüchtigen RAM (Deallokation nach 600s TTL bzw. Container-Neustart) ohne missverständliche Bit-Überschreibungs-Zusicherungen abgestimmt.
+   - **Inhaber-Bestätigung:** Das daiterte [Bestätigungs-Statement](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/DPA_AND_CONTRACTS_REGISTRY.md#5-erklärung-des-verantwortlichen-owner-acceptance-statement) des Inhabers (Vitali Grecciani) wurde um sämtliche genannten Dienstleister und den Pilot-AVV-Prozess erweitert.
+2. Der organisatorisch-rechtliche Kontur (Stage 2) ist damit vollständig dokumentiert und prüfbereit.
