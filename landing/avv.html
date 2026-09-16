@@ -265,19 +265,23 @@
         <h2>§ 5 Technische und organisatorische Maßnahmen (TOMs gem. Art. 32 DSGVO)</h2>
         <p>(1) Der Auftragnehmer trifft alle nach Art. 32 DSGVO erforderlichen Maßnahmen zur Gewährleistung eines dem Risiko angemessenen Schutzniveaus:</p>
         <ul>
-          <li><strong>Zero-Durable-Storage-Prinzip:</strong> Hochgeladene Kontoauszugsinhalte und Buchungsdaten werden ausschließlich im flüchtigen Arbeitsspeicher (RAM) verarbeitet und zu keinem Zeitpunkt in persistenten Datenbanken oder permanenten Dateisystemen abgelegt.</li>
-          <li><strong>Transportverschlüsselung:</strong> Alle Datenübertragungen zwischen Endgeräten des Auftraggebers und der Konvertierungs-Engine sind durch TLS 1.3 bzw. TLS 1.2 mit Perfect Forward Secrecy geschützt.</li>
+          <li><strong>Zero-Durable-Storage-Prinzip & Flüchtige Verarbeitung:</strong> Hochgeladene Kontoauszugsinhalte und Buchungsdaten werden ausschließlich im flüchtigen Arbeitsspeicher (RAM) bzw. in temporären RAM-Dateisystemen (Linux <code>tmpfs</code>) verarbeitet. Ein temporärer In-Memory-Ergebnis-Cache (Standard-TTL: 600 Sekunden / 10 Minuten) ermöglicht dem Nutzer das wiederholte Herunterladen ohne erneuten Upload; nach Ablauf dieser Frist oder bei Server-Neustart werden die Daten rückstandslos und unwiderruflich aus dem flüchtigen Speicher verworfen. Es erfolgt zu keinem Zeitpunkt eine dauerhafte Speicherung von Auszugsinhalten auf persistenten Festplatten, SSDs oder Datenbanken.</li>
+          <li><strong>Transport- & Zugriffssicherheit:</strong> Alle Datenübertragungen zwischen Endgeräten des Auftraggebers und der Konvertierungs-Engine sind durch TLS 1.3 bzw. TLS 1.2 mit Perfect Forward Secrecy geschützt. Sitzungs-Token werden kryptografisch asymmetrisch signiert (RS256 / RSA-2048) und über strikte Revocation-Prüfungen abgesichert.</li>
           <li><strong>Standort und Hosting:</strong> Die Verarbeitungsserver befinden sich in zertifizierten Rechenzentren (ISO/IEC 27001) innerhalb der Europäischen Union (Frankfurt am Main, Deutschland).</li>
           <li><strong>In-Browser-Option:</strong> Bei Nutzung des clientseitigen Verarbeitungsmodus verbleiben die Auszugsdaten vollständig auf dem lokalen Endgerät des Nutzers.</li>
         </ul>
 
         <h2>§ 6 Unterauftragsverhältnisse (Subprozessoren)</h2>
-        <p>(1) Der Auftraggeber erteilt hiermit die allgemeine Genehmigung zur Einbindung von Unterauftragsverarbeitern. Aktuell genehmigte Subdienstleister:</p>
+        <p>(1) Der Auftraggeber erteilt hiermit die allgemeine Genehmigung zur Einbindung von Unterauftragsverarbeitern nach folgenden Funktionsbereichen:</p>
+        <p><strong>A. Auftragsverarbeiter für Kontoauszugs- und Buchungsdaten (Kernverarbeitung):</strong></p>
         <ul>
-          <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-zertifizierte Cloud-Infrastruktur / Rechenzentrumsbetrieb in Frankfurt am Main (Bereitstellung der Serverumgebung und In-Memory-Verarbeitung).</li>
-          <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung und Abrechnung von Lizenzgebühren (Verarbeitung kaufmännischer Transaktionsmetadaten, keine Buchungsauszüge).</li>
-          <li><strong>Resend, Inc. (USA / EU-Routing):</strong> Bereitstellung von E-Mail-Infrastruktur zur zuverlässigen Zustellung transaktionaler Einmalpasswörter (OTP / Login-Codes). Es werden ausschließlich die E-Mail-Adresse und der Einmalcode übertragen; abgesichert über EU-Standardvertragsklauseln (SCCs / DPA) gemäß Art. 46 DSGVO.</li>
-          <li><strong>ImprovMX / Kekanto SAS (Frankreich / EU):</strong> MX-Routing und Weiterleitung von geschäftlichen E-Mail-Anfragen an Support und Kanzlei-Kontakt für die Domain statement2muster.com (Verarbeitung innerhalb der EU).</li>
+          <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO/IEC 27001-zertifizierte Cloud-Infrastruktur / Rechenzentrumsbetrieb in Frankfurt am Main. Die gesamte Parsing- und Konvertierungslogik der Auszugsdateien sowie der flüchtige RAM-Cache werden <em>ausschließlich</em> auf diesen Servern in Deutschland betrieben. Kein externer Drittanbieter hat Zugriff auf Mandanten-Auszugsinhalte.</li>
+        </ul>
+        <p><strong>B. Administrative Hilfsdienste und Zahlungsabwicklung (kein Zugriff auf Auszugsinhalte):</strong></p>
+        <ul>
+          <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung von Lizenzgebühren und Abonnements. Verarbeitet ausschließlich kaufmännische Abrechnungsmetadaten (Rechnungsbetrag, E-Mail, Stripe Customer ID) als eigenständiger Verantwortlicher bzw. Auftragsverarbeiter für Abrechnungsdaten; erhält zu keinem Zeitpunkt Buchungsauszüge.</li>
+          <li><strong>Plus Five Five, Inc. (dba Resend, Delaware, USA):</strong> Bereitstellung von E-Mail-Infrastruktur zur Zustellung transaktionaler Einmalpasswörter (OTP / Login-Codes). Es werden ausschließlich die E-Mail-Adresse und der Einmalcode (Gültigkeit 10 Min.) übertragen; datenschutzrechtlich abgesichert über das Resend Data Processing Addendum (DPA) inkl. Standardvertragsklauseln der EU (SCCs) gemäß Art. 46 DSGVO.</li>
+          <li><strong>ImprovMX Inc. (Delaware, USA):</strong> MX-Routing und Weiterleitung geschäftlicher Support-Anfragen von <code>support@statement2muster.com</code> an das Kanzlei-Postfach des Auftragnehmers (abgesichert über Terms of Service und Privacy Policy).</li>
         </ul>
         <p>(2) Der Auftragnehmer informiert den Auftraggeber mindestens 14 Tage vorab über jede beabsichtigte Änderung in Bezug auf die Hinzuziehung oder Ersetzung von Unterauftragsverarbeitern. Dem Auftraggeber steht bei berechtigten datenschutzrechtlichen Bedenken ein Widerspruchsrecht zu.</p>
 

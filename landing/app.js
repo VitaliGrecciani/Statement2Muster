@@ -435,20 +435,20 @@ const LEGAL_TEXTS = {
     <h2>Datenschutzerklärung (DSGVO)</h2>
     <p>Der Schutz Ihrer persönlichen und geschäftlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitali Grecciani (Einzelunternehmer, Grecciani Labs)</strong> (Roseggergasse 37, 3400 Klosterneuburg, Österreich, E-Mail: support@statement2muster.com). Wir verarbeiten Daten streng nach DSGVO und TKG 2021.</p>
     
-    <h3>1. In-Memory-Verarbeitung & Zero-Durable-Storage</h3>
-    <p>Statement2Muster verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden ausschließlich flüchtig im Arbeitsspeicher (RAM) verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet zu keinem Zeitpunkt eine dauerhafte Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
+    <h3>1. In-Memory-Verarbeitung & Speicherdauer (Zero Durable Storage)</h3>
+    <p>Statement2Muster verarbeitet Auszüge flüchtig im RAM und Linux-<code>tmpfs</code>. Ein temporärer In-Memory-Cache (Standard-TTL: <strong>600 Sekunden / 10 Minuten</strong>) ermöglicht erneutes Herunterladen ohne Neuladen der Datei; danach wird er vollständig und unwiderruflich aus dem RAM gelöscht. Keine Speicherung auf Festplatten/SSDs.</p>
 
     <h3>2. Serverstandort & Hosting (Hetzner)</h3>
-    <p>Unsere Backend-Systeme werden bei der <strong>Hetzner Online GmbH</strong> in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Transportverschlüsselung via TLS 1.3 mit Perfect Forward Secrecy.</p>
+    <p>Auszugsverarbeitung ausschließlich bei der <strong>Hetzner Online GmbH</strong> in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong>. Transportverschlüsselung via TLS 1.3 / TLS 1.2 mit Perfect Forward Secrecy.</p>
 
     <h3>3. E-Mail-OTP & Kommunikation (Resend & ImprovMX)</h3>
-    <p>Für die Zustellung von Login-Einmalcodes (OTP) nutzen wir <strong>Resend, Inc.</strong> (Übermittlung von E-Mail und temporärem 10-Min-Code; EU-Standardvertragsklauseln nach Art. 46 DSGVO). Das MX-Routing für Support-E-Mails erfolgt über <strong>ImprovMX</strong> (Frankreich / EU).</p>
+    <p>Für Login-Einmalcodes nutzen wir <strong>Plus Five Five, Inc. (dba Resend, USA)</strong> (Übermittlung von E-Mail und 10-Min-Code; EU-Standardvertragsklauseln nach Art. 46 DSGVO). Support-Routing erfolgt über <strong>ImprovMX Inc. (USA)</strong> an das Kanzlei-Postfach des Verantwortlichen.</p>
 
     <h3>4. Zahlungsabwicklung (Stripe)</h3>
-    <p>Abonnements und Zahlungen werden über unseren autorisierten Partner <strong>Stripe (Stripe Payments Europe, Ltd., Irland)</strong> über zertifizierte PCI-DSS-Level-1-Infrastrukturen abgewickelt.</p>
+    <p>Abrechnungen über <strong>Stripe Payments Europe, Ltd. (Irland)</strong> über PCI-DSS-Level-1-Infrastrukturen (nur kaufmännische Referenz-IDs, keine Auszugsdaten an Stripe).</p>
 
-    <h3>5. Keine Tracking-Cookies</h3>
-    <p>Wir verzichten vollständig auf zustimmungspflichtige Cookies, Google Analytics oder Tracking-Pixel. Es werden nur technisch notwendige Tokens zur Sitzungsverwaltung gespeichert.</p>
+    <h3>5. Keine Tracking-Cookies & Lokale Erweiterungs-Historie</h3>
+    <p>Keine Werbecookies oder Tracking-Pixel. Webbrowser speichert nur das kryptografisch signierte Sitzungs-Token (RS256 / RSA-2048). Die Chrome-Erweiterung speichert die Historie <strong>ausschließlich lokal auf Ihrem Endgerät</strong> (<code>chrome.storage.local</code>) und kann jederzeit per Klick geleert werden.</p>
 
     <h3>6. Ihre Rechte & Aufsichtsbehörde</h3>
     <p>Ihnen stehen Auskunft, Berichtigung, Löschung, Einschränkung und Widerspruch zu (<a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>). Zuständige Aufsichtsbehörde: <strong>Österreichische Datenschutzbehörde (DSB)</strong>, Barichgasse 40-42, 1030 Wien (<a href="https://www.dsb.gv.at" target="_blank" rel="noopener" style="color: var(--primary);">dsb.gv.at</a>).</p>
@@ -457,13 +457,13 @@ const LEGAL_TEXTS = {
   avv: `
     <h2>Auftragsverarbeitungsvertrag (AVV nach Art. 28 DSGVO)</h2>
     <p>Für Steuerberater, Wirtschaftsprüfer und Unternehmen bieten wir gemäß Art. 28 Abs. 3 DSGVO einen standardisierten Auftragsverarbeitungsvertrag an.</p>
-    <p>Aufgrund unserer <strong>flüchtigen In-Memory-Technologie</strong> (Zero Durable Storage) werden personenbezogene Buchungsdaten zu keinem Zeitpunkt persistent gespeichert.</p>
+    <p>Flüchtige In-Memory-Verarbeitung (Zero Durable Storage) in RAM/<code>tmpfs</code> mit begrenztem 10-Minuten-Cache. Keine persistente Speicherung von Buchungsdaten.</p>
     <p><strong>Genehmigte Subprozessoren:</strong></p>
     <ul>
-      <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main.</li>
-      <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung & Lizenzverwaltung.</li>
-      <li><strong>Resend, Inc. (USA / EU-Routing):</strong> Transaktionale OTP-Zustellung (Art. 46 DSGVO SCCs).</li>
-      <li><strong>ImprovMX (Frankreich / EU):</strong> E-Mail-Routing Domain statement2muster.com.</li>
+      <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main (Auszugsverarbeitung & RAM-Cache).</li>
+      <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung & Lizenzabrechnung (keine Auszugsinhalte).</li>
+      <li><strong>Plus Five Five, Inc. / Resend (Delaware, USA):</strong> Transaktionale OTP-Zustellung (Art. 46 DSGVO SCCs).</li>
+      <li><strong>ImprovMX Inc. (Delaware, USA):</strong> MX-Routing für Support-E-Mails an Kanzlei-Postfach.</li>
     </ul>
     <p>Vollständiger Vertragstext: <a href="/avv" style="color: var(--primary);" target="_blank">statement2muster.com/avv</a></p>
   `,
