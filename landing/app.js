@@ -436,19 +436,19 @@ const LEGAL_TEXTS = {
     <p>Der Schutz Ihrer persönlichen und geschäftlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitali Grecciani (Einzelunternehmer, Grecciani Labs)</strong> (Roseggergasse 37, 3400 Klosterneuburg, Österreich, E-Mail: support@statement2muster.com). Wir verarbeiten Daten streng nach DSGVO und TKG 2021.</p>
     
     <h3>1. In-Memory-Verarbeitung & Speicherdauer (Zero Durable Storage)</h3>
-    <p>Statement2Muster verarbeitet Auszüge flüchtig im RAM und Linux-<code>tmpfs</code>. Ein temporärer In-Memory-Cache (Standard-TTL: <strong>600 Sekunden / 10 Minuten</strong>) ermöglicht erneutes Herunterladen ohne Neuladen der Datei; danach wird er vollständig und unwiderruflich aus dem RAM gelöscht. Keine Speicherung auf Festplatten/SSDs.</p>
+    <p>Statement2Muster verarbeitet Auszüge flüchtig im RAM und Linux-<code>tmpfs</code>. Ein temporärer In-Memory-Cache (Standard-TTL: <strong>600 Sekunden / 10 Minuten ab Zwischenspeicherung</strong>) dient der idempotenten Wiederholung desselben Ergebnisses bei Verbindungsabbrüchen. Danach wird der Cache freigegeben. Keine dauerhafte Speicherung auf Festplatten/SSDs des Servers.</p>
 
     <h3>2. Serverstandort & Hosting (Hetzner)</h3>
     <p>Auszugsverarbeitung ausschließlich bei der <strong>Hetzner Online GmbH</strong> in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong>. Transportverschlüsselung via TLS 1.3 / TLS 1.2 mit Perfect Forward Secrecy.</p>
 
     <h3>3. E-Mail-OTP & Kommunikation (Resend & ImprovMX)</h3>
-    <p>Für Login-Einmalcodes nutzen wir <strong>Plus Five Five, Inc. (dba Resend, USA)</strong> (Übermittlung von E-Mail und 10-Min-Code; EU-Standardvertragsklauseln nach Art. 46 DSGVO). Support-Routing erfolgt über <strong>ImprovMX Inc. (USA)</strong> an das Kanzlei-Postfach des Verantwortlichen.</p>
+    <p>Für Login-Einmalcodes nutzen wir <strong>Plus Five Five, Inc. (dba Resend, USA)</strong> (Übermittlung von E-Mail und 10-Min-Code; EU-Standardvertragsklauseln nach Art. 46 DSGVO). Support-Routing erfolgt über <strong>ImprovMX Inc. (USA)</strong> an das Kanzlei-Postfach des Verantwortlichen (gehostet bei Apple Inc. / iCloud Mail).</p>
 
     <h3>4. Zahlungsabwicklung (Stripe)</h3>
     <p>Abrechnungen über <strong>Stripe Payments Europe, Ltd. (Irland)</strong> über PCI-DSS-Level-1-Infrastrukturen (nur kaufmännische Referenz-IDs, keine Auszugsdaten an Stripe).</p>
 
     <h3>5. Keine Tracking-Cookies & Lokale Erweiterungs-Historie</h3>
-    <p>Keine Werbecookies oder Tracking-Pixel. Webbrowser speichert nur das kryptografisch signierte Sitzungs-Token (RS256 / RSA-2048). Die Chrome-Erweiterung speichert die Historie <strong>ausschließlich lokal auf Ihrem Endgerät</strong> (<code>chrome.storage.local</code>) und kann jederzeit per Klick geleert werden.</p>
+    <p>Keine Werbecookies oder Tracking-Pixel. Webbrowser speichert nur das kryptografisch signierte Sitzungs-Token (RS256 / RSA-2048). Die Chrome-Erweiterung speichert die Historie der letzten bis zu 15 Konvertierungen (inkl. Betragssumme und erzeugtem CSV-Text) <strong>ausschließlich lokal auf Ihrem Endgerät</strong> (<code>chrome.storage.local</code>) und kann jederzeit per Klick geleert werden.</p>
 
     <h3>6. Ihre Rechte & Aufsichtsbehörde</h3>
     <p>Ihnen stehen Auskunft, Berichtigung, Löschung, Einschränkung und Widerspruch zu (<a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>). Zuständige Aufsichtsbehörde: <strong>Österreichische Datenschutzbehörde (DSB)</strong>, Barichgasse 40-42, 1030 Wien (<a href="https://www.dsb.gv.at" target="_blank" rel="noopener" style="color: var(--primary);">dsb.gv.at</a>).</p>
@@ -457,7 +457,7 @@ const LEGAL_TEXTS = {
   avv: `
     <h2>Auftragsverarbeitungsvertrag (AVV nach Art. 28 DSGVO)</h2>
     <p>Für Steuerberater, Wirtschaftsprüfer und Unternehmen bieten wir gemäß Art. 28 Abs. 3 DSGVO einen standardisierten Auftragsverarbeitungsvertrag an.</p>
-    <p>Flüchtige In-Memory-Verarbeitung (Zero Durable Storage) in RAM/<code>tmpfs</code> mit begrenztem 10-Minuten-Cache. Keine persistente Speicherung von Buchungsdaten.</p>
+    <p>Flüchtige In-Memory-Verarbeitung (Zero Durable Storage) in RAM/<code>tmpfs</code> mit begrenztem 10-Minuten-Cache. Lokale Browser-Erweiterung speichert bis zu 15 Verläufe rein lokal auf dem Client-Gerät.</p>
     <p><strong>Genehmigte Subprozessoren:</strong></p>
     <ul>
       <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main (Auszugsverarbeitung & RAM-Cache).</li>

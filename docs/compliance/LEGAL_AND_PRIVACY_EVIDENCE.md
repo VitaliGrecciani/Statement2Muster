@@ -1,6 +1,6 @@
 # Statement2Muster — Legal, Privacy & Compliance Evidence Dossier
 
-**Status:** Updated per Chief Architect Decision № 42  
+**Status:** Updated per Chief Architect Decision № 43  
 **Datum:** 2026-09-16  
 **Projekt:** Statement2Muster DACH (Grecciani Labs)  
 **Inhaber / Diensteanbieter:** Vitali Grecciani (Einzelunternehmer, Roseggergasse 37, 3400 Klosterneuburg, Österreich)  
@@ -29,8 +29,8 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 ### Pipeline 1: Kernverarbeitung von Mandanten-Auszügen (Auftragsverarbeitung)
 * **Dienstleister:** **Hetzner Online GmbH** (Industriestr. 25, 91710 Gunzenhausen, Deutschland).
 * **Standort:** ISO/IEC 27001-zertifiziertes Rechenzentrum in **Frankfurt am Main, Deutschland**.
-* **Aufgabe:** Ausführung des Docker-Containers `statement2muster-api`, Parsing und Strukturierung von Auszugsdaten.
-* **Garantie:** Die Auszugsverarbeitung verbleibt zu 100% in Deutschland. **Kein externer Hilfsdienstleister (weder Stripe noch Resend noch ImprovMX) erhält Zugriff auf hochgeladene Auszüge oder Buchungsinhalte.**
+* **Aufgabe:** Ausführung des Docker-Containers `statement2muster-api`, Parsing und Strukturierung von Auszugsdaten in `tmpfs` / RAM.
+* **Garantie:** Die Auszugsverarbeitung verbleibt zu 100% in Deutschland. **Kein externer Hilfsdienstleister (weder Stripe noch Resend noch ImprovMX) erhält im regulären Konvertierungspfad Zugriff auf hochgeladene Auszüge oder Buchungsinhalte.**
 
 ### Pipeline 2: Kaufmännische Abrechnung und Zahlungsabwicklung
 * **Dienstleister:** **Stripe Payments Europe, Ltd.** (Dublin, Irland).
@@ -44,8 +44,8 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
   * **Daten:** E-Mail-Adresse und temporärer 6-stelliger Einmalcode (Gültigkeit: 10 Minuten).
   * **Übermittlungsgrundlage:** Resend Data Processing Addendum (DPA) mit Standardvertragsklauseln der EU (SCCs) gemäß Art. 46 Abs. 2 lit. c DSGVO.
 * **Dienstleister für Support-MX-Routing:** **ImprovMX Inc.**, Claymont, DE, USA (Delaware Corp).
-  * **Rolle:** E-Mail-Routing von `support@statement2muster.com` an das Kanzlei-Postfach des Verantwortlichen (`vitali@grecciani.com`).
-  * **Daten:** Freiwillige Support-E-Mails.
+  * **Rolle:** E-Mail-Forwarding von `support@statement2muster.com` an das Kanzlei-Postfach des Verantwortlichen (`vitali@grecciani.com`, gehostet bei Apple Inc. / iCloud Mail mit TLS-Verschlüsselung).
+  * **Daten:** Freiwillige Support-E-Mails. Sollte ein Nutzer freiwillig Beispieldateien per E-Mail übersenden, werden diese streng vertraulich zur Ticketlösung verarbeitet und danach gelöscht.
 
 ---
 
@@ -53,24 +53,29 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 
 ### A. Server-Verarbeitung: Flüchtige In-Memory-Verarbeitung & RAM-Cache
 1. **Flüchtige Verarbeitung:**
-   - Eingehende PDF- und CSV-Dateien werden direkt im Arbeitsspeicher (RAM) bzw. in temporären RAM-Dateisystemen (Linux `tmpfs`) verarbeitet.
-   - Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder SSDs statt.
+   - Eingehende PDF- und CSV-Dateien werden direkt im Arbeitsspeicher (RAM) bzw. in temporären RAM-Dateisystemen (Linux `tmpfs`) des Containers verarbeitet.
+   - Auf den Servern findet keine persistente Speicherung von Auszugsinhalten auf Festplatten oder SSDs statt (Zero Durable Retention).
 2. **Idempotenter RAM-Ergebnis-Cache:**
-   - Gemäß Konfiguration `RAM_CACHE_TTL_SECONDS = 600` wird das Konvertierungsergebnis für **maximal 10 Minuten** in einem flüchtigen Arbeitsspeicher-Cache gehalten (`idempotent_result_cache`).
-   - Zweck: Ermöglicht dem Benutzer, das Ergebnis nach der Konvertierung ohne erneuten Upload wiederholt in verschiedenen Formaten (DATEV EXTF, BMD NTCS) herunterzuladen.
-   - Nach Ablauf von 10 Minuten oder bei einem Server-Neustart wird der Cache unwiderruflich aus dem RAM verworfen.
+   - Gemäß Konfiguration `RAM_CACHE_TTL_SECONDS = 600` wird das Konvertierungsergebnis für **maximal 10 Minuten ab Zwischenspeicherung** in einem flüchtigen Arbeitsspeicher-Cache gehalten (`idempotent_result_cache`).
+   - Zweck: Ermöglicht dem Benutzer, bei Verbindungsabbrüchen oder wiederholten Abrufen desselben Formats das identische Ergebnis ohne erneutes Parsing und ohne Kontingentverlust abzurufen. Der Cache-Schlüssel ist formatspezifisch.
+   - Nach Ablauf von 10 Minuten oder bei einem Server-Neustart wird der Cache automatisch aus dem RAM freigegeben.
 3. **Datenbank-Isolation (Zero Statement Retention):**
-   - Die Datenbank speichert ausschließlich administrative Datensätze (`users`, `entitlements`, `revoked_tokens`).
+   - Die Datenbank speichert ausschließlich administrative Identitäten (`users`, `entitlements`, `revoked_tokens`).
    - Es existieren keine Tabellen für Buchungstexte, IBANs oder Auszugstransaktionen.
 
 ### B. Kryptografie und Sitzungsverwaltung
-- **Signaturalgorithmus:** Kryptografisch asymmetrisch **signierte** Tokens (**RS256 / RSA-2048**) gemäß Architect ADR-001 (nicht Ed25519 und nicht symmetrisch).
+- **Signaturalgorithmus:** Kryptografisch asymmetrisch **signierte** Tokens (**RS256 / RSA-2048**) gemäß Architect ADR-001 (nicht Ed25519 und nicht verschlüsselt).
 - **Transportverschlüsselung:** Durchgehend TLS 1.3 / TLS 1.2 mit Perfect Forward Secrecy.
 - **Sitzungsdauer:** Access Token läuft nach 10 Minuten ab (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 10`).
 
 ### C. Clientseitiges Speicherverhalten (Browser & Chrome Extension)
 - **Webbrowser:** Speichert lediglich das signierte RS256-Sitzungstoken im `localStorage` zur Aufrechterhaltung der aktiven Sitzung.
-- **Chrome Extension:** Speichert Metadaten der Historie (`statementHistory`: Dateiname, Zeilenzahl, Zeitstempel) **ausschließlich lokal auf dem Gerät des Benutzers** in `chrome.storage.local`. Diese Daten werden nicht an den Server übertragen und können vom Benutzer jederzeit mit einem Klick auf die Schaltfläche „Verlauf leeren“ vollständig gelöscht werden.
+- **Chrome Extension (Lokale Historie bis 15 Einträge):**
+  - Zur Arbeitserleichterung speichert die Erweiterung die letzten **bis zu 15 Konvertierungen** im lokalen Speicher des Browsers (`chrome.storage.local`).
+  - Gespeicherte Felder: `id`, `filename`, `timestamp`, `count`, `totalSum` und der **vollständige erzeugte CSV-Text (`csvText`)**.
+  - **Speicherort:** Ausschließlich lokal auf dem Rechner des Nutzers. Verbleibt sitzungsübergreifend auf dem Gerät.
+  - **Kontrolle:** Der Nutzer kann diese Historie jederzeit mit einem Klick auf die Schaltfläche „Verlauf leeren“ vollständig aus seinem Browser löschen.
+  - Das Server-Prinzip „Zero Durable Storage“ erstreckt sich per Definition nicht auf diese lokalen Browserdaten oder lokal heruntergeladene Dateien.
 
 ---
 
@@ -79,8 +84,8 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 | Dokument | URL-Pfad | Wesentliche Inhalte & Anpassungen | Status |
 |---|---|---|---|
 | **Impressum** | `/impressum` | Anbieterkennzeichnung § 5 ECG / § 25 MedienG (Vitali Grecciani, Klosterneuburg) | **Live & verifiziert** |
-| **Datenschutz** | `/datenschutz` | Art. 13/14 DSGVO: 10-Min-RAM-Cache, tmpfs, Hetzner, Stripe, Resend (Plus Five Five Inc., SCCs), ImprovMX, clientseitige Historie, DSB Wien | **Aktualisiert (Decision 42)** |
-| **AVV** | `/avv` | Art. 28 DSGVO: TOMs § 5 (tmpfs, RAM TTL 600s), § 6 getrennte Subprozessoren (Hetzner als Kern-Prozessor; Stripe/Resend/ImprovMX als Hilfsdienste) | **Aktualisiert (Decision 42)** |
+| **Datenschutz** | `/datenschutz` | Art. 13/14 DSGVO: RAM/tmpfs, TTL 600s ab Zwischenspeicherung, Hetzner, Stripe, Resend (Plus Five Five Inc., SCCs), ImprovMX -> iCloud Mail, Chrome-Historie (15 Einträge mit csvText und totalSum), DSB Wien | **Aktualisiert (Decision 43)** |
+| **AVV** | `/avv` | Art. 28 DSGVO: TOMs § 5 (tmpfs, RAM TTL 600s, lokale 15-Einträge-Historie), § 6 getrennte Subprozessoren (Hetzner Kern-Prozessor; Stripe/Resend/ImprovMX Hilfsdienste) | **Aktualisiert (Decision 43)** |
 | **AGB** | `/agb` | B2B/B2C-Bedingungen, Lizenzierung (Starter, PRO, Lifetime), Kündigungsregeln | **Live & verifiziert** |
 | **Widerruf** | `/widerruf` | Verbraucher-Widerruf (14 Tage) + 14-Tage Geld-zurück-Garantie | **Live & verifiziert** |
 
@@ -88,7 +93,9 @@ Zur Vermeidung von Pauschalaussagen wird die Verarbeitung strikt nach Zuständig
 
 ## 5. Konformitätsfazit für das Audit
 
-Mit den vorgenommenen Anpassungen:
-1. Sind alle in **Решение № 42** identifizierten Widersprüche behoben (exakte 600s RAM-Cache-TTL, RS256-Signatur, tmpfs-Kennzeichnung, lokale Chrome-Historie).
-2. Wurden die tatsächlichen Firmenbezeichnungen und Sitze der US-Dienstleister (Plus Five Five, Inc. und ImprovMX Inc.) mit ihren Rechtsgrundlagen (EU-Standardvertragsklauseln / DPA) nachgewiesen und im separaten Register dokumentiert.
-3. Ist die Kernverarbeitung der Bankdaten strikt auf Hetzner (Frankfurt, Deutschland) isoliert.
+Mit den in коммит 191ebec und nachfolgenden Schritten vorgenommenen Anpassungen:
+1. Sind alle Punkte aus **Решение № 43** vollständig adressiert:
+   - Der genaue Umfang der clientseitigen Chrome-Historie (bis zu 15 Einträge, `csvText`, `totalSum`) ist in Datenschutz, AVV und Dossier transparent offengelegt.
+   - Der Zweck des RAM-Caches ist exakt als formatspezifischer idempotenter Replay-Cache mit 600s TTL ab Zwischenspeicherung beschrieben.
+   - Das [DPA & Contracts Registry](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/DPA_AND_CONTRACTS_REGISTRY.md) enthält die vollständige Support-E-Mail-Kette (inkl. Ziel-Postfach iCloud Mail), die Regelung für freiwillige E-Mail-Anhänge sowie das Bestätigungs-Statement des Account-Inhabers (Vitali Grecciani).
+   - Die Kernverarbeitung der Bankdaten verbleibt zu 100% auf Hetzner in Frankfurt am Main.

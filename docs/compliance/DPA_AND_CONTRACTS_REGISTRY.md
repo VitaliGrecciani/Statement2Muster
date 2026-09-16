@@ -1,27 +1,28 @@
-# Repertoire & Registry of Applicable Data Processing Addenda (DPA) & Legal Frameworks
+# Repertoire & Registry of Applicable Data Processing Addenda (DPA), Agreements & Provider Chains
 
 **Projekt:** Statement2Muster DACH (Grecciani Labs)  
 **Verantwortlicher (Controller):** Vitali Grecciani (Einzelunternehmer, Roseggergasse 37, 3400 Klosterneuburg, Österreich)  
 **Datum:** 2026-09-16  
-**Status:** Реестр применимых договоров и цепочек обработки данных (во исполнение Решения № 42 Главного Архитектора)  
+**Status:** Реестр применимых договоров и цепочек обработки данных (актуализировано во исполнение Решения № 43 Главного Архитектора)  
 
 ---
 
-## 1. Funktionale Trennung der Verarbeitungsketten (Separation of Processing Pipelines)
+## 1. Funktionale Trennung der Verarbeitungsketten (Separation of Pipelines)
 
-Zur Vermeidung irreführender Pauschalaussagen wird die Datenverarbeitung bei Statement2Muster streng nach fachlichen Vorgängen und Datenflüssen in drei voneinander getrennte Pipelines unterteilt:
+Zur Vermeidung von Missverständnissen wird die Datenverarbeitung bei Statement2Muster strikt nach Zweck und Datenfluss in drei getrennte Pipelines unterteilt:
 
 ```
-[Mandant / Nutzer]
+[Mandant / Kanzlei]
        │
-       ├─► PIPELINE A: Kernverarbeitung (Auszüge) ────────► [Hetzner Frankfurt (RAM / tmpfs)]
-       │   (Keine Weiterleitung an Dritte, TTL 600s)
+       ├─► PIPELINE 1: Kernverarbeitung (Auszüge) ────────► [Hetzner Frankfurt (RAM / tmpfs)]
+       │   (100% in Deutschland, keine Weiterleitung an Dritte, RAM-Cache TTL 600s)
        │
-       ├─► PIPELINE B: Lizenzierung & Zahlungen  ────────► [Stripe Ireland (Kaufmännisch)]
-       │   (Keine Auszugsdaten, nur E-Mail/Betrag/Sub-ID)
+       ├─► PIPELINE 2: Abrechnung & Lizenzverwaltung ─────► [Stripe Payments Europe (Irland)]
+       │   (Keine Auszugsdaten; nur E-Mail, Betrag, Customer ID, Sub ID)
        │
-       └─► PIPELINE C: Authentifizierung & Support ──────► [Resend & ImprovMX (USA/SCCs)]
-           (Nur E-Mail & 6-stelliger 10-Min-OTP-Code)
+       └─► PIPELINE 3: Authentifizierung & Support ──────► [Resend & ImprovMX (USA/SCCs) -> Zielpostfach]
+           (3A: OTP-Codes per Resend: nur E-Mail + 6-stelliger 10-Minuten-Code)
+           (3B: Support-Anfragen per ImprovMX -> Ziel-Postfach iCloud Mail)
 ```
 
 ---
@@ -33,16 +34,17 @@ Zur Vermeidung irreführender Pauschalaussagen wird die Datenverarbeitung bei St
 #### 1. Hetzner Online GmbH
 * **Unternehmenssitz:** Industriestr. 25, 91710 Gunzenhausen, Deutschland.
 * **Rechenzentrumsstandort:** Frankfurt am Main, Deutschland (ISO/IEC 27001 zertifiziert).
-* **Rolle im Sinne der DSGVO:** Auftragsverarbeiter (Sub-processor) für die Bereitstellung der Cloud-Infrastruktur.
-* **Gegenstand der Verarbeitung:** Bereitstellung des Linux-Containers für In-Memory-Parsing, Auszugsstrukturierung und flüchtigen In-Memory-Ergebnis-Cache (TTL: 600 Sekunden / 10 Minuten in `tmpfs`/RAM).
-* **Verarbeitete Datenkategorien:** Hochgeladene PDF- und CSV-Auszugsdaten zur flüchtigen Konvertierung; kryptografisch signierte Sitzungstoken (RS256); Lizenzstatus.
+* **Rolle:** Auftragsverarbeiter (Sub-processor) für Cloud-Infrastruktur / Rechenzentrumsbetrieb.
+* **Gegenstand der Verarbeitung:** Bereitstellung des Linux-Containers für In-Memory-Parsing, Auszugsstrukturierung und flüchtigen In-Memory-Ergebnis-Cache (TTL: 600 Sekunden / 10 Minuten ab Zwischenspeicherung in `tmpfs`/RAM zur Unterstützung idempotenter Wiederholungsabrufe desselben Zielformats).
+* **Verarbeitete Daten:** Hochgeladene PDF- und CSV-Auszugsdaten zur flüchtigen Konvertierung; kryptografisch signierte Sitzungstoken (RS256); Lizenzstatus.
 * **Dauer der Speicherung:** 
-  - Auszugsinhalte: Maximal 600 Sekunden im flüchtigen RAM-Cache (zur Ermöglichung des Mehrfach-Downloads ohne erneuten Upload); danach automatische und rückstandslose Löschung.
+  - Server-RAM-Cache: Maximal 600 Sekunden ab Zwischenspeicherung; danach automatische Freigabe (Garbage Collection).
   - Keine Speicherung auf Festplatten/SSDs (Zero Durable Storage).
-* **Vertragliche Grundlage:** Auftragsverarbeitungsvertrag (AVV) nach Art. 28 DSGVO der Hetzner Online GmbH.
-* **Abschlussmethode:** Elektronischer Abschluss im Rahmen der Account-Verwaltung in der Hetzner Konsole (Robot / Cloud).
+* **Vertragliche Grundlage:** Auftragsverarbeitungsvertrag (AVV) nach Art. 28 DSGVO der Hetzner Online GmbH (Fassung gültig ab 25.05.2018 / DSGVO-konform).
+* **Abschlussmethode & Status:** Elektronisch abgeschlossen im Hetzner Kundenkonto (Cloud / Robot Console).
+* **Account-Bestätigung:** Account aktiv, Host `46.225.95.36`, zugeordnet dem Verantwortlichen Vitali Grecciani.
 * **Drittlandübermittlung:** Keine. Die Verarbeitung erfolgt zu 100% innerhalb der Bundesrepublik Deutschland (EU).
-* **Nachweis & Quelle:** [Hetzner Datenschutz & AVV](https://www.hetzner.com/de/legal/privacy-policy)
+* **Quelle:** [Hetzner Datenschutz & AVV](https://www.hetzner.com/de/legal/privacy-policy)
 
 ---
 
@@ -50,17 +52,18 @@ Zur Vermeidung irreführender Pauschalaussagen wird die Datenverarbeitung bei St
 
 #### 2. Stripe Payments Europe, Ltd.
 * **Unternehmenssitz:** 1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland.
-* **Rolle im Sinne der DSGVO:**
-  - *Eigenständiger Verantwortlicher (Independent Controller)* für die Verarbeitung sensibler Kreditkarten- und PCI-DSS-Zahlungsdaten sowie die Geldwäsche- und Betrugsprävention.
-  - *Auftragsverarbeiter (Data Processor)* für die Verwaltung kaufmännischer Kundenstammdaten und wiederkehrender Lizenzabonnements im Auftrag des Diensteanbieters.
+* **Rolle:**
+  - *Eigenständiger Verantwortlicher (Independent Controller)* für PCI-DSS-Zahlungsabwicklung und Betrugsprävention.
+  - *Auftragsverarbeiter (Data Processor)* für kaufmännische Kundenstammdaten und wiederkehrende Lizenzabonnements im Auftrag des Diensteanbieters.
 * **Gegenstand der Verarbeitung:** Autorisierung und Abrechnung von Einmalkäufen (Lifetime) und Monatsabonnements (Starter, PRO).
-* **Verarbeitete Datenkategorien:** E-Mail-Adresse des Nutzers, Name, Zahlungsmethode (Kreditkartentoken), Zahlungsbetrag, Stripe Customer ID, Stripe Subscription ID, Transaktionszeitstempel.
-* **Strikte Trennung:** Stripe erhält zu keinem Zeitpunkt Zugriff auf Kontoauszüge, Transaktionszeilen oder Buchungsdaten der Kunden.
+* **Verarbeitete Datenkategorien:** E-Mail-Adresse des Nutzers, Rechnungsbetrag, Zahlungsmethode (Kreditkartentoken), Stripe Customer ID, Stripe Subscription ID, Transaktionszeitstempel.
+* **Strikte Isolation:** Stripe erhält zu keinem Zeitpunkt Zugriff auf Kontoauszüge oder Buchungszeilen.
 * **Vertragliche Grundlage:** 
   - Stripe Services Agreement (Europe)
-  - Stripe Data Processing Agreement (DPA) inkl. Standardvertragsklauseln der EU (SCCs).
-* **Abschlussmethode:** Elektronischer Klick-Vertrag bei Einrichtung und Verifizierung des Stripe Merchant Accounts.
-* **Nachweis & Quelle:** [Stripe Legal & DPA](https://stripe.com/en-at/legal/dpa)
+  - Stripe Data Processing Agreement (DPA, Fassung vom 16.02.2024) inkl. Standardvertragsklauseln der EU (SCCs).
+* **Abschlussmethode & Status:** Elektronisch akzeptiert bei Einrichtung und Verifizierung des Stripe Merchant Accounts (Live-Account aktiv).
+* **Account-Bestätigung:** Bestätigt für Merchant Account Vitali Grecciani (Statement2Muster).
+* **Quelle:** [Stripe Legal & DPA](https://stripe.com/en-at/legal/dpa)
 
 ---
 
@@ -68,42 +71,75 @@ Zur Vermeidung irreführender Pauschalaussagen wird die Datenverarbeitung bei St
 
 #### 3. Plus Five Five, Inc. (dba Resend)
 * **Unternehmenssitz:** 2261 Market Street #5151, San Francisco, CA 94114, USA (Delaware Corporation).
-* **Rolle im Sinne der DSGVO:** Auftragsverarbeiter (Processor) für den E-Mail-Versand transaktionaler Einmalpasswörter.
+* **Rolle:** Auftragsverarbeiter (Processor) für den E-Mail-Versand transaktionaler Einmalpasswörter.
 * **Gegenstand der Verarbeitung:** Technische Zustellung der 6-stelligen Login-Einmalcodes (OTP) zur passwortlosen Anmeldung im Dienst.
-* **Verarbeitete Datenkategorien:** Empfänger-E-Mail-Adresse, temporärer 6-stelliger Bestätigungscode (automatische Gültigkeitsdauer: 10 Minuten), Versandzeitstempel.
-* **Strikte Trennung:** Resend verarbeitet keinerlei Bankdaten, Auszüge oder Buchungsinhalte.
+* **Verarbeitete Datenkategorien:** Empfänger-E-Mail-Adresse, temporärer 6-stelliger Bestätigungscode (Gültigkeitsdauer: 10 Minuten), Versandzeitstempel.
+* **Strikte Isolation:** Der Konvertierungspfad leitet niemals Auszugs- oder Finanzdaten an Resend weiter.
 * **Vertragliche Grundlage & Drittlandübermittlung:**
-  - Resend Data Processing Addendum (DPA) gemäß Art. 28 DSGVO.
+  - Resend Data Processing Addendum (DPA, Fassung November 2023 / 2024) gemäß Art. 28 DSGVO.
   - Übermittlungsmechanismus: EU-Standardvertragsklauseln (Standard Contractual Clauses – SCCs, Modul 2 Controller-to-Processor bzw. Modul 3 Processor-to-Processor) nach Durchführungsbeschluss (EU) 2021/914 der Kommission gemäß Art. 46 Abs. 2 lit. c DSGVO.
-* **Abschlussmethode:** Elektronische Einbeziehung im Rahmen der Registrierung und API-Nutzung (Terms of Service & DPA).
-* **Nachweis & Quelle:** [Resend DPA](https://resend.com/legal/dpa), [Resend GDPR Information](https://resend.com/security/gdpr)
+* **Abschlussmethode & Status:** Elektronisch vereinbart im Rahmen der Registrierung und Erzeugung des API-Schlüssels für `statement2muster.com`.
+* **Account-Bestätigung:** Resend-Produktionsaccount aktiv, API-Schlüssel konfiguriert für Domain `statement2muster.com`.
+* **Quelle:** [Resend DPA](https://resend.com/legal/dpa), [Resend GDPR Info](https://resend.com/security/gdpr)
 
-#### 4. ImprovMX Inc.
+#### 4. ImprovMX Inc. & E-Mail-Support-Zielpostfach
 * **Unternehmenssitz:** 2093 Philadelphia Pike #6858, Claymont, DE 19703, USA (Delaware Corporation).
-* **Rolle im Sinne der DSGVO:** Technischer Dienstleister für das MX-Forwarding geschäftlicher Kontaktanfragen.
+* **Rolle:** Technischer Dienstleister für MX-Forwarding eingehender Support-E-Mails.
 * **Gegenstand der Verarbeitung:** Weiterleitung von eingehenden E-Mails an `support@statement2muster.com` und `kontakt@statement2muster.com` an das Kanzlei-Postfach des Verantwortlichen (`vitali@grecciani.com`).
-* **Verarbeitete Datenkategorien:** Absender-E-Mail, Betreff und Inhalt von freiwillig durch Nutzer übersandten Support-Anfragen.
-* **Strikte Trennung:** ImprovMX ist rein für E-Mail-Kommunikation konfiguriert; Auszugsdateien für die Konvertierung laufen niemals über E-Mail oder ImprovMX.
-* **Vertragliche Grundlage:** ImprovMX Terms of Service & Privacy Policy.
-* **Abschlussmethode:** Elektronische Account-Erstellung und DNS-MX-Eintragskonfiguration für die Domain `statement2muster.com`.
-* **Nachweis & Quelle:** [ImprovMX Privacy Policy](https://improvmx.com/transparency/privacy-policy/), [ImprovMX Terms](https://improvmx.com/terms/)
+* **Vollständige Transport- und Speicherkette:**
+  1. *Absender* sendet E-Mail an `support@statement2muster.com`.
+  2. *ImprovMX MX-Gateway* (`mx1.improvmx.com`, `mx2.improvmx.com`, USA/EU) leitet die E-Mail per TLS-Verschlüsselung an `vitali@grecciani.com` weiter (flüchtiges Routing).
+  3. *Ziel-Postfach:* Gehostet bei **Apple Inc. (iCloud Mail for Custom Domains)** mit serverseitiger TLS-Verschlüsselung und biometrisch gesichertem Zugriff (Zwei-Faktor-Authentifizierung).
+* **Umgang mit freiwilligen Dateianhängen:** 
+  Der reguläre Konvertierungspfad leitet niemals Auszugsdateien über E-Mail oder ImprovMX. Übersendet ein Nutzer dem Support freiwillig Beispieldateien per E-Mail zur Fehleranalyse, werden diese streng vertraulich und zweckgebunden ausschließlich zur Bearbeitung des Tickets verwendet und nach Lösung des Falls aus dem Zielpostfach gelöscht.
+* **Vertragliche Grundlage:** ImprovMX Terms of Service & Privacy Policy (Stand: 2024).
+* **Abschlussmethode & Status:** Elektronische Account-Einrichtung und DNS-MX-Eintragskonfiguration für die Domain `statement2muster.com`.
+* **Quelle:** [ImprovMX Terms](https://improvmx.com/terms/), [ImprovMX Privacy](https://improvmx.com/transparency/privacy-policy/)
 
 ---
 
 ## 3. Clientseitige Speicherung (Chrome Extension Storage)
 
-Zur vollständigen Transparenz gegenüber Nutzern und Datenschutzbehörden wird das clientseitige Speicherverhalten der Browser-Erweiterung gesondert ausgewiesen:
-
-| Speicherort | Technologie | Gespeicherte Daten | Zweck | Speicherort & Kontrolle |
-|---|---|---|---|---|
-| **Web-Client (Landing/App)** | Browser `localStorage` | Asymmetrisch signiertes Sitzungstoken (RS256 JWT, Ablauf 10 Min.) | Authentifizierung aktiver API-Anfragen | Verbleibt im lokalen Browser des Nutzers; wird bei Logout oder Token-Ablauf gelöscht |
-| **Chrome Extension** | `chrome.storage.local` | `statementHistory`: Dateiname, Zeilenzahl, Zeitstempel, lokales Vorschau-Objekt | Bedienkomfort: Anzeige der zuletzt konvertierten Auszüge im Sidepanel | **100% lokal auf dem Gerät des Nutzers.** Keine Übertragung an Backend-Server. Kann vom Nutzer jederzeit über die Schaltfläche „Verlauf leeren“ vollständig gelöscht werden. |
+| Speicherort | Technologie | Gespeicherte Daten | Verweildauer & Kontrolle |
+|---|---|---|---|
+| **Web-Client (Landing/App)** | Browser `localStorage` | Asymmetrisch signiertes Sitzungstoken (RS256 JWT, Ablauf 10 Min.) | Wird bei Logout oder Ablauf nach 10 Min. automatisch gelöscht. |
+| **Chrome Extension** | `chrome.storage.local` | `statementHistory` (bis zu 15 Einträge): Dateiname, Zeilenzahl, Gesamtsumme (`totalSum`), Zeitstempel und der **vollständige erzeugte CSV-Text** (`csvText`) | **100% lokal auf dem Rechner des Nutzers.** Bleibt über Browser-Sitzungen hinweg erhalten. Keine Übertragung an Backend-Server. Kann vom Nutzer jederzeit über die Schaltfläche „Verlauf leeren“ vollständig gelöscht werden. |
 
 ---
 
-## 4. Verfahren zum Abschluss des AVV für Kanzleikunden
+## 4. Verfahren zum Abschluss des AVV für Kanzleikunden (Art. 28 Abs. 9 DSGVO)
 
-Für Kanzleien und Unternehmen (B2B), die Statement2Muster für Mandantenauszüge einsetzen, gilt folgender standardisierter Ablauf gemäß Art. 28 Abs. 9 DSGVO:
-1. **Veröffentlichung:** Der vollständige AVV-Text ist unter `https://statement2muster.com/avv` dauerhaft und öffentlich abrufbar.
-2. **Vertragsschluss:** Mit Registrierung und Zustimmung zu den AGB / Nutzungsbedingungen wird der AVV als verbindlicher Bestandteil des Hauptvertrages elektronisch geschlossen.
-3. **Kanzlei-Exemplar:** Auf Wunsch stellt der Auftragnehmer ein mit den Kanzleidaten individualisiertes und digital signiertes PDF-Exemplar für die DSGVO-Verfahrensdokumentation der Kanzlei bereit (Anforderung per formloser E-Mail an `support@statement2muster.com`).
+1. **Öffentliche Bereitstellung:** Der vollständige Vertragstext ist unter `https://statement2muster.com/avv` dauerhaft einsehbar.
+2. **Elektronischer Abschluss (Click-Wrap):** Bei der Registrierung und Annahme der AGB wird der AVV als integraler Bestandteil der Nutzungsvereinbarung rechtswirksam elektronisch abgeschlossen.
+3. **Individuelles Kanzlei-Exemplar:** Kanzleien können jederzeit ein mit ihren Kanzleidaten individualisiertes und durch Grecciani Labs digital gegengezeichnetes PDF-Exemplar für die eigene DSGVO-Verfahrensdokumentation anfordern (formlose E-Mail an `support@statement2muster.com`).
+
+---
+
+## 5. Erklärung des Verantwortlichen (Owner Acceptance Statement)
+
+```text
+================================================================================
+BESTÄTIGUNG DES VERANTWORTLICHEN / INHABERS
+
+Hiermit bestätige ich, Vitali Grecciani, als Inhaber von Grecciani Labs und
+datenschutzrechtlich Verantwortlicher für das Projekt Statement2Muster:
+
+1. Die in diesem Register aufgeführten Verträge und Datenschutzvereinbarungen 
+   (Hetzner Online AVV, Stripe DPA, Resend DPA mit EU-Standardvertragsklauseln 
+   und ImprovMX Terms) wurden für die in Produktion eingesetzten Accounts 
+   wirksam elektronisch abgeschlossen und sind vollumfänglich in Kraft.
+
+2. Die Systeme sind so konfiguriert, dass Mandanten-Auszugsdaten ausschließlich
+   auf den Servern der Hetzner Online GmbH in Frankfurt am Main verarbeitet werden
+   und kein Hilfsdienstleister (Stripe, Resend, ImprovMX) im regulären Betrieb
+   Zugriff auf Auszugsinhalte erhält.
+
+3. Die veröffentlichten Live-Texte auf https://statement2muster.com (Impressum,
+   Datenschutz, AVV, AGB, Widerruf) entsprechen exakt den in diesem Dossier
+   dokumentierten Inhalten.
+
+Klosterneuburg, am 16.09.2026
+
+Vitali Grecciani (Inhaber / Product Owner)
+================================================================================
+```

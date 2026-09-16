@@ -3,7 +3,7 @@
 **Projekt:** Statement2Muster DACH  
 **Zweck:** Fachliche Abnahme und Importvalidierung von generierten Buchungsstapeln (DATEV EXTF 700 & BMD NTCS)  
 **Datum:** 2026-09-16  
-**Anforderung:** Gemäß Решение № 42 des Hauptarchitekten  
+**Anforderung:** Gemäß Решение № 42 und № 43 des Hauptarchitekten  
 
 ---
 
@@ -16,9 +16,11 @@
 
 **Что требуется от бухгалтера для закрытия аудита:**
 Бухгалтер должен заполнить форму в разделе 4 (Sign-Off):
-* Указать программу и версию (например, *DATEV Rechnungswesen V. 14.2*);
+* Указать программу и точную версию (например, *DATEV Rechnungswesen V. 14.2*);
 * Подтвердить число проводок (**10 из 10**);
-* Сверить контрольные суммы: **Haben € 7.850,00**, **Soll € 2.246,30**, **Сальдо € +5.603,70**;
+* Сверить контрольные суммы по банковскому счёту:
+  * В DATEV (счет 1200): **Soll (поступления) € 7.850,00**, **Haben (списания) € 2.246,30**, **Сальдо € +5.603,70**;
+  * В BMD (счет 2800): **Положительные суммы € 7.850,00**, **Отрицательные суммы € -2.246,30**, **Сальдо € +5.603,70**;
 * Подтвердить корректность разноски по счетам (банк `1200`/`2800` против контрагентов);
 * Поставить дату, имя и подпись / название канцелярии.
 
@@ -34,12 +36,27 @@ im Rahmen der Qualitätssicherung unseres Auszugskonverters **Statement2Muster**
 
 Im Ordner `docs/accounting/samples/` finden Sie 10 synthetische Geschäftsvorfälle aus dem Monat Januar 2026. Bitte gleichen Sie die importierten Buchungen mit folgenden Kontrollwerten ab:
 
-| Kennzahl | Erwarteter Soll-Wert | Beschreibung / Konten |
-|---|---|---|
-| **Anzahl Buchungssätze** | **10** | 3 Haben-Buchungen (Erlöse), 7 Soll-Buchungen (Aufwand) |
-| **Summe Haben (Umsatz Plus)** | **€ 7.850,00** | Kundenzahlungen & Erlöse (Gegenkonto 8400) |
-| **Summe Soll (Umsatz Minus)** | **€ 2.246,30** | Miete (4210), IT (4930), Büro (4980), Telekom (4920), Marketing (4600), Spesen (4970) |
-| **Netto-Veränderung / Saldo** | **€ +5.603,70** | Saldo Bankkonto 1200 (DATEV) bzw. 2800 (BMD) |
+#### A. Sicht des aktiven Bankkontos (Konto 1200 in DATEV / Konto 2800 in BMD)
+
+| Kennzahl | DATEV (Konto 1200) | BMD NTCS (Konto 2800) | Erläuterung |
+|---|---|---|---|
+| **Anzahl Buchungssätze** | **10** | **10** | 3 Einnahmen / 7 Ausgaben |
+| **Gutschriften / Zuflüsse** | **Soll (S): € 7.850,00** | **Betrag positiv: € 7.850,00** | Kundenzahlungen (RE-014, RE-015, RE-016) |
+| **Lastschriften / Abflüsse** | **Haben (H): € 2.246,30** | **Betrag negativ: € -2.246,30** | Miete, IT, Software, Büro, Tel, Ads, Spesen |
+| **Saldo-Veränderung Bank** | **+ € 5.603,70 (Soll-Überhang)** | **+ € 5.603,70 (Netto-Saldo)** | Endsaldo Bankkonto erhöht sich um € 5.603,70 |
+
+#### B. Sicht der Gegenkonten (Aufwands- und Erlöskonten)
+
+| Gegenkonto | Kontobezeichnung | Buchungsseite (Gegenkonto) | Betrag |
+|---|---|---|---|
+| **8400** | Erlöse 19% USt / Honorare | **Haben (H)** | **€ 7.850,00** (Summe 3 Einnahmen) |
+| **4210** | Miete unbewegliche Wirtschaftsgüter | **Soll (S)** | € 1.450,00 |
+| **4930** | Software- und Cloud-Kosten (Hetzner, S2M) | **Soll (S)** | € 274,50 (€ 185,50 + € 89,00) |
+| **4980** | Betriebsbedarf / Bürobedarf | **Soll (S)** | € 64,30 |
+| **4920** | Telefon- und Internetgebühren | **Soll (S)** | € 95,00 |
+| **4600** | Werbe- und Marketingkosten | **Soll (S)** | € 350,00 |
+| **4970** | Nebenkosten des Geldverkehrs (Bankspesen) | **Soll (S)** | € 12,50 |
+| **Summe Aufwand** | Alle Aufwandskonten kumuliert | **Soll (S)** | **€ 2.246,30** |
 
 ---
 
@@ -80,7 +97,7 @@ Im Ordner `docs/accounting/samples/` finden Sie 10 synthetische Geschäftsvorfä
 
 ---
 
-### 4. Kanzlei-Bestätigung (Sign-Off Vorlage gem. Решение № 42)
+### 4. Kanzlei-Bestätigung (Sign-Off Vorlage gem. Решения № 42/43)
 
 Nach erfolgtem Probeimport und Abgleich füllen Sie bitte folgende Bestätigung aus und senden diese per E-Mail an `support@statement2muster.com` oder direkt an Herrn Vitali Grecciani:
 
@@ -100,10 +117,20 @@ FACHLICHE IMPORT- UND SALDENBESTÄTIGUNG (STATEMENT2MUSTER)
 3. Abstimmungsergebnis:
    [ ] Import fehlerfrei ohne Warnungen / Abbrüche durchgeführt
    [ ] Anzahl der Buchungssätze: genau 10 Sätze übernommen
-   [ ] Haben-Umsatzsumme geprüft: € 7.850,00 (stimmt überein)
-   [ ] Soll-Umsatzsumme geprüft: € 2.246,30 (stimmt überein)
-   [ ] Saldo-Veränderung geprüft: € +5.603,70 (stimmt überein)
-   [ ] Konten und Gegenkonten sachgerecht zugeordnet
+
+   Für DATEV (Bankkonto 1200):
+   [ ] Bank-Umsatz Soll (Zuflüsse / Einnahmen): € 7.850,00 geprüft
+   [ ] Bank-Umsatz Haben (Abflüsse / Ausgaben): € 2.246,30 geprüft
+   [ ] Saldo-Veränderung Bankkonto: + € 5.603,70 geprüft
+
+   Für BMD NTCS (Bankkonto 2800):
+   [ ] Summe positiver Beträge (Zuflüsse): € 7.850,00 geprüft
+   [ ] Summe negativer Beträge (Abflüsse): € -2.246,30 geprüft
+   [ ] Netto-Saldo Bankkonto: + € 5.603,70 geprüft
+
+   Für Gegenkonten:
+   [ ] Erlöse (Konto 8400) im Haben mit € 7.850,00 erfasst
+   [ ] Aufwandskonten (4210, 4930 etc.) im Soll mit € 2.246,30 erfasst
    [ ] Belegdaten, Belegnummern und Buchungstexte vollständig übernommen
 
 4. Festgestellte Abweichungen / Anmerkungen:
