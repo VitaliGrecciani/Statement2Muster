@@ -14,11 +14,14 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 PRICE_CATALOG = {
     settings.STRIPE_PRICE_STARTER_MONTHLY: {"plan": "starter", "amount_cents": 490, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
     "price_starter_490": {"plan": "starter", "amount_cents": 490, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    "price_1UGII4I3NVmMw8fjgOq8CK0T": {"plan": "starter", "amount_cents": 490, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
     settings.STRIPE_PRICE_PRO_MONTHLY: {"plan": "pro", "amount_cents": 2900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
     "price_pro_2900": {"plan": "pro", "amount_cents": 2900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    "price_1UGII5I3NVmMw8fjhONKRol4": {"plan": "pro", "amount_cents": 2900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
     "price_pro_1900": {"plan": "pro", "amount_cents": 1900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
     settings.STRIPE_PRICE_LIFETIME: {"plan": "lifetime", "amount_cents": 8900, "currency": "eur", "expected_mode": "payment", "interval": None},
     "price_lifetime_8900": {"plan": "lifetime", "amount_cents": 8900, "currency": "eur", "expected_mode": "payment", "interval": None},
+    "price_1UGII6I3NVmMw8fjgh9AeY9B": {"plan": "lifetime", "amount_cents": 8900, "currency": "eur", "expected_mode": "payment", "interval": None},
     "price_lifetime_14900": {"plan": "lifetime", "amount_cents": 14900, "currency": "eur", "expected_mode": "payment", "interval": None},
 }
 
@@ -123,6 +126,70 @@ async def _get_or_create_tenant_by_email(db: AsyncSession, email: str) -> Tenant
         db.add(tenant)
         await db.flush()
     return tenant
+
+
+def _extract_subscription_id(obj: Dict[str, Any]) -> Optional[str]:
+    """Extract subscription ID from Stripe object, supporting both legacy and 2024+ API formats.
+    
+    Legacy: obj["subscription"] = "sub_..."
+    2024+:  obj["parent"]["subscription_details"]["subscription"] = "sub_..."
+    """
+    # Legacy format (pre-2024)
+    sub_id = obj.get("subscription")
+    if sub_id and isinstance(sub_id, str):
+        return sub_id
+    
+    # New format (Stripe API 2024+): parent.subscription_details.subscription
+    parent = obj.get("parent")
+    if isinstance(parent, dict):
+        sub_details = parent.get("subscription_details")
+        if isinstance(sub_details, dict):
+            sub_id = sub_details.get("subscription")
+            if sub_id and isinstance(sub_id, str):
+                return sub_id
+    
+    return None
+
+
+def _extract_parent_metadata(obj: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract metadata from parent.subscription_details.metadata (Stripe API 2024+)."""
+    parent = obj.get("parent")
+    if isinstance(parent, dict):
+        sub_details = parent.get("subscription_details")
+        if isinstance(sub_details, dict):
+            meta = sub_details.get("metadata")
+            if isinstance(meta, dict):
+                return meta
+    return {}
+
+
+def _extract_line_price_id(line: Dict[str, Any]) -> Optional[str]:
+    """Extract price ID from invoice line item, supporting both legacy and 2024+ formats.
+    
+    Legacy: line["price"]["id"] = "price_..."
+    2024+:  line["pricing"]["price_details"]["price"] = "price_..."
+            or line["plan"]["id"] = "price_..."
+    """
+    # Legacy: line.price.id
+    price_obj = line.get("price")
+    if isinstance(price_obj, dict) and price_obj.get("id"):
+        return price_obj["id"]
+    
+    # 2024+ pricing.price_details.price
+    pricing = line.get("pricing")
+    if isinstance(pricing, dict):
+        price_details = pricing.get("price_details")
+        if isinstance(price_details, dict):
+            pid = price_details.get("price")
+            if pid and isinstance(pid, str):
+                return pid
+    
+    # Fallback: plan.id (some Stripe versions)
+    plan_obj = line.get("plan")
+    if isinstance(plan_obj, dict) and plan_obj.get("id"):
+        return plan_obj["id"]
+    
+    return None
 
 async def _handle_checkout_completed(
     db: AsyncSession,
@@ -371,18 +438,26 @@ async def _handle_checkout_completed(
         await db.flush()
 
 async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_created_ts: Optional[int] = None):
-    sub_id = invoice.get("subscription")
+    # Support both legacy invoice.subscription and Stripe API 2024+ parent.subscription_details.subscription
+    sub_id = _extract_subscription_id(invoice)
     if not sub_id:
+        logger.warning(f"invoice.paid event has no subscription ID (invoice={invoice.get('id')}). Ignoring.")
         return
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
 
-    lines = invoice.get("lines", {}).get("data", [])
+    lines_obj = invoice.get("lines", {})
+    if isinstance(lines_obj, dict):
+        lines = lines_obj.get("data", [])
+    else:
+        lines = list(lines_obj) if lines_obj else []
+
     period_start_ts = None
     period_end_ts = None
     if lines:
-        period_start_ts = lines[0].get("period", {}).get("start")
-        period_end_ts = lines[0].get("period", {}).get("end")
+        period = lines[0].get("period", {}) if isinstance(lines[0], dict) else {}
+        period_start_ts = period.get("start")
+        period_end_ts = period.get("end")
     if not period_end_ts:
         period_end_ts = invoice.get("period_end")
     if not period_start_ts:
@@ -396,7 +471,8 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
             logger.warning(f"Early invoice.paid for subscription {sub_id} has no lines.data. Ignoring.")
             return
 
-        p_id = lines[0].get("price", {}).get("id")
+        # Support both legacy price.id and Stripe API 2024+ pricing.price_details.price
+        p_id = _extract_line_price_id(lines[0]) if isinstance(lines[0], dict) else None
         amount_paid = invoice.get("amount_paid") if invoice.get("amount_paid") is not None else invoice.get("total")
         currency = invoice.get("currency")
 
@@ -405,7 +481,7 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
 
         # 1. Price Catalog validation
         if not p_id or p_id not in PRICE_CATALOG:
-            logger.warning(f"Early invoice for subscription {sub_id} has unknown price {p_id}. Quarantining.")
+            logger.warning(f"Early invoice for subscription {sub_id} has unknown price {p_id!r}. Quarantining.")
             is_valid = False
         else:
             cat_entry = PRICE_CATALOG[p_id]
@@ -430,7 +506,13 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
             plan_code = None
 
         email = invoice.get("customer_email")
-        tenant_id = invoice.get("client_reference_id") or invoice.get("metadata", {}).get("tenant_id")
+        # Support metadata from both invoice.metadata and 2024+ parent.subscription_details.metadata
+        parent_meta = _extract_parent_metadata(invoice)
+        invoice_meta = invoice.get("metadata") or {}
+        tenant_id = (invoice.get("client_reference_id")
+                     or invoice_meta.get("tenant_id")
+                     or parent_meta.get("tenant_id")
+                     or parent_meta.get("client_reference_id"))
         tenant = None
         if tenant_id:
             tenant = await db.get(Tenant, tenant_id)
@@ -510,20 +592,18 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
             )
             return
 
-    # Determine candidate plan from invoice lines
+    # Determine candidate plan from invoice lines (support both legacy price.id and 2024+ formats)
     candidate_plan = ent.plan_code
     if lines:
-        p_obj = lines[0].get("price")
-        if p_obj and isinstance(p_obj, dict) and p_obj.get("id"):
-            p_id = p_obj.get("id")
-            if p_id in PRICE_CATALOG:
-                cat_entry = PRICE_CATALOG[p_id]
-                if cat_entry.get("expected_mode") == "subscription":
-                    candidate_plan = cat_entry["plan"]
-                else:
-                    candidate_plan = None
+        p_id = _extract_line_price_id(lines[0]) if isinstance(lines[0], dict) else None
+        if p_id and p_id in PRICE_CATALOG:
+            cat_entry = PRICE_CATALOG[p_id]
+            if cat_entry.get("expected_mode") == "subscription":
+                candidate_plan = cat_entry["plan"]
             else:
                 candidate_plan = None
+        elif p_id:
+            candidate_plan = None
 
     # All validations passed! Apply changes atomically to ent:
     ent.plan_code = candidate_plan
@@ -571,8 +651,9 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
     logger.info(f"Subscription {sub_id} updated from invoice.paid (status={ent.status}, plan={ent.plan_code}, valid_until={ent.valid_until}).")
 
 async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, Any], event_created_ts: Optional[int] = None):
-    sub_id = invoice.get("subscription")
+    sub_id = _extract_subscription_id(invoice)
     if not sub_id:
+        logger.warning(f"invoice.payment_failed event has no subscription ID (invoice={invoice.get('id')}). Ignoring.")
         return
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
@@ -596,10 +677,15 @@ async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, An
 
     # 2. Paid-through check (Decision 34 Point 4):
     # Use paid_through (NOT valid_until), because valid_until can be advanced by subscription.updated without payment!
-    lines = invoice.get("lines", {}).get("data", [])
+    lines_obj = invoice.get("lines", {})
+    if isinstance(lines_obj, dict):
+        lines = lines_obj.get("data", [])
+    else:
+        lines = list(lines_obj) if lines_obj else []
     period_end_ts = None
     if lines:
-        period_end_ts = lines[0].get("period", {}).get("end")
+        period = lines[0].get("period", {}) if isinstance(lines[0], dict) else {}
+        period_end_ts = period.get("end")
     if not period_end_ts:
         period_end_ts = invoice.get("period_end")
 
@@ -670,9 +756,15 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any], ev
 
     # S04: Check items and price ID in catalog.
     # An unknown price ID or incompatible mode must NOT preserve existing privileges!
-    items = sub.get("items", {}).get("data", [])
+    items_obj = sub.get("items", {})
+    if isinstance(items_obj, dict):
+        items = items_obj.get("data", [])
+    else:
+        items = list(items_obj) if items_obj else []
     if items:
-        p_id = items[0].get("price", {}).get("id")
+        item0 = items[0] if isinstance(items[0], dict) else {}
+        # Support both legacy price.id and Stripe API 2024+ price_details formats
+        p_id = _extract_line_price_id(item0) or (item0.get("price") or {}).get("id") if isinstance(item0.get("price"), dict) else _extract_line_price_id(item0)
         if p_id in PRICE_CATALOG:
             cat_entry = PRICE_CATALOG[p_id]
             if cat_entry.get("expected_mode") != "subscription":
@@ -682,7 +774,7 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any], ev
             else:
                 ent.plan_code = cat_entry["plan"]
         else:
-            logger.warning(f"Subscription {sub_id} item price '{p_id}' unknown in catalog. Stripping plan_code and quarantining.")
+            logger.warning(f"Subscription {sub_id} item price {p_id!r} unknown in catalog. Stripping plan_code and quarantining.")
             ent.plan_code = None
             ent.status = "quarantined"
 
