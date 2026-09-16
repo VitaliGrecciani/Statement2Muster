@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-09-16T11:46:22Z",
+  "timestamp": "2026-09-16T12:10:22Z",
   "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
   "architect_decision": "Decision 24 (24_SMTP_STATUS_AND_FULL_GO_PLAN_2026-09-14.md)",
   "provenance": {
-    "git_commit": "a6425f9c1b126ddd91323629f5b8f72d33d4cb5b",
+    "git_commit": "c1b6c0ea46f86529db37734c854b07bb021c984c",
     "api_url": "http://127.0.0.1:8000",
     "hetzner_host": "46.225.95.36",
-    "backend_image": "statement2muster-api:1.0.8",
-    "backend_image_id": "sha256:1e1be37ad6e44ba05d8c8044d0ebf450f88be447beae2856c67309f3cd0521da",
-    "backend_container_id": "5dd8e97322f4959dd93d89793a8f2fadd9d061a4854cd03035cbeb1399585bef",
+    "backend_image": "statement2muster-api:1.0.9",
+    "backend_image_id": "sha256:ef15091c980775748e72a190c59afa2c28a9c7241cf241415ed3412ceff5d44b",
+    "backend_container_id": "29770e62c757486f25b78af8797426f37fb09295a394cad4f307eaf00b63d44b",
     "stripe_mode": "sandbox",
     "webhook_secret_prefix": "whsec_he..."
   },
@@ -27,7 +27,7 @@
     },
     "scenario_04_subscription_renewal": {
       "status": "PASS",
-      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T11:46:25."
+      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T12:10:25."
     },
     "scenario_05_payment_failed": {
       "status": "PASS",
@@ -108,12 +108,28 @@
     "scenario_24_duplicate_invoice_same_period": {
       "status": "PASS",
       "details": "Duplicate/adjustment invoice for the same period verified: current_period_start is preserved and quota usage is NOT arbitrarily wiped out."
+    },
+    "scenario_25_stale_invoice_no_mutation": {
+      "status": "PASS",
+      "details": "Stale invoice with PRO price cannot mutate active Starter subscription: plan, status, period and quota remained untouched."
+    },
+    "scenario_26_provisional_access_bounded_deadline": {
+      "status": "PASS",
+      "details": "Provisional access is strictly bounded in time: valid_until is never None, is_provisional=True tracked, and expired access drops to trial."
+    },
+    "scenario_27_early_invoice_policy_and_tenant_defense": {
+      "status": "PASS",
+      "details": "Early invoice satisfies full catalog amount/currency/period validation (S01); unauthorized cross-tenant rebinding is strictly blocked and quarantined."
+    },
+    "scenario_28_payment_failed_after_subscription_bump": {
+      "status": "PASS",
+      "details": "payment_failed for renewed period is correctly enforced even when subscription.updated advanced calendar dates: separate paid_through ensures failure is not ignored and PRO privileges are revoked."
     }
   },
   "overall_status": "PASSED",
   "summary": {
-    "total_scenarios": 24,
-    "passed": 24,
+    "total_scenarios": 28,
+    "passed": 28,
     "failed": 0
   }
 }

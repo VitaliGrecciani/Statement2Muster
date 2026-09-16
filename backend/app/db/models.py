@@ -65,6 +65,8 @@ class Entitlement(Base):
     last_event_created_at = Column(Integer, default=0, nullable=True) # Unix timestamp of latest processed Stripe event (S03)
     last_invoice_id = Column(String(255), nullable=True) # Stripe invoice ID for authoritative reconciliation
     last_invoice_status = Column(String(50), nullable=True) # paid, payment_failed
+    paid_through = Column(DateTime, nullable=True) # Actual paid-through timestamp from invoice.paid (Decision 34 Point 4)
+    provisional_deadline = Column(DateTime, nullable=True) # Expiration deadline for unconfirmed provisional access (Decision 34 Point 2)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 

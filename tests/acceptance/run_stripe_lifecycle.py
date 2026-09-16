@@ -105,7 +105,7 @@ def run_acceptance_suite():
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.8",
+        "backend_image": "statement2muster-api:1.0.9",
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",
@@ -1275,6 +1275,312 @@ def run_acceptance_suite():
             "details": "Duplicate/adjustment invoice for the same period verified: current_period_start is preserved and quota usage is NOT arbitrarily wiped out."
         }
         print("Scenario 24: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 25: Stale invoice cannot mutate plan_code, status, period or quota (Decision 34 Point 1)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 25: Stale invoice cannot mutate plan_code, status, period or quota ---")
+        t_s25 = f"tenant_s25_{uuid.uuid4().hex[:8]}"
+        email_s25 = f"{t_s25}@example.com"
+        tok_s25 = make_tenant_jwt(t_s25, email_s25)
+        sub_s25_id = f"sub_s25_{uuid.uuid4().hex[:8]}"
+        t25_now = int(time.time())
+        t25_start = t25_now
+        t25_end = t25_now + 30 * 86400
+
+        # Setup Starter subscription
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s25_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s25,
+            "customer_email": email_s25,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s25_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        # Authoritative Starter invoice
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s25_starter_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s25_id,
+            "created": t25_now,
+            "lines": {"data": [{"period": {"start": t25_start, "end": t25_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Convert 1 file under Starter
+        conv_s25_1 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s25}"},
+            files=[("files", ("f25.csv", sample_csv_content, "text/csv"))]
+        )
+        assert conv_s25_1.status_code == 200
+
+        ent_s25_before = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s25}"}).json()
+        assert ent_s25_before.get("plan") == "starter"
+        assert ent_s25_before.get("used_units") == 1
+        assert ent_s25_before.get("remaining_units") == 19
+        v_until_before = ent_s25_before.get("valid_until")
+
+        # Now send a STALE invoice.paid with PRO price and period in the past!
+        stale_ts = t25_now - 1000
+        stale_end = t25_now - 500
+        resp_stale = post_webhook(client, "invoice.paid", {
+            "id": f"in_s25_stale_pro_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s25_id,
+            "created": stale_ts,
+            "lines": {"data": [{"period": {"start": stale_ts - 30*86400, "end": stale_end}, "price": {"id": "price_pro_2900"}}]}
+        })
+        assert resp_stale.status_code == 200
+
+        # Verify entitlement is 100% untouched: STILL starter, NOT pro, quota remaining STILL 19!
+        ent_s25_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s25}"}).json()
+        assert ent_s25_after.get("plan") == "starter", f"Mutation bug detected! Expected starter, got {ent_s25_after.get('plan')}"
+        assert ent_s25_after.get("status") == "active"
+        assert ent_s25_after.get("used_units") == 1
+        assert ent_s25_after.get("remaining_units") == 19
+        assert ent_s25_after.get("valid_until") == v_until_before
+
+        report["scenarios"]["scenario_25_stale_invoice_no_mutation"] = {
+            "status": "PASS",
+            "details": "Stale invoice with PRO price cannot mutate active Starter subscription: plan, status, period and quota remained untouched."
+        }
+        print("Scenario 25: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 26: Provisional access expiration without invoice (Decision 34 Point 2)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 26: Provisional access expiration without invoice ---")
+        t_s26 = f"tenant_s26_{uuid.uuid4().hex[:8]}"
+        email_s26 = f"{t_s26}@example.com"
+        tok_s26 = make_tenant_jwt(t_s26, email_s26)
+        sub_s26_id = f"sub_s26_{uuid.uuid4().hex[:8]}"
+
+        # Checkout without period bounds creates provisional access with bounded deadline (72h)
+        resp_s26 = post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s26_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s26,
+            "customer_email": email_s26,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s26_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+        assert resp_s26.status_code == 200
+
+        ent_s26_init = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s26}"}).json()
+        assert ent_s26_init.get("is_provisional") is True, f"Expected is_provisional=True, got {ent_s26_init}"
+        assert ent_s26_init.get("provisional_deadline") is not None
+        assert ent_s26_init.get("valid_until") is not None, "Provisional access must NOT have valid_until=None!"
+
+        # Now test expiration: when valid_until is past, subscription is inactive
+        t_s26_exp = f"tenant_s26_exp_{uuid.uuid4().hex[:8]}"
+        email_s26_exp = f"{t_s26_exp}@example.com"
+        tok_s26_exp = make_tenant_jwt(t_s26_exp, email_s26_exp)
+        sub_s26_exp_id = f"sub_s26_exp_{uuid.uuid4().hex[:8]}"
+        past_end = int(time.time()) - 100
+
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s26_exp_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s26_exp,
+            "customer_email": email_s26_exp,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s26_exp_id,
+            "period_start": past_end - 86400,
+            "period_end": past_end,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Entitlement check for expired subscription drops to trial
+        ent_s26_expired = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s26_exp}"}).json()
+        assert ent_s26_expired.get("plan") == "trial", f"Expired subscription should drop to trial! Got {ent_s26_expired}"
+
+        report["scenarios"]["scenario_26_provisional_access_bounded_deadline"] = {
+            "status": "PASS",
+            "details": "Provisional access is strictly bounded in time: valid_until is never None, is_provisional=True tracked, and expired access drops to trial."
+        }
+        print("Scenario 26: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 27: Early invoice tampering & invalid period rejection, plus tenant hijacking defense (Decision 34 Point 3)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 27: Early invoice validation policy & tenant hijacking defense ---")
+        t_s27_a = f"tenant_s27_a_{uuid.uuid4().hex[:8]}"
+        email_s27_a = f"{t_s27_a}@example.com"
+        tok_s27_a = make_tenant_jwt(t_s27_a, email_s27_a)
+        sub_s27_id = f"sub_s27_{uuid.uuid4().hex[:8]}"
+        now27 = int(time.time())
+
+        # Subtest 27A: Early invoice with tampered amount (100 cents instead of 2900 cents) -> quarantined!
+        t_tamper = f"tenant_tamper_{uuid.uuid4().hex[:8]}"
+        sub_tamper_id = f"sub_tamper_{uuid.uuid4().hex[:8]}"
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_tamper_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_tamper_id,
+            "client_reference_id": t_tamper,
+            "amount_paid": 100, # Expected 2900!
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": now27, "end": now27 + 30*86400}, "price": {"id": "price_pro_2900"}}]}
+        })
+        tok_tamper = make_tenant_jwt(t_tamper, f"{t_tamper}@example.com")
+        ent_tamper = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_tamper}"}).json()
+        assert ent_tamper.get("plan") == "trial", f"Tampered amount granted plan! Got {ent_tamper}"
+
+        # Subtest 27B: Early invoice with invalid currency (USD instead of EUR) -> quarantined!
+        t_curr = f"tenant_curr_{uuid.uuid4().hex[:8]}"
+        sub_curr_id = f"sub_curr_{uuid.uuid4().hex[:8]}"
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_curr_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_curr_id,
+            "client_reference_id": t_curr,
+            "amount_paid": 2900,
+            "currency": "usd", # Invalid!
+            "lines": {"data": [{"period": {"start": now27, "end": now27 + 30*86400}, "price": {"id": "price_pro_2900"}}]}
+        })
+        tok_curr = make_tenant_jwt(t_curr, f"{t_curr}@example.com")
+        ent_curr = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_curr}"}).json()
+        assert ent_curr.get("plan") == "trial", f"Invalid currency granted plan! Got {ent_curr}"
+
+        # Subtest 27C: Early invoice with missing period bounds -> quarantined!
+        t_noperiod = f"tenant_noperiod_{uuid.uuid4().hex[:8]}"
+        sub_noperiod_id = f"sub_noperiod_{uuid.uuid4().hex[:8]}"
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_noperiod_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_noperiod_id,
+            "client_reference_id": t_noperiod,
+            "amount_paid": 2900,
+            "currency": "eur",
+            "lines": {"data": [{"period": {}, "price": {"id": "price_pro_2900"}}]} # Missing bounds!
+        })
+        tok_noperiod = make_tenant_jwt(t_noperiod, f"{t_noperiod}@example.com")
+        ent_noperiod = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_noperiod}"}).json()
+        assert ent_noperiod.get("plan") == "trial", f"Missing period bounds granted plan! Got {ent_noperiod}"
+
+        # Subtest 27D: Tenant Hijacking defense
+        # Valid early invoice for Tenant A
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s27_valid_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s27_id,
+            "client_reference_id": t_s27_a,
+            "customer_email": email_s27_a,
+            "amount_paid": 2900,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": now27, "end": now27 + 30*86400}, "price": {"id": "price_pro_2900"}}]}
+        })
+        ent_s27_a = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s27_a}"}).json()
+        assert ent_s27_a.get("plan") == "pro"
+
+        # Now unauthorized Tenant B attempts to checkout with sub_s27_id to steal Tenant A's subscription
+        t_s27_b = f"tenant_s27_b_attacker_{uuid.uuid4().hex[:8]}"
+        email_s27_b = f"{t_s27_b}@example.com"
+        tok_s27_b = make_tenant_jwt(t_s27_b, email_s27_b)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s27_hijack_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s27_b, # Attacker!
+            "customer_email": email_s27_b,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s27_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Verify Attacker Tenant B receives NO entitlements!
+        ent_s27_b = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s27_b}"}).json()
+        assert ent_s27_b.get("plan") == "trial", f"Attacker hijacked subscription! Got {ent_s27_b}"
+
+        report["scenarios"]["scenario_27_early_invoice_policy_and_tenant_defense"] = {
+            "status": "PASS",
+            "details": "Early invoice satisfies full catalog amount/currency/period validation (S01); unauthorized cross-tenant rebinding is strictly blocked and quarantined."
+        }
+        print("Scenario 27: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 28: payment_failed after subscription.updated advanced period without payment (Decision 34 Point 4)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 28: payment_failed after subscription.updated advanced period without payment ---")
+        t_s28 = f"tenant_s28_{uuid.uuid4().hex[:8]}"
+        email_s28 = f"{t_s28}@example.com"
+        tok_s28 = make_tenant_jwt(t_s28, email_s28)
+        sub_s28_id = f"sub_s28_{uuid.uuid4().hex[:8]}"
+        t28_base = int(time.time())
+        t28_p1_end = t28_base + 30 * 86400
+        t28_p2_end = t28_base + 60 * 86400
+
+        # Step 1: Initial checkout and successful payment for Period 1
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s28_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s28,
+            "customer_email": email_s28,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s28_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s28_p1_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s28_id,
+            "created": t28_base,
+            "lines": {"data": [{"period": {"start": t28_base, "end": t28_p1_end}, "price": {"id": "price_pro_2900"}}]}
+        })
+
+        ent_s28_p1 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s28}"}).json()
+        assert ent_s28_p1.get("plan") == "pro"
+        assert ent_s28_p1.get("status") == "active"
+        assert ent_s28_p1.get("paid_through") is not None
+
+        # Step 2: Stripe sends subscription.updated advancing current_period_end to Period 2 (ahead of billing)
+        post_webhook(client, "customer.subscription.updated", {
+            "id": sub_s28_id,
+            "status": "active",
+            "current_period_start": t28_p1_end,
+            "current_period_end": t28_p2_end,
+            "items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Status is still active (subscription updated date moved), but paid_through is still Period 1
+        ent_s28_bumped = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s28}"}).json()
+        assert ent_s28_bumped.get("status") == "active"
+
+        # Step 3: Stripe attempts payment for Period 2, but payment FAILS!
+        # Because Period 2 was NOT paid (failed_period_end > paid_through), this failure MUST NOT be ignored!
+        post_webhook(client, "invoice.payment_failed", {
+            "id": f"in_s28_p2_fail_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s28_id,
+            "created": t28_base + 10,
+            "period_end": t28_p2_end,
+            "lines": {"data": [{"period": {"start": t28_p1_end, "end": t28_p2_end}, "price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Step 4: Verify subscription was revoked from active PRO (past_due subscription is skipped, dropping to trial)
+        ent_s28_after_fail = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s28}"}).json()
+        assert ent_s28_after_fail.get("plan") != "pro", f"Flaw detected: payment failure was ignored and plan is still PRO! Got {ent_s28_after_fail}"
+        assert ent_s28_after_fail.get("capabilities", {}).get("multi_upload") is False, "Multi-upload capability should be revoked!"
+
+        # Step 5: Verify conversion requiring PRO multi_upload is blocked
+        files_4 = [("files", (f"f28_{i}.csv", sample_csv_content, "text/csv")) for i in range(4)]
+        conv_s28_fail = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s28}"},
+            files=files_4
+        )
+        assert conv_s28_fail.status_code in (400, 403, 413, 429), f"Multi-upload succeeded for past_due subscription! Got {conv_s28_fail.status_code}"
+        assert conv_s28_fail.status_code != 200, "PRO conversion should be blocked on past_due subscription!"
+
+        report["scenarios"]["scenario_28_payment_failed_after_subscription_bump"] = {
+            "status": "PASS",
+            "details": "payment_failed for renewed period is correctly enforced even when subscription.updated advanced calendar dates: separate paid_through ensures failure is not ignored and PRO privileges are revoked."
+        }
+        print("Scenario 28: PASS")
 
     report["overall_status"] = "PASSED"
     report["summary"] = {

@@ -81,5 +81,8 @@ async def get_my_entitlements(
         "used_units": used_units,
         "remaining_units": remaining_units,
         "capabilities": capabilities,
-        "valid_until": ent.valid_until.isoformat() if ent.valid_until else None
+        "valid_until": ent.valid_until.isoformat() if ent.valid_until else None,
+        "paid_through": ent.paid_through.isoformat() if ent.paid_through else None,
+        "is_provisional": bool(ent.has_authoritative_period == 0 and ent.source_type == "subscription"),
+        "provisional_deadline": ent.provisional_deadline.isoformat() if ent.provisional_deadline else None
     }
