@@ -348,7 +348,8 @@ async def _handle_checkout_completed(
             paid_through=paid_thr if ent_status == "active" else None,
             provisional_deadline=prov_deadline if ent_status == "active" else None,
             has_authoritative_period=has_authoritative,
-            last_event_created_at=event_created_ts or 0
+            last_event_created_at=event_created_ts or 0,
+            last_invoice_event_created_at=event_created_ts or 0
         )
         db.add(ent)
         await db.flush()
@@ -470,7 +471,8 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
             has_authoritative_period=1 if is_valid else 0,
             last_invoice_id=invoice.get("id"),
             last_invoice_status="paid" if is_valid else "quarantined",
-            last_event_created_at=event_created_ts or 0
+            last_event_created_at=0,
+            last_invoice_event_created_at=event_created_ts or 0
         )
         db.add(ent)
         await db.flush()
@@ -482,15 +484,6 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
         logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late invoice.paid.")
         return
 
-    # S03: Out-of-order check based on event creation timestamp
-    # Decision 34 Point 1: Check before ANY mutation!
-    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
-        logger.warning(
-            f"Stale invoice.paid for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring without mutation."
-        )
-        return
-
-    # Decision 34 Point 1 & Decision 35: Check period monotonicity against paid_through BEFORE mutating ent!
     candidate_valid_until = None
     if period_end_ts:
         candidate_valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
@@ -498,12 +491,24 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
     cur_paid = to_utc(ent.paid_through)
     cur_valid = to_utc(ent.valid_until)
 
-    # Decision 35: If entitlement has an authoritative paid period, an invoice for an earlier period is STALE and MUST NOT mutate ent!
+    # Decision 34 Point 1 & Decision 35: Check period monotonicity against paid_through BEFORE mutating ent!
+    # If entitlement has an authoritative paid period, an invoice for an earlier period is STALE and MUST NOT mutate ent!
     if ent.has_authoritative_period and cur_paid and candidate_valid_until and candidate_valid_until < cur_paid:
         logger.warning(
             f"Stale invoice.paid for subscription {sub_id}: period end {candidate_valid_until} < current paid_through {cur_paid}. Ignoring without mutation."
         )
         return
+
+    # S03 & Decision 36: Separate applicability of subscription calendar events and payment confirmation events.
+    # An invoice event is only stale if its timestamp is older than the last processed INVOICE event AND it does not advance paid_through.
+    # A subsequent subscription.updated must NEVER invalidate an invoice confirming a new or current paid period!
+    last_inv_ts = getattr(ent, "last_invoice_event_created_at", 0) or 0
+    if event_created_ts and last_inv_ts and event_created_ts < last_inv_ts:
+        if candidate_valid_until and cur_paid and candidate_valid_until <= cur_paid:
+            logger.warning(
+                f"Stale invoice.paid for subscription {sub_id}: event ts {event_created_ts} < last invoice event {last_inv_ts} and period <= paid_through. Ignoring without mutation."
+            )
+            return
 
     # Determine candidate plan from invoice lines
     candidate_plan = ent.plan_code
@@ -558,8 +563,8 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
 
     ent.last_invoice_id = invoice.get("id")
     ent.last_invoice_status = "paid"
-    if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
-        ent.last_event_created_at = event_created_ts
+    if event_created_ts and (not getattr(ent, "last_invoice_event_created_at", None) or event_created_ts > ent.last_invoice_event_created_at):
+        ent.last_invoice_event_created_at = event_created_ts
 
     ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
     await db.flush()
@@ -609,19 +614,20 @@ async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, An
             )
             return
 
-    # 3. Check event timestamp:
-    if event_created_ts and ent.last_event_created_at:
-        if event_created_ts < ent.last_event_created_at:
+    # 3. Check event timestamp against last invoice event (Decision 36):
+    last_inv_ts = getattr(ent, "last_invoice_event_created_at", 0) or 0
+    if event_created_ts and last_inv_ts:
+        if event_created_ts < last_inv_ts:
             logger.warning(
-                f"Stale invoice.payment_failed for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
+                f"Stale invoice.payment_failed for subscription {sub_id}: event ts {event_created_ts} < last invoice event {last_inv_ts}. Ignoring."
             )
             return
 
     ent.status = "past_due"
     ent.last_invoice_id = invoice_id
     ent.last_invoice_status = "payment_failed"
-    if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
-        ent.last_event_created_at = event_created_ts
+    if event_created_ts and (not getattr(ent, "last_invoice_event_created_at", None) or event_created_ts > ent.last_invoice_event_created_at):
+        ent.last_invoice_event_created_at = event_created_ts
 
     ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
     await db.flush()

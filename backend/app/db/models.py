@@ -62,7 +62,8 @@ class Entitlement(Base):
     valid_until = Column(DateTime, nullable=True) # Null for Lifetime or active auto-renew
     current_period_start = Column(DateTime, nullable=True) # Start of authoritative billing cycle (Section 3)
     has_authoritative_period = Column(Integer, default=0, nullable=False) # 1 if bounds verified from invoice/subscription, 0 if provisional
-    last_event_created_at = Column(Integer, default=0, nullable=True) # Unix timestamp of latest processed Stripe event (S03)
+    last_event_created_at = Column(Integer, default=0, nullable=True) # Unix timestamp of latest processed Stripe subscription event (S03)
+    last_invoice_event_created_at = Column(Integer, default=0, nullable=True) # Unix timestamp of latest processed Stripe invoice event (Decision 36)
     last_invoice_id = Column(String(255), nullable=True) # Stripe invoice ID for authoritative reconciliation
     last_invoice_status = Column(String(50), nullable=True) # paid, payment_failed
     paid_through = Column(DateTime, nullable=True) # Actual paid-through timestamp from invoice.paid (Decision 34 Point 4)

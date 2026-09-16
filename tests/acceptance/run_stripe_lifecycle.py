@@ -58,13 +58,13 @@ def generate_stripe_signature(payload_bytes: bytes, secret: str = STRIPE_WEBHOOK
     ).hexdigest()
     return f"t={timestamp},v1={signature}"
 
-def post_webhook(client: httpx.Client, event_type: str, data_object: dict, event_id: str = None, custom_sig: str = None) -> httpx.Response:
+def post_webhook(client: httpx.Client, event_type: str, data_object: dict, event_id: str = None, custom_sig: str = None, event_created: int = None) -> httpx.Response:
     eid = event_id or f"evt_{uuid.uuid4().hex[:16]}"
     payload_dict = {
         "id": eid,
         "object": "event",
         "api_version": "2023-10-16",
-        "created": int(time.time()),
+        "created": event_created if event_created is not None else int(time.time()),
         "type": event_type,
         "data": {
             "object": data_object
@@ -84,7 +84,7 @@ def run_acceptance_suite():
     report = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
-        "architect_decision": "Decision 35 (35_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
+        "architect_decision": "Decision 36 (36_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
         "provenance": {},
         "scenarios": {},
         "overall_status": "RUNNING"
@@ -105,7 +105,7 @@ def run_acceptance_suite():
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.10",
+        "backend_image": "statement2muster-api:1.0.11",
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",
@@ -1642,34 +1642,40 @@ def run_acceptance_suite():
         )
         assert res_29_blocked.status_code == 429, f"Expected 429, got {res_29_blocked.status_code}"
 
-        # Step 3: Event order: customer.subscription.updated FIRST, advancing to Period N+1
+        # Step 3: Fixed pair (I, S) with I_created < S_created (Decision 36)
+        # Order 1: customer.subscription.updated (S) FIRST, then delayed invoice.paid (I) SECOND
         time.sleep(1)
         t29_p2_start = int(time.time())
         t29_p2_end = t29_p1_end + 30 * 86400
+        t29_I_created = t29_p2_start + 10
+        t29_S_created = t29_p2_start + 20 # S.created > I.created
 
+        # S delivered FIRST with later timestamp
         post_webhook(client, "customer.subscription.updated", {
             "id": sub_s29_id,
             "status": "active",
             "current_period_start": t29_p2_start,
             "current_period_end": t29_p2_end,
             "items": {"data": [{"price": {"id": "price_starter_490"}}]}
-        })
+        }, event_created=t29_S_created)
 
-        # Step 4: Followed by valid invoice.paid for Period N+1
+        # I delivered SECOND with earlier timestamp (delayed invoice delivery)
         post_webhook(client, "invoice.paid", {
             "id": f"in_s29_p2_{uuid.uuid4().hex[:8]}",
             "subscription": sub_s29_id,
             "customer_email": email_s29,
-            "created": t29_p2_start,
+            "created": t29_I_created,
             "amount_paid": 490,
             "currency": "eur",
             "lines": {"data": [{"period": {"start": t29_p2_start, "end": t29_p2_end}, "price": {"id": "price_starter_490"}}]}
-        })
+        }, event_created=t29_I_created)
 
         # Step 5: Verify current_period_start advanced to Period N+1 and quota reset to 20 units
         ent_s29_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
         assert ent_s29_renewed.get("remaining_units") == 20, f"Quota failed to reset! Got {ent_s29_renewed}"
         assert ent_s29_renewed.get("used_units") == 0
+        assert ent_s29_renewed.get("status") == "active"
+        assert ent_s29_renewed.get("paid_through") is not None
 
         # Step 6: Convert 1 file in Period N+1 -> remaining_units becomes 19
         res_29_use1 = client.post(
@@ -1688,11 +1694,11 @@ def run_acceptance_suite():
             "id": f"in_s29_p2_dup_{uuid.uuid4().hex[:8]}",
             "subscription": sub_s29_id,
             "customer_email": email_s29,
-            "created": t29_p2_start + 10,
+            "created": t29_I_created + 30,
             "amount_paid": 490,
             "currency": "eur",
             "lines": {"data": [{"period": {"start": t29_p2_start, "end": t29_p2_end}, "price": {"id": "price_starter_490"}}]}
-        }, event_id=f"evt_s29_dup_{uuid.uuid4().hex[:12]}")
+        }, event_id=f"evt_s29_dup_{uuid.uuid4().hex[:12]}", event_created=t29_I_created + 30)
 
         ent_s29_after_dup = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
         assert ent_s29_after_dup.get("remaining_units") == 19, f"Duplicate invoice corrupted quota! Got {ent_s29_after_dup}"
@@ -1700,7 +1706,7 @@ def run_acceptance_suite():
 
         report["scenarios"]["scenario_29_decision35_quota_reset_sub_first_then_invoice"] = {
             "status": "PASS",
-            "details": "Decision 35 Permutation 1: Starter exhausted in Period N (429) -> subscription.updated then invoice.paid for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+            "details": "Decision 36 Permutation 1 (S.created > I.created, S delivered first): Starter exhausted in Period N (429) -> subscription.updated (created=202) then delayed invoice.paid (created=201) correctly advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
         }
         print("Scenario 29: PASS")
 
@@ -1764,34 +1770,40 @@ def run_acceptance_suite():
         )
         assert res_30_blocked.status_code == 429
 
-        # Step 3: Reverse event order: valid invoice.paid FIRST for Period N+1
+        # Step 3: Same fixed pair (I, S) with I_created < S_created (Decision 36)
+        # Order 2: invoice.paid (I) FIRST, then customer.subscription.updated (S) SECOND
         time.sleep(1)
         t30_p2_start = int(time.time())
         t30_p2_end = t30_p1_end + 30 * 86400
+        t30_I_created = t30_p2_start + 10
+        t30_S_created = t30_p2_start + 20 # S.created > I.created
 
+        # I delivered FIRST
         post_webhook(client, "invoice.paid", {
             "id": f"in_s30_p2_{uuid.uuid4().hex[:8]}",
             "subscription": sub_s30_id,
             "customer_email": email_s30,
-            "created": t30_p2_start,
+            "created": t30_I_created,
             "amount_paid": 490,
             "currency": "eur",
             "lines": {"data": [{"period": {"start": t30_p2_start, "end": t30_p2_end}, "price": {"id": "price_starter_490"}}]}
-        })
+        }, event_created=t30_I_created)
 
-        # Step 4: Followed by customer.subscription.updated for Period N+1
+        # S delivered SECOND
         post_webhook(client, "customer.subscription.updated", {
             "id": sub_s30_id,
             "status": "active",
             "current_period_start": t30_p2_start,
             "current_period_end": t30_p2_end,
             "items": {"data": [{"price": {"id": "price_starter_490"}}]}
-        })
+        }, event_created=t30_S_created)
 
         # Step 5: Verify current_period_start advanced to Period N+1 and quota reset to 20 units
         ent_s30_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
         assert ent_s30_renewed.get("remaining_units") == 20, f"Quota failed to reset in permutation 2! Got {ent_s30_renewed}"
         assert ent_s30_renewed.get("used_units") == 0
+        assert ent_s30_renewed.get("status") == "active"
+        assert ent_s30_renewed.get("paid_through") is not None
 
         # Step 6: Convert 1 file in Period N+1 -> remaining_units becomes 19
         res_30_use1 = client.post(
@@ -1810,11 +1822,11 @@ def run_acceptance_suite():
             "id": f"in_s30_p2_dup_{uuid.uuid4().hex[:8]}",
             "subscription": sub_s30_id,
             "customer_email": email_s30,
-            "created": t30_p2_start + 10,
+            "created": t30_I_created + 30,
             "amount_paid": 490,
             "currency": "eur",
             "lines": {"data": [{"period": {"start": t30_p2_start, "end": t30_p2_end}, "price": {"id": "price_starter_490"}}]}
-        }, event_id=f"evt_s30_dup_{uuid.uuid4().hex[:12]}")
+        }, event_id=f"evt_s30_dup_{uuid.uuid4().hex[:12]}", event_created=t30_I_created + 30)
 
         ent_s30_after_dup = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
         assert ent_s30_after_dup.get("remaining_units") == 19, f"Duplicate invoice corrupted quota! Got {ent_s30_after_dup}"
@@ -1822,7 +1834,7 @@ def run_acceptance_suite():
 
         report["scenarios"]["scenario_30_decision35_quota_reset_invoice_first_then_sub"] = {
             "status": "PASS",
-            "details": "Decision 35 Permutation 2: Starter exhausted in Period N (429) -> invoice.paid then subscription.updated for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+            "details": "Decision 36 Permutation 2 (I.created < S.created, I delivered first): Starter exhausted in Period N (429) -> invoice.paid (created=201) then subscription.updated (created=202) for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
         }
         print("Scenario 30: PASS")
 

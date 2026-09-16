@@ -61,6 +61,8 @@ async def init_db():
                     sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN paid_through DATETIME"))
                 if "provisional_deadline" not in columns:
                     sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN provisional_deadline DATETIME"))
+                if "last_invoice_event_created_at" not in columns:
+                    sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN last_invoice_event_created_at INTEGER DEFAULT 0"))
 
         await conn.run_sync(migrate)
 
