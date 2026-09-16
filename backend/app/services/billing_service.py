@@ -490,16 +490,18 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
         )
         return
 
-    # Decision 34 Point 1: Check period monotonicity BEFORE mutating ent!
+    # Decision 34 Point 1 & Decision 35: Check period monotonicity against paid_through BEFORE mutating ent!
     candidate_valid_until = None
     if period_end_ts:
         candidate_valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
     
+    cur_paid = to_utc(ent.paid_through)
     cur_valid = to_utc(ent.valid_until)
-    # If entitlement already has authoritative period, an invoice for an earlier period is STALE and MUST NOT mutate ent!
-    if ent.has_authoritative_period and cur_valid and candidate_valid_until and candidate_valid_until < cur_valid:
+
+    # Decision 35: If entitlement has an authoritative paid period, an invoice for an earlier period is STALE and MUST NOT mutate ent!
+    if ent.has_authoritative_period and cur_paid and candidate_valid_until and candidate_valid_until < cur_paid:
         logger.warning(
-            f"Stale invoice.paid for subscription {sub_id}: period end {candidate_valid_until} < current valid_until {cur_valid}. Ignoring without mutation."
+            f"Stale invoice.paid for subscription {sub_id}: period end {candidate_valid_until} < current paid_through {cur_paid}. Ignoring without mutation."
         )
         return
 
@@ -526,7 +528,8 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
         ent.status = "active"
 
     if candidate_valid_until:
-        if not ent.has_authoritative_period or cur_valid is None:
+        if not ent.has_authoritative_period or cur_paid is None:
+            # First authoritative period confirmed from invoice (reconciles provisional access)
             ent.valid_until = candidate_valid_until
             ent.paid_through = candidate_valid_until
             if period_start_ts:
@@ -536,16 +539,19 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
             ent.has_authoritative_period = 1
             ent.provisional_deadline = None
         else:
-            if candidate_valid_until > cur_valid:
-                # Renewal to a new billing period (28, 29, 30, or 31 days)
-                ent.valid_until = candidate_valid_until
+            # Decision 35: Compare candidate_valid_until against cur_paid (NOT cur_valid)!
+            # Even if subscription.updated moved valid_until ahead, a new invoice payment with candidate_valid_until > cur_paid
+            # is a NEW PAID PERIOD and MUST advance current_period_start and reset quota!
+            if candidate_valid_until > cur_paid:
+                ent.valid_until = max(candidate_valid_until, cur_valid) if cur_valid else candidate_valid_until
                 ent.paid_through = candidate_valid_until
                 if period_start_ts:
                     ent.current_period_start = datetime.datetime.fromtimestamp(period_start_ts, tz=datetime.timezone.utc)
                 ent.has_authoritative_period = 1
                 ent.provisional_deadline = None
-            elif candidate_valid_until == cur_valid:
-                # Same period duplicate/adjustment: update paid_through, do NOT shift start or reset quota
+            elif candidate_valid_until == cur_paid:
+                # Same period duplicate/adjustment:
+                # Do NOT shift current_period_start and do NOT reset quota!
                 ent.paid_through = candidate_valid_until
                 ent.has_authoritative_period = 1
                 ent.provisional_deadline = None

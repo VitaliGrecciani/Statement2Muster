@@ -84,7 +84,7 @@ def run_acceptance_suite():
     report = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
-        "architect_decision": "Decision 24 (24_SMTP_STATUS_AND_FULL_GO_PLAN_2026-09-14.md)",
+        "architect_decision": "Decision 35 (35_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
         "provenance": {},
         "scenarios": {},
         "overall_status": "RUNNING"
@@ -105,7 +105,7 @@ def run_acceptance_suite():
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.9",
+        "backend_image": "statement2muster-api:1.0.10",
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",
@@ -1581,6 +1581,250 @@ def run_acceptance_suite():
             "details": "payment_failed for renewed period is correctly enforced even when subscription.updated advanced calendar dates: separate paid_through ensures failure is not ignored and PRO privileges are revoked."
         }
         print("Scenario 28: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 29: Decision 35 Permutation 1 (Starter exhaustion -> subscription.updated -> invoice.paid -> reset -> 1 used -> duplicate invoice preserves 19)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 29: Decision 35 Permutation 1 (sub.updated -> invoice.paid -> quota reset -> duplicate preservation) ---")
+        t_s29 = f"tenant_s29_{uuid.uuid4().hex[:8]}"
+        email_s29 = f"{t_s29}@example.com"
+        tok_s29 = make_tenant_jwt(t_s29, email_s29)
+        sub_s29_id = f"sub_s29_{uuid.uuid4().hex[:8]}"
+        t29_base = int(time.time())
+        t29_p1_start = t29_base - 100
+        t29_p1_end = t29_base + 30 * 86400
+
+        # Step 1: Initial checkout & invoice.paid for Starter Period N
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s29_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s29,
+            "customer_email": email_s29,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s29_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s29_p1_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s29_id,
+            "customer_email": email_s29,
+            "created": t29_base,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t29_p1_start, "end": t29_p1_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        ent_s29_init = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
+        assert ent_s29_init.get("plan") == "starter"
+        assert ent_s29_init.get("status") == "active"
+        assert ent_s29_init.get("remaining_units") == 20
+
+        # Step 2: Exhaust all 20 units in Period N
+        multi_10_a = [("files", (f"f29_a_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_29_a = client.post(f"{API_URL}/api/v1/convert?format=json", headers={"Authorization": f"Bearer {tok_s29}"}, files=multi_10_a)
+        assert res_29_a.status_code == 200, f"Batch A failed: {res_29_a.text}"
+
+        multi_10_b = [("files", (f"f29_b_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_29_b = client.post(f"{API_URL}/api/v1/convert?format=json", headers={"Authorization": f"Bearer {tok_s29}"}, files=multi_10_b)
+        assert res_29_b.status_code == 200, f"Batch B failed: {res_29_b.text}"
+
+        ent_s29_exhausted = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
+        assert ent_s29_exhausted.get("used_units") == 20
+        assert ent_s29_exhausted.get("remaining_units") == 0
+
+        # Attempt 21st conversion -> 429 Too Many Requests
+        res_29_blocked = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s29}"},
+            files=[("files", ("blocked29.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_29_blocked.status_code == 429, f"Expected 429, got {res_29_blocked.status_code}"
+
+        # Step 3: Event order: customer.subscription.updated FIRST, advancing to Period N+1
+        time.sleep(1)
+        t29_p2_start = int(time.time())
+        t29_p2_end = t29_p1_end + 30 * 86400
+
+        post_webhook(client, "customer.subscription.updated", {
+            "id": sub_s29_id,
+            "status": "active",
+            "current_period_start": t29_p2_start,
+            "current_period_end": t29_p2_end,
+            "items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        # Step 4: Followed by valid invoice.paid for Period N+1
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s29_p2_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s29_id,
+            "customer_email": email_s29,
+            "created": t29_p2_start,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t29_p2_start, "end": t29_p2_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Step 5: Verify current_period_start advanced to Period N+1 and quota reset to 20 units
+        ent_s29_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
+        assert ent_s29_renewed.get("remaining_units") == 20, f"Quota failed to reset! Got {ent_s29_renewed}"
+        assert ent_s29_renewed.get("used_units") == 0
+
+        # Step 6: Convert 1 file in Period N+1 -> remaining_units becomes 19
+        res_29_use1 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s29}"},
+            files=[("files", ("p2_first.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_29_use1.status_code == 200, f"Conversion in Period N+1 failed: {res_29_use1.text}"
+
+        ent_s29_used1 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
+        assert ent_s29_used1.get("remaining_units") == 19, f"Expected 19 remaining, got {ent_s29_used1}"
+        assert ent_s29_used1.get("used_units") == 1
+
+        # Step 7: Duplicate invoice for Period N+1 arrives -> remaining units preserved at 19 (NOT reset to 20)
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s29_p2_dup_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s29_id,
+            "customer_email": email_s29,
+            "created": t29_p2_start + 10,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t29_p2_start, "end": t29_p2_end}, "price": {"id": "price_starter_490"}}]}
+        }, event_id=f"evt_s29_dup_{uuid.uuid4().hex[:12]}")
+
+        ent_s29_after_dup = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s29}"}).json()
+        assert ent_s29_after_dup.get("remaining_units") == 19, f"Duplicate invoice corrupted quota! Got {ent_s29_after_dup}"
+        assert ent_s29_after_dup.get("used_units") == 1
+
+        report["scenarios"]["scenario_29_decision35_quota_reset_sub_first_then_invoice"] = {
+            "status": "PASS",
+            "details": "Decision 35 Permutation 1: Starter exhausted in Period N (429) -> subscription.updated then invoice.paid for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+        }
+        print("Scenario 29: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 30: Decision 35 Permutation 2 (Starter exhaustion -> invoice.paid -> subscription.updated -> reset -> 1 used -> duplicate invoice preserves 19)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 30: Decision 35 Permutation 2 (invoice.paid -> sub.updated -> quota reset -> duplicate preservation) ---")
+        t_s30 = f"tenant_s30_{uuid.uuid4().hex[:8]}"
+        email_s30 = f"{t_s30}@example.com"
+        tok_s30 = make_tenant_jwt(t_s30, email_s30)
+        sub_s30_id = f"sub_s30_{uuid.uuid4().hex[:8]}"
+        t30_base = int(time.time())
+        t30_p1_start = t30_base - 100
+        t30_p1_end = t30_base + 30 * 86400
+
+        # Step 1: Initial checkout & invoice.paid for Starter Period N
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s30_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s30,
+            "customer_email": email_s30,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s30_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s30_p1_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s30_id,
+            "customer_email": email_s30,
+            "created": t30_base,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t30_p1_start, "end": t30_p1_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        ent_s30_init = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
+        assert ent_s30_init.get("plan") == "starter"
+        assert ent_s30_init.get("status") == "active"
+        assert ent_s30_init.get("remaining_units") == 20
+
+        # Step 2: Exhaust all 20 units in Period N
+        multi_10_a30 = [("files", (f"f30_a_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_30_a = client.post(f"{API_URL}/api/v1/convert?format=json", headers={"Authorization": f"Bearer {tok_s30}"}, files=multi_10_a30)
+        assert res_30_a.status_code == 200
+
+        multi_10_b30 = [("files", (f"f30_b_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_30_b = client.post(f"{API_URL}/api/v1/convert?format=json", headers={"Authorization": f"Bearer {tok_s30}"}, files=multi_10_b30)
+        assert res_30_b.status_code == 200
+
+        ent_s30_exhausted = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
+        assert ent_s30_exhausted.get("used_units") == 20
+        assert ent_s30_exhausted.get("remaining_units") == 0
+
+        # 21st conversion attempt -> 429
+        res_30_blocked = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s30}"},
+            files=[("files", ("blocked30.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_30_blocked.status_code == 429
+
+        # Step 3: Reverse event order: valid invoice.paid FIRST for Period N+1
+        time.sleep(1)
+        t30_p2_start = int(time.time())
+        t30_p2_end = t30_p1_end + 30 * 86400
+
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s30_p2_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s30_id,
+            "customer_email": email_s30,
+            "created": t30_p2_start,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t30_p2_start, "end": t30_p2_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Step 4: Followed by customer.subscription.updated for Period N+1
+        post_webhook(client, "customer.subscription.updated", {
+            "id": sub_s30_id,
+            "status": "active",
+            "current_period_start": t30_p2_start,
+            "current_period_end": t30_p2_end,
+            "items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        # Step 5: Verify current_period_start advanced to Period N+1 and quota reset to 20 units
+        ent_s30_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
+        assert ent_s30_renewed.get("remaining_units") == 20, f"Quota failed to reset in permutation 2! Got {ent_s30_renewed}"
+        assert ent_s30_renewed.get("used_units") == 0
+
+        # Step 6: Convert 1 file in Period N+1 -> remaining_units becomes 19
+        res_30_use1 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s30}"},
+            files=[("files", ("p2_first30.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_30_use1.status_code == 200, f"Conversion in Period N+1 failed: {res_30_use1.text}"
+
+        ent_s30_used1 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
+        assert ent_s30_used1.get("remaining_units") == 19, f"Expected 19 remaining, got {ent_s30_used1}"
+        assert ent_s30_used1.get("used_units") == 1
+
+        # Step 7: Duplicate invoice for Period N+1 arrives -> remaining units preserved at 19
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s30_p2_dup_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s30_id,
+            "customer_email": email_s30,
+            "created": t30_p2_start + 10,
+            "amount_paid": 490,
+            "currency": "eur",
+            "lines": {"data": [{"period": {"start": t30_p2_start, "end": t30_p2_end}, "price": {"id": "price_starter_490"}}]}
+        }, event_id=f"evt_s30_dup_{uuid.uuid4().hex[:12]}")
+
+        ent_s30_after_dup = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s30}"}).json()
+        assert ent_s30_after_dup.get("remaining_units") == 19, f"Duplicate invoice corrupted quota! Got {ent_s30_after_dup}"
+        assert ent_s30_after_dup.get("used_units") == 1
+
+        report["scenarios"]["scenario_30_decision35_quota_reset_invoice_first_then_sub"] = {
+            "status": "PASS",
+            "details": "Decision 35 Permutation 2: Starter exhausted in Period N (429) -> invoice.paid then subscription.updated for N+1 advances period and resets quota to 20 -> 1 unit converted (19 left) -> duplicate invoice preserves remaining 19."
+        }
+        print("Scenario 30: PASS")
 
     report["overall_status"] = "PASSED"
     report["summary"] = {

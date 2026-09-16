@@ -1,0 +1,303 @@
+{
+  "Id": "69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1",
+  "Created": "2026-09-16T12:17:16.175429892Z",
+  "Path": "uvicorn",
+  "Args": [
+    "app.main:app",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000"
+  ],
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2516411,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-16T12:17:17.312779335Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-09-16T12:17:22.446248294Z",
+          "End": "2026-09-16T12:17:22.685738821Z",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Image": "sha256:71ab4c494be9e483839be75e6b0d7fb88fe6546f3232717debb4cfdd825590fc",
+  "ResolvConfPath": "/var/lib/docker/containers/69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1/hostname",
+  "HostsPath": "/var/lib/docker/containers/69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1/hosts",
+  "LogPath": "/var/lib/docker/containers/69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1/69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1-json.log",
+  "Name": "/s2m-backend-api",
+  "RestartCount": 0,
+  "Driver": "overlayfs",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "docker-default",
+  "ExecIDs": null,
+  "HostConfig": {
+    "Binds": [
+      "statement2muster_s2m-data:/app/data:rw"
+    ],
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "statement2muster_default",
+    "PortBindings": {
+      "8000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "RestartPolicy": {
+      "Name": "always",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": null,
+    "DnsSearch": null,
+    "ExtraHosts": [],
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+      "no-new-privileges:true"
+    ],
+    "Tmpfs": {
+      "/tmp": "size=64M,noexec,nosuid,nodev"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 536870912,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteIOps": null,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": null,
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 134217728,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": null,
+    "PidsLimit": null,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "Storage": {
+    "RootFS": {
+      "Snapshot": {
+        "Name": "overlayfs"
+      }
+    }
+  },
+  "Mounts": [
+    {
+      "Type": "volume",
+      "Name": "statement2muster_s2m-data",
+      "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+      "Destination": "/app/data",
+      "Driver": "local",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": ""
+    }
+  ],
+  "Config": {
+    "Hostname": "69961326dac1",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "VERSION=1.0.10",
+      "EMAIL_BACKEND=smtp",
+      "JWT_PRIVATE_KEY_PEM=[REDACTED_SECRET]",
+      "SMTP_PASSWORD=[REDACTED_SECRET]",
+      "STRIPE_SECRET_KEY=[REDACTED_SECRET]",
+      "PARSER_TIMEOUT_SECONDS=30",
+      "SMTP_HOST=smtp.resend.com",
+      "SMTP_FROM=Statement2Muster <no-reply@statement2muster.com>",
+      "SMTP_USER=resend",
+      "ENVIRONMENT=production",
+      "STRIPE_WEBHOOK_SECRET=[REDACTED_SECRET]",
+      "PARSER_WORKER_CONCURRENCY=2",
+      "PARSER_MAX_QUEUE_DEPTH=4",
+      "SQLITE_DB_PATH=/app/data/statement2muster_prod.db",
+      "JWT_PUBLIC_KEY_PEM=[REDACTED_SECRET]",
+      "PARSER_PROCESS_ISOLATION=true",
+      "SMTP_PORT=587",
+      "PROJECT_NAME=Statement2Muster DACH",
+      "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "LANG=C.UTF-8",
+      "GPG_KEY=[REDACTED_SECRET]",
+      "PYTHON_VERSION=3.11.16",
+      "PYTHON_SHA256=91bcdebfdde239a003ae93738a7fce0f9230fee5c4bc2b86f6e6e8c6f98aabe8",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "PYTHONUNBUFFERED=1"
+    ],
+    "Cmd": [
+      "uvicorn",
+      "app.main:app",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8000"
+    ],
+    "Healthcheck": {
+      "Test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
+      ],
+      "Interval": 15000000000,
+      "Timeout": 5000000000,
+      "StartPeriod": 10000000000,
+      "Retries": 3
+    },
+    "Image": "statement2muster-api:1.0.10",
+    "Volumes": null,
+    "WorkingDir": "/app",
+    "Entrypoint": null,
+    "Labels": {
+      "com.docker.compose.config-hash": "7c04eac04467168c246b22f850e817ea8d994ca441348ecce4cdf94a32cb6c97",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:71ab4c494be9e483839be75e6b0d7fb88fe6546f3232717debb4cfdd825590fc",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "statement2muster",
+      "com.docker.compose.project.config_files": "/opt/statement2muster/docker-compose.prod.yml",
+      "com.docker.compose.project.working_dir": "/opt/statement2muster",
+      "com.docker.compose.replace": "s2m-backend-api",
+      "com.docker.compose.service": "api",
+      "com.docker.compose.version": "5.1.0"
+    }
+  },
+  "NetworkSettings": {
+    "SandboxID": "89a14a4bf6e051da5cc10c4b4af6640e8a45367017e0925216bba3c1a7fe3875",
+    "SandboxKey": "/var/run/docker/netns/89a14a4bf6e0",
+    "Ports": {
+      "8000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "Networks": {
+      "statement2muster_default": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": [
+          "s2m-backend-api",
+          "api"
+        ],
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "c6fc5a151d50786fb2d124edeeb2ae1384927cfe8faed57e52b4a0893f876ed7",
+        "EndpointID": "a7de21daa04ecdbc9c8a4ed3c6c8aed115bc1617f358f132ab5742996b7dfcc3",
+        "Gateway": "172.20.0.1",
+        "IPAddress": "172.20.0.2",
+        "MacAddress": "d6:6c:c6:e3:bb:31",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "s2m-backend-api",
+          "api",
+          "69961326dac1"
+        ]
+      }
+    }
+  },
+  "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:1587bb61eb4f0009b8ee1c6d6ac9c5d0a84a244718d89db72e82547a0fceb4dc",
+    "size": 2199,
+    "platform": {
+      "architecture": "amd64",
+      "os": "linux"
+    }
+  }
+}
