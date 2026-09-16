@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-09-16T12:29:42Z",
+  "timestamp": "2026-09-16T20:41:10Z",
   "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
   "architect_decision": "Decision 36 (36_STRIPE_SYNTHETIC_REVIEW_2026-09-16.md)",
   "provenance": {
-    "git_commit": "6f03c77cfb699b55aee0e95816cab0776fda42fb",
+    "git_commit": "8949dd5531f444a186d3e2f587fb4c2e9bad1e8a",
     "api_url": "http://127.0.0.1:8000",
     "hetzner_host": "46.225.95.36",
-    "backend_image": "statement2muster-api:1.0.11",
-    "backend_image_id": "sha256:c2a89e67abae8ebce0502973db83b9d5e659cec5847278cf97f39e0fdbbc38e1",
-    "backend_container_id": "173b145cb5f491e11252aed5bcb293e1ce1ad403af8466b5389ce51f4ed417dd",
+    "backend_image": "statement2muster-api:1.0.14",
+    "backend_image_id": "sha256:b90fefef75a84ff36a3861b3f32ce126e70a53186f0c0bc7ffb519efc2477edb",
+    "backend_container_id": "06d151787c832a4bcc732266ef88fe8bb92ebb6b5f20e374690bd4106fe974b4",
     "stripe_mode": "sandbox",
-    "webhook_secret_prefix": "whsec_he..."
+    "webhook_secret_prefix": "whsec_24..."
   },
   "scenarios": {
     "scenario_01_starter_subscription": {
@@ -27,7 +27,7 @@
     },
     "scenario_04_subscription_renewal": {
       "status": "PASS",
-      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T12:29:45."
+      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T20:41:13."
     },
     "scenario_05_payment_failed": {
       "status": "PASS",

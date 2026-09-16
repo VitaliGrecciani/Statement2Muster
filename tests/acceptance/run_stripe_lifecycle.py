@@ -16,14 +16,21 @@ STRIPE_WEBHOOK_SECRET = "whsec_hetzner_c07"
 OUTPUT_JSON = BASE_DIR / "docs" / "stripe_acceptance" / "stripe_lifecycle_results.json"
 OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
 
-# Fetch RSA private key from Hetzner host once for genuine test token signing
-print("=== Fetching Hetzner JWT Private Key for RS256 Tenant Tokens ===")
+# Fetch RSA private key and webhook secret from Hetzner host once for genuine test token signing
+print("=== Fetching Hetzner JWT Private Key and Webhook Secret ===")
 cmd_ssh_key = [
     "ssh", "-n", "-o", "StrictHostKeyChecking=no", "root@46.225.95.36",
     "cat /opt/statement2muster/.env"
 ]
 res_key = subprocess.run(cmd_ssh_key, capture_output=True, text=True, check=True)
 env_text = res_key.stdout
+
+for line in env_text.splitlines():
+    if line.startswith("STRIPE_WEBHOOK_SECRET="):
+        STRIPE_WEBHOOK_SECRET = line.split("=", 1)[1].strip().strip('"').strip("'")
+        print(f"Stripe Webhook Secret extracted from Hetzner: {STRIPE_WEBHOOK_SECRET[:10]}... (len={len(STRIPE_WEBHOOK_SECRET)})")
+        break
+
 start_tag = "-----BEGIN PRIVATE KEY-----"
 end_tag = "-----END PRIVATE KEY-----"
 start_idx = env_text.find(start_tag)
@@ -95,17 +102,18 @@ def run_acceptance_suite():
     git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(BASE_DIR), text=True).strip()
     cmd_inspect = [
         "ssh", "-n", "-o", "StrictHostKeyChecking=no", "root@46.225.95.36",
-        "docker inspect s2m-backend-api --format '{{.Id}} {{.Image}}'"
+        "docker inspect s2m-backend-api --format '{{.Id}} {{.Image}} {{.Config.Image}}'"
     ]
     inspect_out = subprocess.check_output(cmd_inspect, text=True).strip().split()
     container_id = inspect_out[0]
     image_id = inspect_out[1]
+    backend_image = inspect_out[2] if len(inspect_out) > 2 else "statement2muster-api:1.0.14"
 
     report["provenance"] = {
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.11",
+        "backend_image": backend_image,
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",

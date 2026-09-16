@@ -128,15 +128,17 @@
 
 ---
 
-### 2. Full Scenario Results (Decision 38 Verified)
+### 2. Full Scenario Results (Decision 38 & Decision 39 Verified)
+
+*Note on Provenance & Identifiers:* All IDs below are directly synchronized with the primary machine-readable artifact `docs/stripe_acceptance/stripe_sandbox_results.json` (timestamp: `2026-09-16T20:35:53Z`, run on backend `1.0.14`, container `06d151787c83`).
 
 | Scenario | Result | Stripe Objects & Evidence | Entitlement State & Rights Check |
 |---|---|---|---|
-| **S05-1 Starter Subscription** | ✅ PASS | Customer: `cus_VGxT9RS9m9rCYD`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYdI3NVmMw8fjgslFIURU`<br>Invoice: `in_1UGPYdI3NVmMw8fj2V180G60`<br>Event: `invoice.paid` (200 OK) | **Plan:** starter<br>**Status:** active<br>**Quota:** 20 files/mo (remaining: 20)<br>**Paid Through:** 2026-10-16 |
-| **S05-2 PRO Subscription** | ✅ PASS | Customer: `cus_VGxT9RS9m9rCYD`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYxI3NVmMw8fjM1DAELYl`<br>Event: `invoice.paid` (200 OK) | **Plan:** pro<br>**Status:** active<br>**Quota:** unlimited<br>**Capabilities:** multi_upload=true, anti_mix_guard=true, priority_support=true, batch_dedup=true |
+| **S05-1 Starter Subscription** | ✅ PASS | Customer: `cus_VGxT9RS9m9rCYD`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYdI3NVmMw8fjgslFIURU`<br>Invoice: `in_1UGPYdI3NVmMw8fjq8tuBROZ`<br>Event: `invoice.paid` (200 OK) | **Plan:** starter<br>**Status:** active<br>**Quota:** 20 files/mo (remaining: 20)<br>**Paid Through:** 2026-10-16 |
+| **S05-2 PRO Subscription** | ✅ PASS | Customer: `cus_VGxTZFhvmFWPWP`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYxI3NVmMw8fjM1DAELYl`<br>Event: `invoice.paid` (200 OK) | **Plan:** pro<br>**Status:** active<br>**Quota:** unlimited<br>**Capabilities:** multi_upload=true, anti_mix_guard=true, priority_support=true, batch_dedup=true |
 | **S05-3 Subscription Cancellation** | ✅ PASS | Sub: `sub_1UGPYxI3NVmMw8fjM1DAELYl`<br>Method: `stripe.Subscription.cancel`<br>Stripe status: `canceled`<br>Event: `customer.subscription.deleted` (200 OK) | **Revocation Confirmed:**<br>API returns **trial fallback**<br>Quota reset to 3, all PRO capabilities blocked |
-| **S05-4 Lifetime Checkout & Real Refund** *(Decision 38 Points 1 & 3)* | ✅ PASS | Checkout Session: `cs_test_a1fomEVHHVKtkLv1R3N7Wq4oUUXujhQWVKaT0clePdAfbLRiNXeP1SGjsU` (€89.00 EUR)<br>PI: `pi_3UGPZXI3NVmMw8fj0AGft1ka`<br>Charge: `ch_3UGPZXI3NVmMw8fj0usQCAZC`<br>Refund: `re_3UGPZXI3NVmMw8fj0cP4UmIt`<br>Events: `checkout.session.completed`, `charge.refunded` (200 OK) | **Before Refund:** plan=lifetime, status=active, quota=unlimited, all capabilities=true<br>**After Real Refund:** Entitlement marked canceled via PI match; API returns **trial fallback** (quota=3, capabilities revoked). |
-| **S05-5 Subscription Renewal Failure** *(Decision 38 Point 2)* | ✅ PASS | Sub: `sub_1UGPa6I3NVmMw8fj11ouJw1x`<br>Renewal Invoice: `in_1UGPaRI3NVmMw8fjMoCg4ECt` (€4.90 EUR)<br>Declined PM: `tok_chargeCustomerFail` (`pm_1UGPaOI3NVmMw8fjaDHOTyxk`)<br>CardError: *Your card was declined*<br>Events: `payment_intent.payment_failed`, `charge.failed`, `invoice.payment_failed` (200 OK) | **DB Row:** `status='past_due'`, `last_invoice_status='payment_failed'`<br>**Rights Check:** Paid access revoked immediately; API returns **trial fallback**; paid capabilities blocked. |
+| **S05-4 Lifetime Checkout & Real Refund** *(Decision 38 Points 1 & 3)* | ✅ PASS | Checkout Session: `cs_test_a1fomEVHHVKtkLv1R3N7Wq4oUUXujhQWVKaT0clePdAfbLRiNXeP1SGjsU` (€89.00 EUR)<br>PI: `pi_3UGPZXI3NVmMw8fj0AGft1ka`<br>Charge: `ch_3UGPZXI3NVmMw8fj0usQCAZC`<br>Refund: `re_3UGPZXI3NVmMw8fj0cP4UmIt`<br>Event ID: `evt_1UGPZYI3NVmMw8fjP5H3BWtS`<br>Event API Version: `2025-12-15.clover` | **Before Refund:** plan=lifetime, status=active, quota=unlimited, all capabilities=true<br>**After Real Refund:** Entitlement marked canceled via PI match; API returns **trial fallback** (quota=3, capabilities revoked). |
+| **S05-5 Subscription Renewal Failure** *(Decision 38 Point 2)* | ✅ PASS | Customer: `cus_VGxVwo0BW2ENS4`<br>Sub: `sub_1UGPa6I3NVmMw8fj11ouJw1x`<br>Renewal Invoice: `in_1UGPaRI3NVmMw8fjMoCg4ECt` (€4.90 EUR)<br>Declined PM: `tok_chargeCustomerFail` (`pm_1UGPaOI3NVmMw8fjaDHOTyxk`)<br>CardError: *Your card was declined.*<br>Event ID: `evt_1UGPaUI3NVmMw8fjlP0MPFFl`<br>Event API Version: `2025-12-15.clover` | **DB Row:** `status='past_due'`, `last_invoice_status='payment_failed'`<br>**Rights Check:** Paid access revoked immediately; API returns **trial fallback**; paid capabilities blocked. |
 
 ---
 
@@ -146,16 +148,24 @@
    - Subscriptions in Invoices resolved through `parent.subscription_details.subscription` (with fallback to legacy `subscription`).
    - Line prices resolved through `pricing.price_details.price` (with fallback to `price.id` and `plan.id`).
    - Tenant metadata resolved through `parent.subscription_details.metadata`.
-2. **Checkout & Refund Architecture:**
+### 3. Stripe API Architecture Compatibility & Boundaries (Decision 39 Scope)
+
+1. **Invoicing & Subscription Architecture (`2025-03-31.basil` origin):**
+   - Subscriptions in Invoices resolved through `parent.subscription_details.subscription` (with fallback to legacy `subscription`).
+   - Line prices resolved through `pricing.price_details.price` (with fallback to `price.id` and `plan.id`).
+   - Tenant metadata resolved through `parent.subscription_details.metadata`.
+2. **Checkout & Refund Architecture (Verified Scope):**
    - Full Checkout Session completion verified via official payment pages confirmation flow with `client_reference_id` and catalog binding (€89.00 EUR).
-   - Real refunds resolved through PaymentIntent -> Charge link; entitlement canceled and access revoked.
+   - Real one-time Lifetime refunds verified through PaymentIntent link (`Entitlement.payment_intent == payment_intent_id`); entitlement canceled and access revoked to trial fallback.
+   - *Compatibility Boundary (Decision 39):* Refund verified for one-time Lifetime purchases. The subscription refund fallback branch resolves via PI invoice/metadata; full subscription refund coverage across all Clover permutations is not claimed beyond the tested 5-scenario matrix.
 3. **Billing Testing Standards:**
-   - Genuine renewal failure tested via `tok_chargeCustomerFail` card with genuine `invoice.payment_failed` delivery and `past_due` DB transition.
+   - Genuine payment failure on an active subscription tested via `tok_chargeCustomerFail` card on invoice payment, with genuine `invoice.payment_failed` delivery, DB `past_due` status, and immediate revocation of paid access in the API.
 
 ---
 
-### 4. Regression Integrity Verification
+### 4. Regression & Artifact Verification (Decision 39 Alignment)
 
-- **Synthetic Suite (30/30 PASS):** `tests/acceptance/run_stripe_lifecycle.py` executed on deployed backend v1.0.14 — all 30 tests passed with 100% compliance.
-- **Sandbox Suite (5/5 PASS):** `scratch/run_stripe_sandbox_e2e.py` executed on live Hetzner host with real Stripe objects — all 5 scenarios passed with 100% compliance.
-- **Overall Verdict Ready:** S05 conditions fully satisfied for Chief Architect final review.
+- **Sanitized Container Inspect Artifact:** `docs/stripe_acceptance/hetzner_container_inspect_1014.json` (links container `06d151787c83` -> image `sha256:b90fefef...` -> release tag `statement2muster-api:1.0.14`).
+- **Reproducible Sandbox Runner:** `tests/acceptance/run_stripe_sandbox_e2e.py` (executable without hardcoded secrets).
+- **Synthetic Suite (30/30 PASS):** `tests/acceptance/run_stripe_lifecycle.py` executed on deployed backend v1.0.14 — all 30 tests passed with 100% compliance (`docs/stripe_acceptance/stripe_lifecycle_results.json` records `backend_image: statement2muster-api:1.0.14`).
+- **Sandbox Suite (5/5 PASS):** `tests/acceptance/run_stripe_sandbox_e2e.py` executed on live Hetzner host with real Stripe objects — all 5 scenarios passed with 100% compliance (`docs/stripe_acceptance/stripe_sandbox_results.json`).
