@@ -12,14 +12,14 @@
 
 | Параметр | Значение | Примечание |
 | :--- | :--- | :--- |
-| **Тестовый Git Commit** | `917004d0857e4ac2c563f8c8a42d524e5eb7b231` | Включает исправления замечаний Решений № 32, № 33 и № 34 (атомарность валидации инвойсов без мутаций, конечный дедлайн предварительного доступа, каталог и защита тенанта в раннем инвойсе, разделение `paid_through` и даты подписки) |
+| **Тестовый Git Commit** | `f4f0cbdf17541675bc1f25eec130150a64a355d4` | Включает исправления замечаний Решений № 32, № 33, № 34 и № 35 (сверка периода по `paid_through`, монотонность валидации инвойсов без мутаций, конечный дедлайн предварительного доступа, каталог и защита тенанта в раннем инвойсе) |
 | **Backend Docker Image** | `statement2muster-api:1.0.10` | Неизменяемый образ, собран `--no-cache` на Hetzner Host `46.225.95.36` |
 | **Backend Image ID** | `sha256:71ab4c494be9e483839be75e6b0d7fb88fe6546f3232717debb4cfdd825590fc` | Зафиксирован в Docker Daemon Hetzner |
 | **Backend Container ID** | `69961326dac1ead48079818636a264e99e9c678e33dfa8db4ed4487b932027e1` | Имя контейнера: `s2m-backend-api`, Status: `healthy` |
 | **Docker Inspect Artifact** | `docs/stripe_acceptance/docker_inspect_1010_sanitized.json` | Обезличенный JSON инспекции контейнера по строгому allowlist (`Config.Env` очищен от секретов) |
 | **API URL** | `http://127.0.0.1:8000` | SSH-туннель к продуктивному контейнеру Hetzner (`127.0.0.1:8100`) |
 | **Тип испытаний** | **Synthetic Signed Webhook Integration** | Автономная интеграционная проверка валидаторов, БД и квот с аутентичным HMAC-SHA256 (`Stripe-Signature`) |
-| **Исполняемый раннер тестов** | `tests/acceptance/run_stripe_lifecycle.py` | 30 сценариев, полностью закрывающих замечания Решений № 32, № 33 и № 34 |
+| **Исполняемый раннер тестов** | `tests/acceptance/run_stripe_lifecycle.py` | 30 сценариев, полностью закрывающих замечания Решений № 32, № 33, № 34 и № 35 |
 | **Машинный результат** | `docs/stripe_acceptance/stripe_lifecycle_results.json` | 30/30 сценариев со статусом PASS |
 | **Каталог цен и тарифов** | `docs/stripe_acceptance/STRIPE_CATALOG_ALIGNMENT.md` | Сверка производственных и тестовых Price IDs, валют, сумм и режимов |
 
