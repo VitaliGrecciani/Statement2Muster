@@ -1,0 +1,130 @@
+{
+  "Id": "27a358f156c02b5ed2b3a9116a6508ce3f439eb0beedb378731dd09d2c8126b8",
+  "Created": "2026-09-16T11:13:20.001284675Z",
+  "Image": "sha256:83cac5653dff598899ab3f585ec6773a9f86f069a58870fee614785721f3251f",
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 443132,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-16T11:13:21.705598346Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-09-16T11:13:26.846459644Z",
+          "End": "2026-09-16T11:13:27.119639996Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-09-16T11:13:42.120224813Z",
+          "End": "2026-09-16T11:13:42.365211491Z",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Mounts": [
+    {
+      "Type": "volume",
+      "Name": "statement2muster_s2m-data",
+      "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+      "Destination": "/app/data",
+      "Driver": "local",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": ""
+    }
+  ],
+  "Config": {
+    "Image": "statement2muster-api:1.0.6",
+    "Cmd": [
+      "uvicorn",
+      "app.main:app",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8000"
+    ],
+    "Env_Policy": "SANITIZED: Environment variables excluded per Decision 29/30/31 security policy",
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Labels": {
+      "com.docker.compose.config-hash": "515e88474c75ba155210075236b9da12c34ee3574b8c261a40d053bb1d4312ce",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:83cac5653dff598899ab3f585ec6773a9f86f069a58870fee614785721f3251f",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "statement2muster",
+      "com.docker.compose.project.config_files": "/opt/statement2muster/docker-compose.prod.yml",
+      "com.docker.compose.project.working_dir": "/opt/statement2muster",
+      "com.docker.compose.replace": "s2m-backend-api",
+      "com.docker.compose.service": "api",
+      "com.docker.compose.version": "5.1.0"
+    }
+  },
+  "HostConfig": {
+    "Binds": [
+      "statement2muster_s2m-data:/app/data:rw"
+    ],
+    "PortBindings": {
+      "8000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "NetworkMode": "statement2muster_default",
+    "RestartPolicy": {
+      "Name": "always",
+      "MaximumRetryCount": 0
+    }
+  },
+  "NetworkSettings": {
+    "Ports": {
+      "8000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "Networks": {
+      "statement2muster_default": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": [
+          "s2m-backend-api",
+          "api"
+        ],
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "c6fc5a151d50786fb2d124edeeb2ae1384927cfe8faed57e52b4a0893f876ed7",
+        "EndpointID": "c878822c58c1891b80af8ae7cac6baf4d3e180e80dfbb3d4406f143525b3a55a",
+        "Gateway": "172.20.0.1",
+        "IPAddress": "172.20.0.2",
+        "MacAddress": "aa:c1:e5:ae:61:f0",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "s2m-backend-api",
+          "api",
+          "27a358f156c0"
+        ]
+      }
+    }
+  }
+}

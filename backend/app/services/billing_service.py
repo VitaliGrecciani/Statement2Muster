@@ -11,6 +11,17 @@ from app.db.models import Tenant, CustomerMapping, Entitlement, StripeEventInbox
 logger = logging.getLogger("statement2muster.billing")
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
+PRICE_CATALOG = {
+    settings.STRIPE_PRICE_STARTER_MONTHLY: {"plan": "starter", "amount_cents": 490, "currency": "eur"},
+    "price_starter_490": {"plan": "starter", "amount_cents": 490, "currency": "eur"},
+    settings.STRIPE_PRICE_PRO_MONTHLY: {"plan": "pro", "amount_cents": 2900, "currency": "eur"},
+    "price_pro_2900": {"plan": "pro", "amount_cents": 2900, "currency": "eur"},
+    "price_pro_1900": {"plan": "pro", "amount_cents": 1900, "currency": "eur"},
+    settings.STRIPE_PRICE_LIFETIME: {"plan": "lifetime", "amount_cents": 8900, "currency": "eur"},
+    "price_lifetime_8900": {"plan": "lifetime", "amount_cents": 8900, "currency": "eur"},
+    "price_lifetime_14900": {"plan": "lifetime", "amount_cents": 14900, "currency": "eur"},
+}
+
 def verify_stripe_signature(payload_bytes: bytes, sig_header: str) -> Dict[str, Any]:
     """Validates raw request body against Stripe webhook secret."""
     try:
@@ -66,6 +77,8 @@ async def process_stripe_event(db: AsyncSession, event: Any) -> Dict[str, Any]:
             await _handle_checkout_completed(db, event_data, is_async_success=(event_type == "checkout.session.async_payment_succeeded"))
         elif event_type == "invoice.paid":
             await _handle_invoice_paid(db, event_data)
+        elif event_type == "invoice.payment_failed":
+            await _handle_invoice_payment_failed(db, event_data)
         elif event_type == "customer.subscription.updated":
             await _handle_subscription_updated(db, event_data)
         elif event_type == "customer.subscription.deleted":
@@ -113,17 +126,15 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         logger.warning("Checkout session missing both email and client_reference_id")
         return
 
-    currency = (session.get("currency") or "eur").lower()
-    if currency != "eur":
-        logger.warning(f"Unsupported currency {currency} for checkout session {session.get('id')}")
-        return
-
-    amount_total = session.get("amount_total", 0) # in cents
-
     tenant = None
     if client_ref_id:
         t_res = await db.execute(select(Tenant).where(Tenant.id == client_ref_id))
         tenant = t_res.scalars().first()
+        if not tenant:
+            email_to_use = customer_email or f"{client_ref_id}@autogen.invalid"
+            tenant = Tenant(id=client_ref_id, email=email_to_use, name=email_to_use.split('@')[0], version=0)
+            db.add(tenant)
+            await db.flush()
 
     if not tenant and customer_email:
         tenant = await _get_or_create_tenant_by_email(db, customer_email)
@@ -159,21 +170,26 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         except Exception as e:
             logger.warning(f"Could not retrieve authoritative line items from Stripe API for session {session_id}: {e}")
 
-    plan_code = None
-    if price_id:
-        if price_id in (settings.STRIPE_PRICE_LIFETIME, "price_lifetime_8900", "price_lifetime_14900"):
-            plan_code = "lifetime"
-        elif price_id in (settings.STRIPE_PRICE_PRO_MONTHLY, "price_pro_2900", "price_pro_1900"):
-            plan_code = "pro"
-        elif price_id in (settings.STRIPE_PRICE_STARTER_MONTHLY, "price_starter_490"):
-            plan_code = "starter"
-        else:
-            plan_code = None # Explicitly unrecognized price catalog ID
-    else:
-        plan_code = None
+    currency = (session.get("currency") or "eur").lower()
+    amount_total = session.get("amount_total", 0) # in cents
 
-    # Unknown or missing price catalog ID must be quarantined, NEVER granted active access (B06 / Architect decision)
-    ent_status = "active" if plan_code else "quarantined"
+    plan_code = None
+    ent_status = "quarantined"
+
+    # Strict catalog, currency and amount verification (Decision 24)
+    if currency != "eur":
+        logger.warning(f"Unsupported currency '{currency}' for checkout session {session_id}. Quarantining.")
+    elif price_id in PRICE_CATALOG:
+        expected = PRICE_CATALOG[price_id]
+        if amount_total > 0 and amount_total != expected["amount_cents"]:
+            logger.warning(
+                f"Amount mismatch for price {price_id}: expected {expected['amount_cents']}, got {amount_total}. Quarantining."
+            )
+        else:
+            plan_code = expected["plan"]
+            ent_status = "active"
+    else:
+        logger.warning(f"Unrecognized or missing price ID '{price_id}' for session {session_id}. Quarantining.")
 
     if mode == "payment":
         # Check existing entitlement for idempotent upsert
@@ -243,13 +259,40 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any]):
             ent.status = "quarantined"
         else:
             ent.status = "active"
+
+        # Update valid_until from lines period.end or period_end
+        lines = invoice.get("lines", {}).get("data", [])
+        period_end_ts = None
+        if lines:
+            period_end_ts = lines[0].get("period", {}).get("end")
+        if not period_end_ts:
+            period_end_ts = invoice.get("period_end")
+        if period_end_ts:
+            ent.valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
+
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()
+
+async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, Any]):
+    sub_id = invoice.get("subscription")
+    if not sub_id:
+        return
+    query = select(Entitlement).where(Entitlement.source_id == sub_id)
+    ent = (await db.execute(query)).scalars().first()
+    if ent:
+        if ent.status == "canceled":
+            logger.warning(f"Subscription {sub_id} is already canceled. Ignoring invoice.payment_failed.")
+            return
+        ent.status = "past_due"
+        ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
+        await db.flush()
+        logger.info(f"Subscription {sub_id} marked as past_due due to invoice.payment_failed.")
 
 async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
     sub_id = sub.get("id")
     status_val = sub.get("status") # active, past_due, canceled, unpaid
-    mapped_status = "active" if status_val in ("active", "trialing") else ("past_due" if status_val == "past_due" else "canceled")
+    cancel_at_period_end = sub.get("cancel_at_period_end", False)
+    current_period_end_ts = sub.get("current_period_end")
     
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
@@ -257,6 +300,29 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
         if ent.status == "canceled":
             logger.warning(f"Subscription {sub_id} is already canceled. Ignoring stale subscription.updated.")
             return
+
+        if current_period_end_ts:
+            ent.valid_until = datetime.datetime.fromtimestamp(current_period_end_ts, tz=datetime.timezone.utc)
+
+        # Check plan code update from items if present
+        items = sub.get("items", {}).get("data", [])
+        if items:
+            p_id = items[0].get("price", {}).get("id")
+            if p_id in PRICE_CATALOG:
+                ent.plan_code = PRICE_CATALOG[p_id]["plan"]
+
+        if status_val == "canceled":
+            mapped_status = "canceled"
+        elif status_val == "past_due":
+            mapped_status = "past_due"
+        elif cancel_at_period_end and status_val in ("active", "trialing"):
+            # Grace period active until valid_until
+            mapped_status = "active"
+        elif status_val in ("active", "trialing"):
+            mapped_status = "active"
+        else:
+            mapped_status = "canceled"
+
         if mapped_status == "active" and ent.plan_code is None:
             logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
             ent.status = "quarantined"
