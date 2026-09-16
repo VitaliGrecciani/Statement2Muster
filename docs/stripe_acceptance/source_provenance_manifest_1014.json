@@ -1,0 +1,177 @@
+{
+  "provenance_verification": {
+    "timestamp": "2026-09-16T22:28:19+02:00",
+    "verified_at": "2026-09-16T22:46:02Z",
+    "release_commit": "5599c4c5621493066e2eac5c96ac6637a5624e78",
+    "release_tag": "1.0.14",
+    "container_id": "06d151787c832a4bcc732266ef88fe8bb92ebb6b5f20e374690bd4106fe974b4",
+    "image_id": "sha256:b90fefef75a84ff36a3861b3f32ce126e70a53186f0c0bc7ffb519efc2477edb",
+    "normalization": "LF line endings (b'\\r\\n' -> b'\\n')",
+    "verdict": "VERIFIED_IDENTICAL"
+  },
+  "summary": {
+    "total_git_files": 31,
+    "total_container_files": 31,
+    "matched_files": 31,
+    "missing_in_container": [],
+    "extra_in_container": [],
+    "hash_mismatches": []
+  },
+  "files": [
+    {
+      "path": "api/__init__.py",
+      "sha256": "9e4465a14108263e19793726d23ca5c63be17d9bd23a853133e8378b5abaeb54",
+      "status": "MATCH"
+    },
+    {
+      "path": "api/endpoints/__init__.py",
+      "sha256": "79203c5f8bc1e7bdcc4a33ad6a180a03128970d4b151e4d41723cc9a673fa0a6",
+      "status": "MATCH"
+    },
+    {
+      "path": "api/endpoints/auth.py",
+      "sha256": "308d914dcfafc8d5a80f4feb9da67024b36f7f18345ef87b49a3d01a842407ad",
+      "status": "MATCH"
+    },
+    {
+      "path": "api/endpoints/billing.py",
+      "sha256": "85f19a0da81d6bb85d7e69afcc6eff553c99d146e08d6338144f5176f0d7de28",
+      "status": "MATCH"
+    },
+    {
+      "path": "api/endpoints/entitlements.py",
+      "sha256": "3d48e81f177721d4a1d94ab146dc04d9cb2239e3625bd549796c5d3f8c2b60ea",
+      "status": "MATCH"
+    },
+    {
+      "path": "core/__init__.py",
+      "sha256": "ba05044512f533853aff28ca0189c9a09fe89253ffb822c51eec266155eda5d3",
+      "status": "MATCH"
+    },
+    {
+      "path": "core/cache.py",
+      "sha256": "9ad5da4b33b49384c10d9e0af2175d9421845edea09138cb49002cd6e89294e2",
+      "status": "MATCH"
+    },
+    {
+      "path": "core/config.py",
+      "sha256": "90c1bf028feff51444e23126f949956970764c318f7276adce42684209791fd6",
+      "status": "MATCH"
+    },
+    {
+      "path": "core/middleware.py",
+      "sha256": "d73c45ff40e9c8171743455e7dcb9fa87d8569508c59d032cac79b311fe3ffc6",
+      "status": "MATCH"
+    },
+    {
+      "path": "core/security.py",
+      "sha256": "8dbaff1c946772df3edc38c8cbbd0d45b156450fbc372354d224030bd015a320",
+      "status": "MATCH"
+    },
+    {
+      "path": "db/__init__.py",
+      "sha256": "e389cbf2dff116cf00c82e9b7e3571af6279467d0d093bffa291410c054eba0a",
+      "status": "MATCH"
+    },
+    {
+      "path": "db/models.py",
+      "sha256": "4ea9b25fa23d7e3204718294296e69fa876e8b45a8713afc70e703e850c27787",
+      "status": "MATCH"
+    },
+    {
+      "path": "db/session.py",
+      "sha256": "86fabf4d733b6d39f3cdbe9bd1429382b9d303a84b4a73dfdcae412649b8052e",
+      "status": "MATCH"
+    },
+    {
+      "path": "exporters/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "MATCH"
+    },
+    {
+      "path": "exporters/bmd.py",
+      "sha256": "771a525046bfe6b11a0090b42fbf3756320d09ba2d43d1191cb4adb211d448ce",
+      "status": "MATCH"
+    },
+    {
+      "path": "exporters/datev.py",
+      "sha256": "099522c8623adf53b20abd4344b8ece396abbc96d5a89c3221d89fbebef5de7e",
+      "status": "MATCH"
+    },
+    {
+      "path": "exporters/muster_csv.py",
+      "sha256": "3a089c6247ac03f6d7181f6155ea7d63adb14a44c8080f3ab8ea16dd47aeacf3",
+      "status": "MATCH"
+    },
+    {
+      "path": "main.py",
+      "sha256": "69a6e527720b278b4c59aef3eda721f4283fcab3d27778e7ef786a5fa9eae91f",
+      "status": "MATCH"
+    },
+    {
+      "path": "parsers/__init__.py",
+      "sha256": "865a462957523cef784dd2c7c0f871bca8110e9db1afa5c77cf62190332b3816",
+      "status": "MATCH"
+    },
+    {
+      "path": "parsers/amex_parser.py",
+      "sha256": "8188dcc69ce96a8f55ae84ab175a4c62c44f84c35364916b0338a04fcaba2d29",
+      "status": "MATCH"
+    },
+    {
+      "path": "parsers/base.py",
+      "sha256": "1fd4e73b81334a6a93a5ad9f67f977d410d1558fcc52c6572090541bb9df3df1",
+      "status": "MATCH"
+    },
+    {
+      "path": "parsers/csv_parser.py",
+      "sha256": "9e15b88496056f931d2df1ddd8216d04aa77c9c10705a3a1e5039dbe36b60101",
+      "status": "MATCH"
+    },
+    {
+      "path": "parsers/registry.py",
+      "sha256": "f975bb9e37ffcaa5b6db8d49a06445eb79952d67ec3139bb998450678c0606e8",
+      "status": "MATCH"
+    },
+    {
+      "path": "schemas/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "MATCH"
+    },
+    {
+      "path": "schemas/canonical.py",
+      "sha256": "42e6f96f9497210bc67d649b128c89129928e0a986febf303797923f79f7f4a4",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/__init__.py",
+      "sha256": "c952fde4981fdca232b56362500c998c90689bb4be2aab2e02497f4311cddab3",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/billing_service.py",
+      "sha256": "8460bf3cac4f769a61d8fda55f0afb407b6aa10e70b7226c1c5c4b70a1bf751e",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/email_service.py",
+      "sha256": "89ab7d9d4a0a1f02a3ecb8a9f9a9a01db5b5547b35199be6cc9c9cf6a50e46be",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/parser_process_supervisor.py",
+      "sha256": "a8e5924229510f47134af7e462dae0de75a446b5e18573287e2486c7e4627060",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/quota_service.py",
+      "sha256": "5aa18ff8bd79615f4cbe6aa916aa1eb726b29395f624323713e514a0b4d778f7",
+      "status": "MATCH"
+    },
+    {
+      "path": "services/reconciliation_service.py",
+      "sha256": "da53ab7b8d749467b351153548936805f89dabc8398d93bdf684054b0796b2a1",
+      "status": "MATCH"
+    }
+  ]
+}
