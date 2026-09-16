@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-09-16T11:13:33Z",
+  "timestamp": "2026-09-16T11:32:33Z",
   "test_suite": "Stripe Lifecycle & Entitlements Acceptance Suite (Priority A / Sandbox)",
   "architect_decision": "Decision 24 (24_SMTP_STATUS_AND_FULL_GO_PLAN_2026-09-14.md)",
   "provenance": {
-    "git_commit": "785ead5f6cee448f86fd634d65771dd0a2fda44c",
+    "git_commit": "0375d80ff97a7f4a7c7074236cf09e40ef93ea2d",
     "api_url": "http://127.0.0.1:8000",
     "hetzner_host": "46.225.95.36",
-    "backend_image": "statement2muster-api:1.0.6",
-    "backend_image_id": "sha256:83cac5653dff598899ab3f585ec6773a9f86f069a58870fee614785721f3251f",
-    "backend_container_id": "27a358f156c02b5ed2b3a9116a6508ce3f439eb0beedb378731dd09d2c8126b8",
+    "backend_image": "statement2muster-api:1.0.7",
+    "backend_image_id": "sha256:6218505273aa320b30604ff526036932b51f846b5cdc6c01951feacf2de1b34e",
+    "backend_container_id": "c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048",
     "stripe_mode": "sandbox",
     "webhook_secret_prefix": "whsec_he..."
   },
@@ -27,7 +27,7 @@
     },
     "scenario_04_subscription_renewal": {
       "status": "PASS",
-      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T11:13:36."
+      "details": "invoice.paid successfully renewed subscription, valid_until extended to 2026-10-16T11:32:36."
     },
     "scenario_05_payment_failed": {
       "status": "PASS",
@@ -64,12 +64,44 @@
     "scenario_13_multi_tenant_isolation": {
       "status": "PASS",
       "details": "Tenants strictly isolated by tenant_id. Cross-tenant entitlement leakage impossible."
+    },
+    "scenario_14_s01_strict_amount_currency_mode": {
+      "status": "PASS",
+      "details": "0 amount, omitted amount, negative amount, missing currency, and mismatched mode/plan all quarantined with zero privilege escalation."
+    },
+    "scenario_15_s02_late_checkout_no_revive": {
+      "status": "PASS",
+      "details": "Late checkout.session.completed event cannot revive a canceled subscription. Entitlement remains safely revoked."
+    },
+    "scenario_16_s03_out_of_order_permutation_a": {
+      "status": "PASS",
+      "details": "Permutation A (newer invoice.paid then late invoice.payment_failed): active status and valid_until preserved without degradation."
+    },
+    "scenario_17_s03_out_of_order_permutation_b": {
+      "status": "PASS",
+      "details": "Permutation B (newer invoice.payment_failed then late older invoice.paid): past_due status retained, stale paid ignored."
+    },
+    "scenario_18_s03_valid_until_monotonicity": {
+      "status": "PASS",
+      "details": "Strict forward-only valid_until guarantee verified: older period invoice cannot roll back expiration date."
+    },
+    "scenario_19_s04_subscription_updated_unknown_price": {
+      "status": "PASS",
+      "details": "subscription.updated with unknown price ID immediately stripped plan_code and quarantined entitlement (no old privileges inherited)."
+    },
+    "scenario_20_s04_mode_mismatch_on_update": {
+      "status": "PASS",
+      "details": "subscription.updated with non-recurring price quarantined immediately."
+    },
+    "scenario_21_starter_quota_renewal_boundary": {
+      "status": "PASS",
+      "details": "Starter 20 units exhausted -> 429 verified -> invoice.paid renewal extends billing cycle -> quota resets to 20 statements -> conversion succeeds."
     }
   },
   "overall_status": "PASSED",
   "summary": {
-    "total_scenarios": 13,
-    "passed": 13,
+    "total_scenarios": 21,
+    "passed": 21,
     "failed": 0
   }
 }

@@ -60,6 +60,8 @@ class Entitlement(Base):
     source_id = Column(String(255), nullable=True) # stripe subscription ID or checkout session ID
     payment_intent = Column(String(255), nullable=True, index=True) # stripe payment_intent ID
     valid_until = Column(DateTime, nullable=True) # Null for Lifetime or active auto-renew
+    current_period_start = Column(DateTime, nullable=True) # Start of authoritative billing cycle (Section 3)
+    last_event_created_at = Column(Integer, default=0, nullable=True) # Unix timestamp of latest processed Stripe event (S03)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 

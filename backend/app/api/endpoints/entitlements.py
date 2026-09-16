@@ -41,12 +41,18 @@ async def get_my_entitlements(
 
     elif plan == "starter":
         quota_limit = 20
-        period_start = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+        if ent.valid_until:
+            exp = ent.valid_until.replace(tzinfo=datetime.timezone.utc) if ent.valid_until.tzinfo is None else ent.valid_until
+            period_start = exp - datetime.timedelta(days=30)
+        else:
+            period_start = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
+
+        period_start_val = period_start.replace(tzinfo=None) if period_start.tzinfo else period_start
         sum_query = select(func.coalesce(func.sum(UsageReservation.units), 0)).where(
             and_(
                 UsageReservation.tenant_id == tenant_id,
                 UsageReservation.status == "COMMITTED",
-                UsageReservation.created_at >= period_start
+                UsageReservation.created_at >= period_start_val
             )
         )
         used_units = (await db.execute(sum_query)).scalar()

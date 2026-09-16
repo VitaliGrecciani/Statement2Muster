@@ -126,16 +126,27 @@ async def check_and_reserve_quota(
             )
 
     elif plan == "starter":
-        # 20 files per billing period (30-day window or subscription interval)
-        period_start = now_utc - datetime.timedelta(days=30)
+        # 20 files per billing period:
+        # Align with current subscription billing cycle (Section 3)
+        if ent.current_period_start:
+            period_start = ent.current_period_start.replace(tzinfo=datetime.timezone.utc) if ent.current_period_start.tzinfo is None else ent.current_period_start
+        elif ent.valid_until:
+            exp = ent.valid_until if ent.valid_until.tzinfo else ent.valid_until.replace(tzinfo=datetime.timezone.utc)
+            period_start = exp - datetime.timedelta(days=30)
+        else:
+            period_start = now_utc - datetime.timedelta(days=30)
+
+        period_start_val = period_start.replace(tzinfo=None) if period_start.tzinfo else period_start
+        pending_cutoff_val = pending_cutoff.replace(tzinfo=None) if pending_cutoff.tzinfo else pending_cutoff
+
         sum_query = select(func.coalesce(func.sum(UsageReservation.units), 0)).where(
             and_(
                 UsageReservation.tenant_id == tenant_id,
                 or_(
                     UsageReservation.status == "COMMITTED",
-                    and_(UsageReservation.status == "RESERVED", UsageReservation.created_at >= pending_cutoff)
+                    and_(UsageReservation.status == "RESERVED", UsageReservation.created_at >= pending_cutoff_val)
                 ),
-                UsageReservation.created_at >= period_start
+                UsageReservation.created_at >= period_start_val
             )
         )
         used = (await db.execute(sum_query)).scalar()

@@ -44,6 +44,14 @@ async def init_db():
                 if "request_hash" not in columns:
                     sync_conn.execute(text("ALTER TABLE usage_reservations ADD COLUMN request_hash VARCHAR(64)"))
 
+            # 4. Check entitlements.last_event_created_at (S03)
+            if "entitlements" in inspector.get_table_names():
+                columns = [col["name"] for col in inspector.get_columns("entitlements")]
+                if "last_event_created_at" not in columns:
+                    sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN last_event_created_at INTEGER DEFAULT 0"))
+                if "current_period_start" not in columns:
+                    sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN current_period_start DATETIME"))
+
         await conn.run_sync(migrate)
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

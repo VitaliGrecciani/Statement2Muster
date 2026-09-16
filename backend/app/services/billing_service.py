@@ -12,15 +12,23 @@ logger = logging.getLogger("statement2muster.billing")
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 PRICE_CATALOG = {
-    settings.STRIPE_PRICE_STARTER_MONTHLY: {"plan": "starter", "amount_cents": 490, "currency": "eur"},
-    "price_starter_490": {"plan": "starter", "amount_cents": 490, "currency": "eur"},
-    settings.STRIPE_PRICE_PRO_MONTHLY: {"plan": "pro", "amount_cents": 2900, "currency": "eur"},
-    "price_pro_2900": {"plan": "pro", "amount_cents": 2900, "currency": "eur"},
-    "price_pro_1900": {"plan": "pro", "amount_cents": 1900, "currency": "eur"},
-    settings.STRIPE_PRICE_LIFETIME: {"plan": "lifetime", "amount_cents": 8900, "currency": "eur"},
-    "price_lifetime_8900": {"plan": "lifetime", "amount_cents": 8900, "currency": "eur"},
-    "price_lifetime_14900": {"plan": "lifetime", "amount_cents": 14900, "currency": "eur"},
+    settings.STRIPE_PRICE_STARTER_MONTHLY: {"plan": "starter", "amount_cents": 490, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    "price_starter_490": {"plan": "starter", "amount_cents": 490, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    settings.STRIPE_PRICE_PRO_MONTHLY: {"plan": "pro", "amount_cents": 2900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    "price_pro_2900": {"plan": "pro", "amount_cents": 2900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    "price_pro_1900": {"plan": "pro", "amount_cents": 1900, "currency": "eur", "expected_mode": "subscription", "interval": "month"},
+    settings.STRIPE_PRICE_LIFETIME: {"plan": "lifetime", "amount_cents": 8900, "currency": "eur", "expected_mode": "payment", "interval": None},
+    "price_lifetime_8900": {"plan": "lifetime", "amount_cents": 8900, "currency": "eur", "expected_mode": "payment", "interval": None},
+    "price_lifetime_14900": {"plan": "lifetime", "amount_cents": 14900, "currency": "eur", "expected_mode": "payment", "interval": None},
 }
+
+def to_utc(dt: Optional[datetime.datetime]) -> Optional[datetime.datetime]:
+    """Ensures datetime is timezone-aware UTC for safe comparisons across DB backends."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc)
 
 def verify_stripe_signature(payload_bytes: bytes, sig_header: str) -> Dict[str, Any]:
     """Validates raw request body against Stripe webhook secret."""
@@ -71,20 +79,27 @@ async def process_stripe_event(db: AsyncSession, event: Any) -> Dict[str, Any]:
     await db.flush()
 
     event_data = event.get("data", {}).get("object", {})
+    raw_event_created = event.get("created")
+    event_created_ts = raw_event_created if (isinstance(raw_event_created, int) and raw_event_created > 0) else None
 
     try:
         if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
-            await _handle_checkout_completed(db, event_data, is_async_success=(event_type == "checkout.session.async_payment_succeeded"))
+            await _handle_checkout_completed(
+                db,
+                event_data,
+                is_async_success=(event_type == "checkout.session.async_payment_succeeded"),
+                event_created_ts=event_created_ts
+            )
         elif event_type == "invoice.paid":
-            await _handle_invoice_paid(db, event_data)
+            await _handle_invoice_paid(db, event_data, event_created_ts=event_created_ts)
         elif event_type == "invoice.payment_failed":
-            await _handle_invoice_payment_failed(db, event_data)
+            await _handle_invoice_payment_failed(db, event_data, event_created_ts=event_created_ts)
         elif event_type == "customer.subscription.updated":
-            await _handle_subscription_updated(db, event_data)
+            await _handle_subscription_updated(db, event_data, event_created_ts=event_created_ts)
         elif event_type == "customer.subscription.deleted":
-            await _handle_subscription_deleted(db, event_data)
+            await _handle_subscription_deleted(db, event_data, event_created_ts=event_created_ts)
         elif event_type == "charge.refunded":
-            await _handle_charge_refunded(db, event_data)
+            await _handle_charge_refunded(db, event_data, event_created_ts=event_created_ts)
         
         inbox_entry.status = "processed"
         await db.flush()
@@ -109,7 +124,12 @@ async def _get_or_create_tenant_by_email(db: AsyncSession, email: str) -> Tenant
         await db.flush()
     return tenant
 
-async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], is_async_success: bool = False):
+async def _handle_checkout_completed(
+    db: AsyncSession,
+    session: Dict[str, Any],
+    is_async_success: bool = False,
+    event_created_ts: Optional[int] = None
+):
     payment_status = session.get("payment_status", "").lower()
     if is_async_success:
         payment_status = "paid"
@@ -170,35 +190,53 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
         except Exception as e:
             logger.warning(f"Could not retrieve authoritative line items from Stripe API for session {session_id}: {e}")
 
-    currency = (session.get("currency") or "eur").lower()
-    amount_total = session.get("amount_total", 0) # in cents
+    raw_currency = session.get("currency")
+    amount_total = session.get("amount_total")
 
     plan_code = None
     ent_status = "quarantined"
 
-    # Strict catalog, currency and amount verification (Decision 24)
-    if currency != "eur":
-        logger.warning(f"Unsupported currency '{currency}' for checkout session {session_id}. Quarantining.")
-    elif price_id in PRICE_CATALOG:
+    # Strict catalog, currency, amount and mode verification (Decision 32: S01, S04)
+    # Financial policy: All catalog plans have strict fixed EUR gross amounts (VAT included).
+    # No client-side discounts, 0 amounts, negative values or missing fields are permitted.
+    if not isinstance(raw_currency, str) or raw_currency.strip().lower() != "eur":
+        logger.warning(f"Invalid or missing currency '{raw_currency}' for checkout session {session_id}. Quarantining.")
+    elif not price_id or price_id not in PRICE_CATALOG:
+        logger.warning(f"Unrecognized or missing price ID '{price_id}' for session {session_id}. Quarantining.")
+    else:
         expected = PRICE_CATALOG[price_id]
-        if amount_total > 0 and amount_total != expected["amount_cents"]:
+        # Strict validation of amount_total: must be int, > 0, exact match with catalog (S01)
+        if type(amount_total) is not int or amount_total <= 0 or amount_total != expected["amount_cents"]:
             logger.warning(
-                f"Amount mismatch for price {price_id}: expected {expected['amount_cents']}, got {amount_total}. Quarantining."
+                f"Amount validation failed for price {price_id}: expected {expected['amount_cents']}, got {amount_total} (type={type(amount_total).__name__}). Quarantining."
+            )
+        # Strict validation of mode vs catalog plan (S04)
+        elif mode != expected.get("expected_mode"):
+            logger.warning(
+                f"Mode mismatch for price {price_id}: expected '{expected.get('expected_mode')}', got '{mode}'. Quarantining."
             )
         else:
             plan_code = expected["plan"]
             ent_status = "active"
-    else:
-        logger.warning(f"Unrecognized or missing price ID '{price_id}' for session {session_id}. Quarantining.")
 
     if mode == "payment":
         # Check existing entitlement for idempotent upsert
         existing = (await db.execute(select(Entitlement).where(Entitlement.source_id == session_id))).scalars().first()
         if existing:
+            # S02: If existing entitlement was canceled/refunded, do NOT revive it!
+            if existing.status == "canceled":
+                logger.warning(f"One-time payment {session_id} is already canceled/refunded. Ignoring late checkout session.")
+                return
+            # S03: Out-of-order check
+            if existing.last_event_created_at and event_created_ts and event_created_ts < existing.last_event_created_at:
+                logger.warning(f"Late out-of-order checkout session {session_id}. Ignoring.")
+                return
             # If existing entitlement was quarantined / unfulfilled and authoritative plan arrives, update it
             if existing.plan_code is None and plan_code is not None:
                 existing.plan_code = plan_code
                 existing.status = ent_status
+                if event_created_ts:
+                    existing.last_event_created_at = event_created_ts
                 existing.updated_at = datetime.datetime.now(datetime.timezone.utc)
                 await db.flush()
                 logger.info(f"Idempotent fulfillment: updated session {session_id} to active plan {plan_code}")
@@ -213,10 +251,12 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
             source_type="one_time",
             source_id=session_id,
             payment_intent=pi_id,
-            valid_until=None
+            valid_until=None, # Lifetime access never expires
+            last_event_created_at=event_created_ts or 0
         )
         db.add(ent)
         await db.flush()
+
     elif mode == "subscription":
         sub_id = session.get("subscription")
         if not sub_id:
@@ -225,13 +265,26 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
 
         existing_sub = (await db.execute(select(Entitlement).where(Entitlement.source_id == sub_id))).scalars().first()
         if existing_sub:
-            if plan_code:
+            # S02: If existing subscription is canceled, do NOT revive it!
+            if existing_sub.status == "canceled":
+                logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late checkout session {session_id}.")
+                return
+            # S03: Out-of-order check
+            if existing_sub.last_event_created_at and event_created_ts and event_created_ts < existing_sub.last_event_created_at:
+                logger.warning(f"Late out-of-order checkout session {session_id} for subscription {sub_id}. Ignoring.")
+                return
+            if plan_code and existing_sub.status == "quarantined" and ent_status == "active":
                 existing_sub.plan_code = plan_code
-            existing_sub.status = ent_status
+                existing_sub.status = "active"
+            if event_created_ts and (not existing_sub.last_event_created_at or event_created_ts > existing_sub.last_event_created_at):
+                existing_sub.last_event_created_at = event_created_ts
             existing_sub.updated_at = datetime.datetime.now(datetime.timezone.utc)
             await db.flush()
             return
 
+        now_ts = datetime.datetime.now(datetime.timezone.utc)
+        initial_period_start = now_ts - datetime.timedelta(seconds=10)
+        initial_valid_until = (now_ts + datetime.timedelta(days=30)) if ent_status == "active" else None
         ent = Entitlement(
             tenant_id=tenant.id,
             plan_code=plan_code,
@@ -239,56 +292,133 @@ async def _handle_checkout_completed(db: AsyncSession, session: Dict[str, Any], 
             source_type="subscription",
             source_id=sub_id,
             payment_intent=pi_id,
-            valid_until=None
+            current_period_start=initial_period_start if ent_status == "active" else None,
+            valid_until=initial_valid_until,
+            last_event_created_at=event_created_ts or 0
         )
         db.add(ent)
         await db.flush()
 
-async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any]):
+    else:
+        logger.warning(f"Unknown checkout mode '{mode}' for session {session_id}. Quarantining.")
+        ent = Entitlement(
+            tenant_id=tenant.id,
+            plan_code=None,
+            status="quarantined",
+            source_type="unknown",
+            source_id=session_id,
+            payment_intent=pi_id,
+            valid_until=None,
+            last_event_created_at=event_created_ts or 0
+        )
+        db.add(ent)
+        await db.flush()
+
+async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_created_ts: Optional[int] = None):
     sub_id = invoice.get("subscription")
     if not sub_id:
         return
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
-    if ent:
-        if ent.status == "canceled":
-            logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late invoice.paid.")
+    if not ent:
+        return
+
+    # S02: Canceled subscription cannot be revived by late invoice.paid
+    if ent.status == "canceled":
+        logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late invoice.paid.")
+        return
+
+    # S03: Out-of-order check based on event creation timestamp
+    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
+        logger.warning(
+            f"Stale invoice.paid for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
+        )
+        return
+
+    # S03 & Section 3: Authoritative period tracking
+    lines = invoice.get("lines", {}).get("data", [])
+    period_start_ts = None
+    period_end_ts = None
+    if lines:
+        period_start_ts = lines[0].get("period", {}).get("start")
+        period_end_ts = lines[0].get("period", {}).get("end")
+    if not period_end_ts:
+        period_end_ts = invoice.get("period_end")
+
+    if period_end_ts:
+        new_valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
+        cur_valid = to_utc(ent.valid_until)
+        if cur_valid and new_valid_until < cur_valid:
+            logger.warning(
+                f"Stale invoice.paid for subscription {sub_id}: period end {new_valid_until} < current valid_until {cur_valid}. Ignoring."
+            )
             return
-        if ent.plan_code is None:
-            logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
-            ent.status = "quarantined"
-        else:
-            ent.status = "active"
+        if cur_valid is None or new_valid_until >= cur_valid:
+            ent.valid_until = new_valid_until
+            if period_start_ts:
+                ent.current_period_start = datetime.datetime.fromtimestamp(period_start_ts, tz=datetime.timezone.utc)
+            elif ent.current_period_start is None:
+                ent.current_period_start = new_valid_until - datetime.timedelta(days=30)
 
-        # Update valid_until from lines period.end or period_end
-        lines = invoice.get("lines", {}).get("data", [])
-        period_end_ts = None
-        if lines:
-            period_end_ts = lines[0].get("period", {}).get("end")
-        if not period_end_ts:
-            period_end_ts = invoice.get("period_end")
-        if period_end_ts:
-            ent.valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
+    if ent.plan_code is None:
+        logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
+        ent.status = "quarantined"
+    else:
+        ent.status = "active"
 
-        ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        await db.flush()
+    if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+        ent.last_event_created_at = event_created_ts
 
-async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, Any]):
+    ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    await db.flush()
+
+async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, Any], event_created_ts: Optional[int] = None):
     sub_id = invoice.get("subscription")
     if not sub_id:
         return
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
-    if ent:
-        if ent.status == "canceled":
-            logger.warning(f"Subscription {sub_id} is already canceled. Ignoring invoice.payment_failed.")
-            return
-        ent.status = "past_due"
-        ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        await db.flush()
-        logger.info(f"Subscription {sub_id} marked as past_due due to invoice.payment_failed.")
+    if not ent:
+        return
 
-async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
+    # S02: Canceled subscription cannot transition to past_due
+    if ent.status == "canceled":
+        logger.warning(f"Subscription {sub_id} is already canceled. Ignoring invoice.payment_failed.")
+        return
+
+    # S03: Out-of-order check based on event creation timestamp
+    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
+        logger.warning(
+            f"Stale invoice.payment_failed for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
+        )
+        return
+
+    # S03: Period ordering check: if current valid_until is ahead of the failed invoice period, ignore
+    lines = invoice.get("lines", {}).get("data", [])
+    period_end_ts = None
+    if lines:
+        period_end_ts = lines[0].get("period", {}).get("end")
+    if not period_end_ts:
+        period_end_ts = invoice.get("period_end")
+
+    if period_end_ts and ent.valid_until:
+        failed_period_end = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
+        cur_valid = to_utc(ent.valid_until)
+        if cur_valid and failed_period_end < cur_valid:
+            logger.warning(
+                f"Stale invoice.payment_failed for subscription {sub_id}: failed period {failed_period_end} < current valid_until {cur_valid}. Ignoring."
+            )
+            return
+
+    ent.status = "past_due"
+    if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+        ent.last_event_created_at = event_created_ts
+
+    ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    await db.flush()
+    logger.info(f"Subscription {sub_id} marked as past_due due to invoice.payment_failed.")
+
+async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any], event_created_ts: Optional[int] = None):
     sub_id = sub.get("id")
     status_val = sub.get("status") # active, past_due, canceled, unpaid
     cancel_at_period_end = sub.get("cancel_at_period_end", False)
@@ -296,21 +426,47 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
     
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
-    if ent:
-        if ent.status == "canceled":
-            logger.warning(f"Subscription {sub_id} is already canceled. Ignoring stale subscription.updated.")
-            return
+    if not ent:
+        return
 
-        if current_period_end_ts:
-            ent.valid_until = datetime.datetime.fromtimestamp(current_period_end_ts, tz=datetime.timezone.utc)
+    # S02: Canceled subscription cannot be revived
+    if ent.status == "canceled":
+        logger.warning(f"Subscription {sub_id} is already canceled. Ignoring stale subscription.updated.")
+        return
 
-        # Check plan code update from items if present
-        items = sub.get("items", {}).get("data", [])
-        if items:
-            p_id = items[0].get("price", {}).get("id")
-            if p_id in PRICE_CATALOG:
-                ent.plan_code = PRICE_CATALOG[p_id]["plan"]
+    # S03: Out-of-order check based on event creation timestamp
+    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
+        logger.warning(
+            f"Stale subscription.updated for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
+        )
+        return
 
+    # Update valid_until forward only
+    if current_period_end_ts:
+        new_valid = datetime.datetime.fromtimestamp(current_period_end_ts, tz=datetime.timezone.utc)
+        cur_valid = to_utc(ent.valid_until)
+        if cur_valid is None or new_valid >= cur_valid:
+            ent.valid_until = new_valid
+
+    # S04: Check items and price ID in catalog.
+    # An unknown price ID or incompatible mode must NOT preserve existing privileges!
+    items = sub.get("items", {}).get("data", [])
+    if items:
+        p_id = items[0].get("price", {}).get("id")
+        if p_id in PRICE_CATALOG:
+            cat_entry = PRICE_CATALOG[p_id]
+            if cat_entry.get("expected_mode") != "subscription":
+                logger.warning(f"Subscription {sub_id} item price {p_id} has invalid mode {cat_entry.get('expected_mode')}. Quarantining.")
+                ent.plan_code = None
+                ent.status = "quarantined"
+            else:
+                ent.plan_code = cat_entry["plan"]
+        else:
+            logger.warning(f"Subscription {sub_id} item price '{p_id}' unknown in catalog. Stripping plan_code and quarantining.")
+            ent.plan_code = None
+            ent.status = "quarantined"
+
+    if ent.status != "quarantined":
         if status_val == "canceled":
             mapped_status = "canceled"
         elif status_val == "past_due":
@@ -328,19 +484,25 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any]):
             ent.status = "quarantined"
         else:
             ent.status = mapped_status
-        ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        await db.flush()
 
-async def _handle_subscription_deleted(db: AsyncSession, sub: Dict[str, Any]):
+    if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+        ent.last_event_created_at = event_created_ts
+
+    ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    await db.flush()
+
+async def _handle_subscription_deleted(db: AsyncSession, sub: Dict[str, Any], event_created_ts: Optional[int] = None):
     sub_id = sub.get("id")
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
     if ent:
         ent.status = "canceled"
+        if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+            ent.last_event_created_at = event_created_ts
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()
 
-async def _handle_charge_refunded(db: AsyncSession, charge: Dict[str, Any]):
+async def _handle_charge_refunded(db: AsyncSession, charge: Dict[str, Any], event_created_ts: Optional[int] = None):
     # If refund corresponds to a lifetime or subscription checkout, cancel entitlement
     from sqlalchemy import or_
     payment_intent = str(charge.get("payment_intent") or "").strip()
@@ -357,5 +519,7 @@ async def _handle_charge_refunded(db: AsyncSession, charge: Dict[str, Any]):
     ent = (await db.execute(query)).scalars().first()
     if ent:
         ent.status = "canceled"
+        if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+            ent.last_event_created_at = event_created_ts
         ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
         await db.flush()

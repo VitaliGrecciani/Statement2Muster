@@ -1,0 +1,198 @@
+{
+  "Id": "c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048",
+  "Created": "2026-09-16T11:30:06.060225005Z",
+  "Path": "uvicorn",
+  "Args": [
+    "app.main:app",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000"
+  ],
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 1006140,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-16T11:30:07.734630946Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-09-16T11:31:59.52000973Z",
+          "End": "2026-09-16T11:31:59.74601768Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-09-16T11:32:14.747216464Z",
+          "End": "2026-09-16T11:32:14.995580796Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-09-16T11:32:29.996774351Z",
+          "End": "2026-09-16T11:32:30.250149603Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-09-16T11:32:45.250889977Z",
+          "End": "2026-09-16T11:32:45.500229794Z",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-09-16T11:33:00.501343677Z",
+          "End": "2026-09-16T11:33:00.799735723Z",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Image": "sha256:6218505273aa320b30604ff526036932b51f846b5cdc6c01951feacf2de1b34e",
+  "ResolvConfPath": "/var/lib/docker/containers/c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048/hostname",
+  "HostsPath": "/var/lib/docker/containers/c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048/hosts",
+  "LogPath": "/var/lib/docker/containers/c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048/c8f036b6eac98799156e70bce37f748fad33f4e38d6d2827f46a0708793a1048-json.log",
+  "Name": "/s2m-backend-api",
+  "RestartCount": 0,
+  "Driver": "overlayfs",
+  "Platform": "linux",
+  "Mounts": [
+    {
+      "Type": "volume",
+      "Name": "statement2muster_s2m-data",
+      "Source": "/var/lib/docker/volumes/statement2muster_s2m-data/_data",
+      "Destination": "/app/data",
+      "Driver": "local",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": ""
+    }
+  ],
+  "Config": {
+    "Hostname": "c8f036b6eac9",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "ExposedPorts": {
+      "8000/tcp": {}
+    },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "PARSER_MAX_QUEUE_DEPTH=4",
+      "PARSER_WORKER_CONCURRENCY=2",
+      "SMTP_HOST=smtp.resend.com",
+      "SQLITE_DB_PATH=/app/data/statement2muster_prod.db",
+      "JWT_PUBLIC_KEY_PEM=[REDACTED_SECRET]",
+      "PARSER_TIMEOUT_SECONDS=30",
+      "SMTP_PASSWORD=[REDACTED_SECRET]",
+      "SMTP_USER=resend",
+      "EMAIL_BACKEND=smtp",
+      "PROJECT_NAME=Statement2Muster DACH",
+      "PARSER_PROCESS_ISOLATION=true",
+      "SMTP_FROM=Statement2Muster <no-reply@statement2muster.com>",
+      "SMTP_PORT=587",
+      "ENVIRONMENT=production",
+      "STRIPE_SECRET_KEY=[REDACTED_SECRET]",
+      "JWT_PRIVATE_KEY_PEM=[REDACTED_SECRET]",
+      "STRIPE_WEBHOOK_SECRET=[REDACTED_SECRET]",
+      "VERSION=1.0.7",
+      "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "LANG=C.UTF-8",
+      "GPG_KEY=[REDACTED_SECRET]",
+      "PYTHON_VERSION=3.11.16",
+      "PYTHON_SHA256=91bcdebfdde239a003ae93738a7fce0f9230fee5c4bc2b86f6e6e8c6f98aabe8",
+      "PYTHONDONTWRITEBYTECODE=1",
+      "PYTHONUNBUFFERED=1"
+    ],
+    "Cmd": [
+      "uvicorn",
+      "app.main:app",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8000"
+    ],
+    "Healthcheck": {
+      "Test": [
+        "CMD",
+        "python",
+        "-c",
+        "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
+      ],
+      "Interval": 15000000000,
+      "Timeout": 5000000000,
+      "StartPeriod": 10000000000,
+      "Retries": 3
+    },
+    "Image": "statement2muster-api:1.0.7",
+    "Volumes": null,
+    "WorkingDir": "/app",
+    "Entrypoint": null,
+    "Labels": {
+      "com.docker.compose.config-hash": "34b4e222dfaf618bae70ce75da24dd621da5b7f9ee0bacb1f05313c69535e786",
+      "com.docker.compose.container-number": "1",
+      "com.docker.compose.depends_on": "",
+      "com.docker.compose.image": "sha256:6218505273aa320b30604ff526036932b51f846b5cdc6c01951feacf2de1b34e",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project": "statement2muster",
+      "com.docker.compose.project.config_files": "/opt/statement2muster/docker-compose.prod.yml",
+      "com.docker.compose.project.working_dir": "/opt/statement2muster",
+      "com.docker.compose.replace": "s2m-backend-api",
+      "com.docker.compose.service": "api",
+      "com.docker.compose.version": "5.1.0"
+    }
+  },
+  "NetworkSettings": {
+    "SandboxID": "b4a69e460afcb5c22d11b5b68675ba5af26089534a4859873f007ceb43c0eb12",
+    "SandboxKey": "/var/run/docker/netns/b4a69e460afc",
+    "Ports": {
+      "8000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8100"
+        }
+      ]
+    },
+    "Networks": {
+      "statement2muster_default": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": [
+          "s2m-backend-api",
+          "api"
+        ],
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "c6fc5a151d50786fb2d124edeeb2ae1384927cfe8faed57e52b4a0893f876ed7",
+        "EndpointID": "2c2c3a12a3d73fe65ed039882d9fa1f3165c5c6987eddffaab51dec48fdc9794",
+        "Gateway": "172.20.0.1",
+        "IPAddress": "172.20.0.2",
+        "MacAddress": "1a:f1:31:a3:ad:0b",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": [
+          "s2m-backend-api",
+          "api",
+          "c8f036b6eac9"
+        ]
+      }
+    }
+  }
+}

@@ -105,7 +105,7 @@ def run_acceptance_suite():
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.6",
+        "backend_image": "statement2muster-api:1.0.7",
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",
@@ -539,6 +539,481 @@ def run_acceptance_suite():
             "details": "Tenants strictly isolated by tenant_id. Cross-tenant entitlement leakage impossible."
         }
         print("Scenario 13: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 14: S01 Rigorous Amount, Currency & Mode Protections
+        # -------------------------------------------------------------
+        print("\n--- Scenario 14: S01 Rigorous Amount, Currency & Mode Protections ---")
+        # 14a. Zero amount with valid price ID
+        t_s01_zero = f"tenant_zero_{uuid.uuid4().hex[:8]}"
+        tok_s01_zero = make_tenant_jwt(t_s01_zero)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_zero_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s01_zero,
+            "currency": "eur",
+            "amount_total": 0,
+            "subscription": f"sub_zero_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        ent_zero = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_zero}"}).json()
+        assert ent_zero.get("plan") == "trial", "amount_total == 0 must be quarantined, remaining on trial"
+
+        # 14b. Missing / None amount
+        t_s01_none = f"tenant_none_{uuid.uuid4().hex[:8]}"
+        tok_s01_none = make_tenant_jwt(t_s01_none)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_none_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s01_none,
+            "currency": "eur",
+            # amount_total omitted
+            "subscription": f"sub_none_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        ent_none = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_none}"}).json()
+        assert ent_none.get("plan") == "trial", "Omitted amount_total must be quarantined"
+
+        # 14c. Negative amount
+        t_s01_neg = f"tenant_neg_{uuid.uuid4().hex[:8]}"
+        tok_s01_neg = make_tenant_jwt(t_s01_neg)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_neg_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s01_neg,
+            "currency": "eur",
+            "amount_total": -490,
+            "subscription": f"sub_neg_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        ent_neg = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_neg}"}).json()
+        assert ent_neg.get("plan") == "trial", "Negative amount_total must be quarantined"
+
+        # 14d. Missing currency
+        t_s01_nocurr = f"tenant_nocurr_{uuid.uuid4().hex[:8]}"
+        tok_s01_nocurr = make_tenant_jwt(t_s01_nocurr)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_nocurr_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s01_nocurr,
+            # currency omitted
+            "amount_total": 490,
+            "subscription": f"sub_nocurr_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        ent_nocurr = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_nocurr}"}).json()
+        assert ent_nocurr.get("plan") == "trial", "Missing currency must be quarantined"
+
+        # 14e. Incompatible mode (lifetime purchased as subscription)
+        t_s01_mode1 = f"tenant_mode1_{uuid.uuid4().hex[:8]}"
+        tok_s01_mode1 = make_tenant_jwt(t_s01_mode1)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_mode1_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription", # Incompatible with lifetime!
+            "payment_status": "paid",
+            "client_reference_id": t_s01_mode1,
+            "currency": "eur",
+            "amount_total": 8900,
+            "subscription": f"sub_mode1_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_lifetime_8900"}}]}
+        })
+        ent_mode1 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_mode1}"}).json()
+        assert ent_mode1.get("plan") == "trial", "Lifetime with mode=subscription must be quarantined"
+
+        # 14f. Incompatible mode (starter purchased as one-time payment)
+        t_s01_mode2 = f"tenant_mode2_{uuid.uuid4().hex[:8]}"
+        tok_s01_mode2 = make_tenant_jwt(t_s01_mode2)
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_mode2_{uuid.uuid4().hex[:8]}",
+            "mode": "payment", # Incompatible with starter!
+            "payment_status": "paid",
+            "client_reference_id": t_s01_mode2,
+            "currency": "eur",
+            "amount_total": 490,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+        ent_mode2 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s01_mode2}"}).json()
+        assert ent_mode2.get("plan") == "trial", "Starter with mode=payment must be quarantined"
+
+        report["scenarios"]["scenario_14_s01_strict_amount_currency_mode"] = {
+            "status": "PASS",
+            "details": "0 amount, omitted amount, negative amount, missing currency, and mismatched mode/plan all quarantined with zero privilege escalation."
+        }
+        print("Scenario 14: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 15: S02 Late Checkout Session Cannot Revive Canceled Sub
+        # -------------------------------------------------------------
+        print("\n--- Scenario 15: S02 Late Checkout Session Cannot Revive Canceled Sub ---")
+        t_s02 = f"tenant_s02_{uuid.uuid4().hex[:8]}"
+        tok_s02 = make_tenant_jwt(t_s02)
+        sub_s02_id = f"sub_s02_{uuid.uuid4().hex[:8]}"
+
+        # Step 1: Normal checkout -> active PRO
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s02_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s02,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s02_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+        ent_s02_act = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s02}"}).json()
+        assert ent_s02_act.get("plan") == "pro"
+
+        # Step 2: Immediate cancellation -> canceled
+        post_webhook(client, "customer.subscription.deleted", {
+            "id": sub_s02_id
+        })
+        ent_s02_del = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s02}"}).json()
+        assert ent_s02_del.get("plan") != "pro"
+
+        # Step 3: Late checkout.session.completed for the same subscription ID with fresh event_id
+        resp_late_cs = post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s02_late_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s02,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s02_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        }, event_id=f"evt_s02_late_{uuid.uuid4().hex[:12]}")
+        assert resp_late_cs.status_code == 200
+
+        # Verify entitlement is STILL canceled and cannot be revived
+        ent_s02_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s02}"}).json()
+        assert ent_s02_after.get("plan") != "pro", "Late checkout.session.completed must NOT revive a canceled subscription!"
+
+        report["scenarios"]["scenario_15_s02_late_checkout_no_revive"] = {
+            "status": "PASS",
+            "details": "Late checkout.session.completed event cannot revive a canceled subscription. Entitlement remains safely revoked."
+        }
+        print("Scenario 15: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 16: S03 Out-of-Order Permutation A (invoice.paid -> late invoice.payment_failed)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 16: S03 Out-of-Order Permutation A (paid -> late payment_failed) ---")
+        t_s03a = f"tenant_s03a_{uuid.uuid4().hex[:8]}"
+        tok_s03a = make_tenant_jwt(t_s03a)
+        sub_s03a_id = f"sub_s03a_{uuid.uuid4().hex[:8]}"
+
+        # Setup subscription
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s03a_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s03a,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s03a_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        base_time = int(time.time())
+        period2_end = base_time + 60 * 86400
+        period1_end = base_time + 30 * 86400
+
+        # Step 1: New payment succeeds for Period 2 (event_created = base_time + 200)
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s03a_p2_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03a_id,
+            "created": base_time + 200,
+            "lines": {"data": [{"period": {"end": period2_end}}]}
+        })
+        ent_s03a_paid = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03a}"}).json()
+        assert ent_s03a_paid.get("plan") == "pro"
+        assert ent_s03a_paid.get("status") == "active"
+        valid_until_p2 = ent_s03a_paid.get("valid_until")
+
+        # Step 2: Late / delayed invoice.payment_failed for Period 1 arrives (event_created = base_time + 100 < base_time + 200)
+        post_webhook(client, "invoice.payment_failed", {
+            "id": f"in_s03a_p1_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03a_id,
+            "created": base_time + 100,
+            "lines": {"data": [{"period": {"end": period1_end}}]}
+        })
+
+        # Verify entitlement is STILL active with Period 2 valid_until
+        ent_s03a_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03a}"}).json()
+        assert ent_s03a_after.get("plan") == "pro", "Late payment_failed must not downgrade active entitlement!"
+        assert ent_s03a_after.get("status") == "active"
+        assert ent_s03a_after.get("valid_until") == valid_until_p2, "valid_until must not roll back!"
+
+        report["scenarios"]["scenario_16_s03_out_of_order_permutation_a"] = {
+            "status": "PASS",
+            "details": "Permutation A (newer invoice.paid then late invoice.payment_failed): active status and valid_until preserved without degradation."
+        }
+        print("Scenario 16: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 17: S03 Out-of-Order Permutation B (payment_failed -> late invoice.paid)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 17: S03 Out-of-Order Permutation B (payment_failed -> late invoice.paid) ---")
+        t_s03b = f"tenant_s03b_{uuid.uuid4().hex[:8]}"
+        tok_s03b = make_tenant_jwt(t_s03b)
+        sub_s03b_id = f"sub_s03b_{uuid.uuid4().hex[:8]}"
+
+        # Setup subscription
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s03b_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s03b,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s03b_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Step 1: Failure occurs on Period 2 (event_created = base_time + 300)
+        post_webhook(client, "invoice.payment_failed", {
+            "id": f"in_s03b_fail_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03b_id,
+            "created": base_time + 300,
+            "lines": {"data": [{"period": {"end": period2_end}}]}
+        })
+        ent_s03b_fail = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03b}"}).json()
+        assert ent_s03b_fail.get("plan") != "pro", "Failed invoice must revoke PRO"
+
+        # Step 2: Late invoice.paid from older Period 1 arrives (event_created = base_time + 150 < base_time + 300)
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s03b_oldpaid_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03b_id,
+            "created": base_time + 150,
+            "lines": {"data": [{"period": {"end": period1_end}}]}
+        })
+
+        # Verify entitlement is STILL past_due (stale paid event did not revive it!)
+        ent_s03b_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03b}"}).json()
+        assert ent_s03b_after.get("plan") != "pro", "Stale invoice.paid must NOT revive newer payment_failed status!"
+
+        report["scenarios"]["scenario_17_s03_out_of_order_permutation_b"] = {
+            "status": "PASS",
+            "details": "Permutation B (newer invoice.payment_failed then late older invoice.paid): past_due status retained, stale paid ignored."
+        }
+        print("Scenario 17: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 18: S03 valid_until Monotonicity
+        # -------------------------------------------------------------
+        print("\n--- Scenario 18: S03 valid_until Monotonicity (No Backward Rollback) ---")
+        t_s03c = f"tenant_s03c_{uuid.uuid4().hex[:8]}"
+        tok_s03c = make_tenant_jwt(t_s03c)
+        sub_s03c_id = f"sub_s03c_{uuid.uuid4().hex[:8]}"
+
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s03c_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s03c,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s03c_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        ts_future_90d = base_time + 90 * 86400
+        ts_future_30d = base_time + 30 * 86400
+
+        # Extend to +90d
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s03c_90d_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03c_id,
+            "created": base_time + 400,
+            "lines": {"data": [{"period": {"end": ts_future_90d}}]}
+        })
+        ent_90d = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03c}"}).json()
+        saved_valid_until = ent_90d.get("valid_until")
+
+        # Stale invoice for +30d arrives
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s03c_30d_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s03c_id,
+            "created": base_time + 100,
+            "lines": {"data": [{"period": {"end": ts_future_30d}}]}
+        })
+        ent_after_stale = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03c}"}).json()
+        assert ent_after_stale.get("valid_until") == saved_valid_until, "valid_until must never move backward!"
+
+        report["scenarios"]["scenario_18_s03_valid_until_monotonicity"] = {
+            "status": "PASS",
+            "details": "Strict forward-only valid_until guarantee verified: older period invoice cannot roll back expiration date."
+        }
+        print("Scenario 18: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 19: S04 Unknown Price ID on subscription.updated
+        # -------------------------------------------------------------
+        print("\n--- Scenario 19: S04 Unknown Price ID on subscription.updated ---")
+        t_s04a = f"tenant_s04a_{uuid.uuid4().hex[:8]}"
+        tok_s04a = make_tenant_jwt(t_s04a)
+        sub_s04a_id = f"sub_s04a_{uuid.uuid4().hex[:8]}"
+
+        # Setup active PRO
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s04a_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s04a,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s04a_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+        ent_s04a_init = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s04a}"}).json()
+        assert ent_s04a_init.get("plan") == "pro"
+
+        # Subscription updated with unverified price ID (attempted privilege preservation)
+        post_webhook(client, "customer.subscription.updated", {
+            "id": sub_s04a_id,
+            "status": "active",
+            "items": {"data": [{"price": {"id": "price_fake_custom_free"}}]}
+        })
+
+        # Verification: PRO privileges MUST NOT be retained! Quarantined, falls back to trial.
+        ent_s04a_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s04a}"}).json()
+        assert ent_s04a_after.get("plan") != "pro", "Unknown price on subscription.updated must NOT retain old plan_code!"
+        assert ent_s04a_after.get("plan") == "trial", "Tenant falls back to Trial"
+
+        report["scenarios"]["scenario_19_s04_subscription_updated_unknown_price"] = {
+            "status": "PASS",
+            "details": "subscription.updated with unknown price ID immediately stripped plan_code and quarantined entitlement (no old privileges inherited)."
+        }
+        print("Scenario 19: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 20: S04 Subscription Updated with Incompatible Plan
+        # -------------------------------------------------------------
+        print("\n--- Scenario 20: S04 Subscription Updated with Non-Subscription Plan ---")
+        t_s04b = f"tenant_s04b_{uuid.uuid4().hex[:8]}"
+        tok_s04b = make_tenant_jwt(t_s04b)
+        sub_s04b_id = f"sub_s04b_{uuid.uuid4().hex[:8]}"
+
+        # Setup Starter
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s04b_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s04b,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s04b_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        # Updated with lifetime price in recurring subscription
+        post_webhook(client, "customer.subscription.updated", {
+            "id": sub_s04b_id,
+            "status": "active",
+            "items": {"data": [{"price": {"id": "price_lifetime_8900"}}]}
+        })
+        ent_s04b_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s04b}"}).json()
+        assert ent_s04b_after.get("plan") != "starter" and ent_s04b_after.get("plan") != "lifetime", "Incompatible recurring mode quarantined"
+
+        report["scenarios"]["scenario_20_s04_mode_mismatch_on_update"] = {
+            "status": "PASS",
+            "details": "subscription.updated with non-recurring price quarantined immediately."
+        }
+        print("Scenario 20: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 21: Section 3 Starter Quota Renewal Boundary (20 units reset)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 21: Section 3 Starter Quota Renewal Boundary Test ---")
+        t_s21 = f"tenant_s21_{uuid.uuid4().hex[:8]}"
+        email_s21 = f"{t_s21}@example.com"
+        tok_s21 = make_tenant_jwt(t_s21, email_s21)
+        sub_s21_id = f"sub_s21_{uuid.uuid4().hex[:8]}"
+
+        # Checkout Starter
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s21_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s21,
+            "customer_email": email_s21,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s21_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        s21_t1 = int(time.time())
+        # Set initial billing cycle period 1: start = s21_t1 - 100, end = s21_t1 + 30 * 86400
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s21_p1_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s21_id,
+            "created": s21_t1,
+            "lines": {"data": [{"period": {"start": s21_t1 - 100, "end": s21_t1 + 30 * 86400}}]}
+        })
+
+        # Exhaust entire quota of 20 units via multiple files
+        multi_files_10 = [("files", (f"file_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_conv_batch1 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s21}"},
+            files=multi_files_10
+        )
+        assert res_conv_batch1.status_code == 200, f"Batch 1 failed: {res_conv_batch1.text}"
+
+        multi_files_10_b = [("files", (f"file_b_{i}.csv", sample_csv_content, "text/csv")) for i in range(10)]
+        res_conv_batch2 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s21}"},
+            files=multi_files_10_b
+        )
+        assert res_conv_batch2.status_code == 200, f"Batch 2 failed: {res_conv_batch2.text}"
+
+        # Verify quota is now 0 remaining
+        ent_s21_full = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s21}"}).json()
+        assert ent_s21_full.get("used_units") == 20
+        assert ent_s21_full.get("remaining_units") == 0
+
+        # Attempting 21st file MUST be rejected with 429
+        res_conv_blocked = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s21}"},
+            files=[("files", ("blocked.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_conv_blocked.status_code == 429, f"Expected 429 for exhausted quota, got {res_conv_blocked.status_code}"
+
+        time.sleep(1) # Ensure timestamp advances cleanly
+        s21_t2 = int(time.time())
+
+        # Step 2: Renewal occurs! invoice.paid extends valid_until to next cycle
+        # Authoritative period.start is s21_t2 (strictly after the 20 conversions)
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s21_p2_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s21_id,
+            "created": s21_t2,
+            "lines": {"data": [{"period": {"start": s21_t2, "end": s21_t2 + 30 * 86400}}]}
+        })
+
+        # Step 3: Quota in new billing period resets back to 20!
+        ent_s21_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s21}"}).json()
+        assert ent_s21_renewed.get("remaining_units") == 20, f"Expected 20 remaining units after renewal, got {ent_s21_renewed}"
+
+        # Step 4: Conversion succeeds in the new billing period!
+        res_conv_renewed = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s21}"},
+            files=[("files", ("new_period.csv", sample_csv_content, "text/csv"))]
+        )
+        assert res_conv_renewed.status_code == 200, f"res_conv_renewed failed: {res_conv_renewed.status_code} {res_conv_renewed.text}"
+
+        report["scenarios"]["scenario_21_starter_quota_renewal_boundary"] = {
+            "status": "PASS",
+            "details": "Starter 20 units exhausted -> 429 verified -> invoice.paid renewal extends billing cycle -> quota resets to 20 statements -> conversion succeeds."
+        }
+        print("Scenario 21: PASS")
 
     report["overall_status"] = "PASSED"
     report["summary"] = {
