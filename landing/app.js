@@ -433,25 +433,39 @@ const LEGAL_TEXTS = {
 
   datenschutz: `
     <h2>Datenschutzerklärung (DSGVO)</h2>
-    <p>Der Schutz Ihrer persönlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Grecciani Labs</strong> (Roseggergasse 37, 3400 Klosterneuburg, E-Mail: support@statement2muster.com). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
+    <p>Der Schutz Ihrer persönlichen und geschäftlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitali Grecciani (Einzelunternehmer, Grecciani Labs)</strong> (Roseggergasse 37, 3400 Klosterneuburg, Österreich, E-Mail: support@statement2muster.com). Wir verarbeiten Daten streng nach DSGVO und TKG 2021.</p>
     
-    <h3>1. In-Memory-Verarbeitung (Zero Server Storage)</h3>
-    <p>Statement2Muster verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet keine Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
+    <h3>1. In-Memory-Verarbeitung & Zero-Durable-Storage</h3>
+    <p>Statement2Muster verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden ausschließlich flüchtig im Arbeitsspeicher (RAM) verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet zu keinem Zeitpunkt eine dauerhafte Speicherung von Auszugsinhalten auf Festplatten oder Datenbanken statt.</p>
 
-    <h3>2. Serverstandort & Hosting</h3>
-    <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung von Auszugsdaten in Drittstaaten außerhalb der Europäischen Union.</p>
+    <h3>2. Serverstandort & Hosting (Hetzner)</h3>
+    <p>Unsere Backend-Systeme werden bei der <strong>Hetzner Online GmbH</strong> in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Transportverschlüsselung via TLS 1.3 mit Perfect Forward Secrecy.</p>
 
-    <h3>3. Zahlungsabwicklung</h3>
-    <p>Abonnements und Zahlungen werden über unseren autorisierten Partner <strong>Stripe (Stripe Payments Europe, Ltd.)</strong> über zertifizierte PCI-DSS-Infrastrukturen abgewickelt.</p>
+    <h3>3. E-Mail-OTP & Kommunikation (Resend & ImprovMX)</h3>
+    <p>Für die Zustellung von Login-Einmalcodes (OTP) nutzen wir <strong>Resend, Inc.</strong> (Übermittlung von E-Mail und temporärem 10-Min-Code; EU-Standardvertragsklauseln nach Art. 46 DSGVO). Das MX-Routing für Support-E-Mails erfolgt über <strong>ImprovMX</strong> (Frankreich / EU).</p>
 
-    <h3>4. Ihre Rechte</h3>
-    <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Anfragen richten Sie bitte an: <a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB, Barichgasse 40-42, 1030 Wien) wenden.</p>
+    <h3>4. Zahlungsabwicklung (Stripe)</h3>
+    <p>Abonnements und Zahlungen werden über unseren autorisierten Partner <strong>Stripe (Stripe Payments Europe, Ltd., Irland)</strong> über zertifizierte PCI-DSS-Level-1-Infrastrukturen abgewickelt.</p>
+
+    <h3>5. Keine Tracking-Cookies</h3>
+    <p>Wir verzichten vollständig auf zustimmungspflichtige Cookies, Google Analytics oder Tracking-Pixel. Es werden nur technisch notwendige Tokens zur Sitzungsverwaltung gespeichert.</p>
+
+    <h3>6. Ihre Rechte & Aufsichtsbehörde</h3>
+    <p>Ihnen stehen Auskunft, Berichtigung, Löschung, Einschränkung und Widerspruch zu (<a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>). Zuständige Aufsichtsbehörde: <strong>Österreichische Datenschutzbehörde (DSB)</strong>, Barichgasse 40-42, 1030 Wien (<a href="https://www.dsb.gv.at" target="_blank" rel="noopener" style="color: var(--primary);">dsb.gv.at</a>).</p>
   `,
 
   avv: `
     <h2>Auftragsverarbeitungsvertrag (AVV nach Art. 28 DSGVO)</h2>
     <p>Für Steuerberater, Wirtschaftsprüfer und Unternehmen bieten wir gemäß Art. 28 Abs. 3 DSGVO einen standardisierten Auftragsverarbeitungsvertrag an.</p>
-    <p>Aufgrund unserer <strong>flüchtigen In-Memory-Technologie</strong> werden personenbezogene Buchungsdaten zu keinem Zeitpunkt persistent gespeichert. Der AVV kann direkt im Kundenbereich mit 1 Klick digital gegengezeichnet und als PDF für Ihre DSGVO-Dokumentation heruntergeladen werden.</p>
+    <p>Aufgrund unserer <strong>flüchtigen In-Memory-Technologie</strong> (Zero Durable Storage) werden personenbezogene Buchungsdaten zu keinem Zeitpunkt persistent gespeichert.</p>
+    <p><strong>Genehmigte Subprozessoren:</strong></p>
+    <ul>
+      <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main.</li>
+      <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung & Lizenzverwaltung.</li>
+      <li><strong>Resend, Inc. (USA / EU-Routing):</strong> Transaktionale OTP-Zustellung (Art. 46 DSGVO SCCs).</li>
+      <li><strong>ImprovMX (Frankreich / EU):</strong> E-Mail-Routing Domain statement2muster.com.</li>
+    </ul>
+    <p>Vollständiger Vertragstext: <a href="/avv" style="color: var(--primary);" target="_blank">statement2muster.com/avv</a></p>
   `,
 
   agb: `

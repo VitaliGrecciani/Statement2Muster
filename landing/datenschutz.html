@@ -240,20 +240,31 @@
 
       <div class="legal-content">
         
-        <p>Der Schutz Ihrer persönlichen und geschäftlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitali Grecciani (Einzelunternehmer, Grecciani Labs)</strong> (Roseggergasse 37, 3400 Klosterneuburg, Österreich, E-Mail: <a href="mailto:support@statement2muster.com">support@statement2muster.com</a>). Wir verarbeiten Daten ausschließlich auf Grundlage der gesetzlichen Bestimmungen (DSGVO, TKG 2021).</p>
+        <p>Der Schutz Ihrer persönlichen und geschäftlichen Daten ist uns ein besonderes Anliegen. Verantwortlicher für die Datenverarbeitung ist <strong>Vitali Grecciani (Einzelunternehmer, Grecciani Labs)</strong>, Roseggergasse 37, 3400 Klosterneuburg, Österreich, E-Mail: <a href="mailto:support@statement2muster.com">support@statement2muster.com</a>. Wir verarbeiten Ihre Daten streng auf Grundlage der gesetzlichen Bestimmungen der Europäischen Datenschutz-Grundverordnung (DSGVO) sowie des österreichischen Telekommunikationsgesetzes (TKG 2021).</p>
         
-        <h2>1. In-Memory-Verarbeitung (Zero Server Storage)</h2>
-        <p>Unsere Software verwendet ein striktes In-Memory-Prinzip: Hochgeladene PDF- und CSV-Auszüge werden flüchtig im Arbeitsspeicher verarbeitet und nach der Konvertierung in das DATEV/BMD-Format <strong>unverzüglich und vollständig aus dem Speicher gelöscht</strong>. Es findet zu keinem Zeitpunkt eine Speicherung von Bank- oder Buchungsinhalten auf Festplatten oder Datenbanken statt.</p>
+        <h2>1. In-Memory-Verarbeitung & Zero-Durable-Storage-Garantie</h2>
+        <p>Unsere Konvertierungs-Engine basiert auf einem strikten <strong>In-Memory-Prinzip</strong>: Hochgeladene PDF- und CSV-Kontoauszüge (z. B. American Express, Wise, PayPal) werden ausschließlich flüchtig im Arbeitsspeicher (RAM) analysiert, strukturiert und in das gewünschte Zielformat (DATEV Format EXTF / BMD NTCS) überführt. Nach Abschluss der Konvertierung oder Beendigung der Verbindung werden alle Auszugsinhalte <strong>unverzüglich und unwiderruflich aus dem flüchtigen Speicher gelöscht</strong>. Es findet zu keinem Zeitpunkt eine dauerhafte Speicherung von Finanz- oder Buchungsdaten auf Festplatten, SSDs oder in Datenbanken statt.</p>
 
-        <h2>2. Serverstandort & Hosting</h2>
-        <p>Unsere Backend-Systeme werden in ISO-27001-zertifizierten Rechenzentren in <strong>Frankfurt am Main, Deutschland</strong> gehostet. Es erfolgt keine Übermittlung von Auszugsdaten in Drittstaaten außerhalb der Europäischen Union.</p>
+        <h2>2. Serverstandort & Hosting (Hetzner)</h2>
+        <p>Unsere Serverinfrastruktur wird bei der <strong>Hetzner Online GmbH</strong> (Industriestr. 25, 91710 Gunzenhausen, Deutschland) in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong> betrieben. Sämtliche Datenübertragungen erfolgen ausschließlich über modernste Transportverschlüsselung (TLS 1.3 / TLS 1.2 mit Perfect Forward Secrecy). Es erfolgt keinerlei Übermittlung von Auszugsdaten in unsichere Drittstaaten.</p>
 
-        <h2>3. Zahlungsabwicklung</h2>
-        <p>Abonnements und Zahlungen werden über unseren autorisierten Zahlungspartner <strong>Stripe (Stripe Payments Europe, Ltd.)</strong> sicher abgewickelt. Kreditkarten- oder Bankverbindungsdaten werden direkt über die zertifizierten PCI-DSS-Sicherheitsinfrastrukturen des Zahlungsdienstleisters verarbeitet.</p>
+        <h2>3. Authentifizierung & Transaktions-E-Mails (Resend & ImprovMX)</h2>
+        <p>Für die passwortlose Authentifizierung und die Zustellung von Einmalpasswörtern (OTP / Login-Codes) setzen wir spezialisierte, datenschutzkonforme Infrastrukturdienste ein:</p>
+        <ul>
+          <li><strong>Resend, Inc. (USA / EU-Routing):</strong> Zur schnellen und sicheren Zustellung der 6-stelligen Login-Einmalcodes übermitteln wir Ihre geschäftliche E-Mail-Adresse und den temporären Einmalcode an Resend. Die Codes verfallen automatisch nach 10 Minuten. Die Übermittlung ist durch EU-Standardvertragsklauseln (SCCs / Data Processing Addendum) nach Art. 46 DSGVO datenschutzrechtlich abgesichert.</li>
+          <li><strong>ImprovMX / Kekanto SAS (Frankreich / EU):</strong> Das E-Mail-Routing für Support- und Kanzleianfragen über unsere Domain <code>statement2muster.com</code> wird über ImprovMX mit Serverstandort in der Europäischen Union abgewickelt.</li>
+        </ul>
 
-        <h2>4. Ihre Rechte</h2>
-        <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und Widerspruch zu. Anfragen richten Sie bitte an: <a href="mailto:support@statement2muster.com">support@statement2muster.com</a>. Wenn Sie glauben, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt, können Sie sich an die österreichische Datenschutzbehörde (DSB, Barichgasse 40-42, 1030 Wien) wenden.</p>
-        
+        <h2>4. Zahlungsabwicklung & Lizenzabrechnung (Stripe)</h2>
+        <p>Abrechnungen von Abonnements und Einmalkäufen (Lifetime-Lizenzen) erfolgen über unseren autorisierten Zahlungsdienstleister <strong>Stripe Payments Europe, Ltd.</strong> (1 Grand Canal Street Lower, Grand Canal Dock, Dublin, D02 H210, Irland). Zahlungsdaten (Kreditkartennummern, Bankverbindungen) werden direkt über die nach PCI-DSS Level 1 zertifizierten Schnittstellen von Stripe verarbeitet. Auf unseren eigenen Servern werden zu keinem Zeitpunkt vollständige Zahlungsdaten gespeichert; wir verwalten lediglich kaufmännische Referenz-IDs (Stripe Customer ID, Subscription ID) zur Freischaltung Ihrer Lizenz.</p>
+
+        <h2>5. Keine Tracking-Cookies & Lokale Speicherung</h2>
+        <p>Unsere Webseite und die Browser-Erweiterung verzichten vollständig auf zustimmungspflichtige Tracking-Cookies, Marketing-Pixel oder Analysewerkzeuge Dritter (kein Google Analytics, kein Meta Pixel). Wir verwenden im Webbrowser ausschließlich technisch notwendige Speicherelemente (z. B. LocalStorage für das verschlüsselte Autorisierungs-Token Ihrer aktiven Sitzung), um Ihnen den geschützten Zugriff auf Ihren Account zu ermöglichen (Rechtsgrundlage: Art. 6 Abs. 1 lit. b und lit. f DSGVO, § 165 Abs. 3 TKG 2021).</p>
+
+        <h2>6. Ihre Rechte & Aufsichtsbehörde</h2>
+        <p>Ihnen stehen grundsätzlich die Rechte auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO), Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) sowie Widerspruch gegen die Verarbeitung (Art. 21 DSGVO) zu.</p>
+        <p>Für die Ausübung Ihrer Rechte genügt eine formlose E-Mail an: <a href="mailto:support@statement2muster.com">support@statement2muster.com</a>.</p>
+        <p>Wenn Sie der Ansicht sind, dass die Verarbeitung Ihrer Daten gegen das Datenschutzrecht verstößt oder Ihre datenschutzrechtlichen Ansprüche verletzt worden sind, können Sie sich bei der zuständigen Aufsichtsbehörde beschweren. In Österreich ist dies die <strong>Österreichische Datenschutzbehörde (DSB)</strong>, Barichgasse 40-42, 1030 Wien (Web: <a href="https://www.dsb.gv.at" target="_blank" rel="noopener">https://www.dsb.gv.at</a>, E-Mail: dsb@dsb.gv.at).</p>
       </div>
 
       <!-- Quick Nav between Legal Documents -->
