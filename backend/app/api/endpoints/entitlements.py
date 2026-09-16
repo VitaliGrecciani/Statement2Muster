@@ -41,7 +41,9 @@ async def get_my_entitlements(
 
     elif plan == "starter":
         quota_limit = 20
-        if ent.valid_until:
+        if ent.current_period_start:
+            period_start = ent.current_period_start.replace(tzinfo=datetime.timezone.utc) if ent.current_period_start.tzinfo is None else ent.current_period_start
+        elif ent.valid_until:
             exp = ent.valid_until.replace(tzinfo=datetime.timezone.utc) if ent.valid_until.tzinfo is None else ent.valid_until
             period_start = exp - datetime.timedelta(days=30)
         else:

@@ -150,6 +150,9 @@ async def _handle_checkout_completed(
     if client_ref_id:
         t_res = await db.execute(select(Tenant).where(Tenant.id == client_ref_id))
         tenant = t_res.scalars().first()
+        if not tenant and customer_email:
+            t_res_email = await db.execute(select(Tenant).where(Tenant.email == customer_email.lower().strip()))
+            tenant = t_res_email.scalars().first()
         if not tenant:
             email_to_use = customer_email or f"{client_ref_id}@autogen.invalid"
             tenant = Tenant(id=client_ref_id, email=email_to_use, name=email_to_use.split('@')[0], version=0)
@@ -276,15 +279,35 @@ async def _handle_checkout_completed(
             if plan_code and existing_sub.status == "quarantined" and ent_status == "active":
                 existing_sub.plan_code = plan_code
                 existing_sub.status = "active"
+
+            # Delayed checkout scenario: if entitlement was created by earlier invoice.paid, link tenant
+            if existing_sub.tenant_id != tenant.id:
+                existing_sub.tenant_id = tenant.id
+            if pi_id and not existing_sub.payment_intent:
+                existing_sub.payment_intent = pi_id
+
             if event_created_ts and (not existing_sub.last_event_created_at or event_created_ts > existing_sub.last_event_created_at):
                 existing_sub.last_event_created_at = event_created_ts
             existing_sub.updated_at = datetime.datetime.now(datetime.timezone.utc)
             await db.flush()
             return
 
+        # Section 3: Do NOT invent a fake 30-day authoritative boundary!
+        # Check if explicit period bounds are provided in session payload
+        explicit_period_start = session.get("current_period_start") or session.get("period_start")
+        explicit_period_end = session.get("current_period_end") or session.get("period_end") or session.get("subscription_period_end")
+
         now_ts = datetime.datetime.now(datetime.timezone.utc)
-        initial_period_start = now_ts - datetime.timedelta(seconds=10)
-        initial_valid_until = (now_ts + datetime.timedelta(days=30)) if ent_status == "active" else None
+        if explicit_period_start and explicit_period_end:
+            init_start = datetime.datetime.fromtimestamp(explicit_period_start, tz=datetime.timezone.utc)
+            init_valid = datetime.datetime.fromtimestamp(explicit_period_end, tz=datetime.timezone.utc)
+            has_authoritative = 1
+        else:
+            # Provisional active access awaiting invoice reconciliation (valid_until=None allows active access without fake deadline)
+            init_start = now_ts
+            init_valid = None
+            has_authoritative = 0
+
         ent = Entitlement(
             tenant_id=tenant.id,
             plan_code=plan_code,
@@ -292,8 +315,9 @@ async def _handle_checkout_completed(
             source_type="subscription",
             source_id=sub_id,
             payment_intent=pi_id,
-            current_period_start=initial_period_start if ent_status == "active" else None,
-            valid_until=initial_valid_until,
+            current_period_start=init_start if ent_status == "active" else None,
+            valid_until=init_valid if ent_status == "active" else None,
+            has_authoritative_period=has_authoritative,
             last_event_created_at=event_created_ts or 0
         )
         db.add(ent)
@@ -309,6 +333,7 @@ async def _handle_checkout_completed(
             source_id=session_id,
             payment_intent=pi_id,
             valid_until=None,
+            has_authoritative_period=0,
             last_event_created_at=event_created_ts or 0
         )
         db.add(ent)
@@ -320,19 +345,73 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
         return
     query = select(Entitlement).where(Entitlement.source_id == sub_id)
     ent = (await db.execute(query)).scalars().first()
+
+    # Delayed checkout delivery handling:
+    # If invoice.paid arrives BEFORE checkout.session.completed, pre-provision entitlement
     if not ent:
+        email = invoice.get("customer_email")
+        tenant_id = invoice.get("client_reference_id") or invoice.get("metadata", {}).get("tenant_id")
+        tenant = None
+        if tenant_id:
+            tenant = await db.get(Tenant, tenant_id)
+            if not tenant and email:
+                tenant = (await db.execute(select(Tenant).where(Tenant.email == email.lower().strip()))).scalars().first()
+            if not tenant:
+                email_to_use = email or f"{tenant_id}@placeholder.banksync.internal"
+                tenant = Tenant(id=tenant_id, email=email_to_use.lower().strip(), name=email_to_use.split('@')[0])
+                db.add(tenant)
+                await db.flush()
+        elif email:
+            tenant = (await db.execute(select(Tenant).where(Tenant.email == email.lower().strip()))).scalars().first()
+            if not tenant:
+                tenant = Tenant(email=email.lower().strip(), name=email.split("@")[0])
+                db.add(tenant)
+                await db.flush()
+
+        if not tenant:
+            cus_id = invoice.get("customer") or sub_id
+            placeholder_email = f"{cus_id}@placeholder.banksync.internal"
+            tenant = Tenant(email=placeholder_email, name="Pending Fulfillment")
+            db.add(tenant)
+            await db.flush()
+
+        lines = invoice.get("lines", {}).get("data", [])
+        plan_code = None
+        if lines:
+            p_id = lines[0].get("price", {}).get("id")
+            if p_id in PRICE_CATALOG:
+                cat_entry = PRICE_CATALOG[p_id]
+                if cat_entry.get("expected_mode") == "subscription":
+                    plan_code = cat_entry["plan"]
+
+        period_start_ts = lines[0].get("period", {}).get("start") if lines else None
+        period_end_ts = lines[0].get("period", {}).get("end") if lines else None
+        if not period_end_ts:
+            period_end_ts = invoice.get("period_end")
+        if not period_start_ts:
+            period_start_ts = invoice.get("period_start")
+
+        ent = Entitlement(
+            tenant_id=tenant.id,
+            plan_code=plan_code,
+            status="active" if plan_code else "quarantined",
+            source_type="subscription",
+            source_id=sub_id,
+            current_period_start=datetime.datetime.fromtimestamp(period_start_ts, tz=datetime.timezone.utc) if period_start_ts else datetime.datetime.now(datetime.timezone.utc),
+            valid_until=datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc) if period_end_ts else None,
+            has_authoritative_period=1 if period_end_ts else 0,
+            last_invoice_id=invoice.get("id"),
+            last_invoice_status="paid",
+            last_event_created_at=event_created_ts or 0
+        )
+        db.add(ent)
+        await db.flush()
+        logger.info(f"Pre-provisioned entitlement for subscription {sub_id} from early invoice.paid.")
         return
 
     # S02: Canceled subscription cannot be revived by late invoice.paid
     if ent.status == "canceled":
         logger.warning(f"Subscription {sub_id} is already canceled. Ignoring late invoice.paid.")
-        return
-
-    # S03: Out-of-order check based on event creation timestamp
-    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
-        logger.warning(
-            f"Stale invoice.paid for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
-        )
         return
 
     # S03 & Section 3: Authoritative period tracking
@@ -344,21 +423,48 @@ async def _handle_invoice_paid(db: AsyncSession, invoice: Dict[str, Any], event_
         period_end_ts = lines[0].get("period", {}).get("end")
     if not period_end_ts:
         period_end_ts = invoice.get("period_end")
+    if not period_start_ts:
+        period_start_ts = invoice.get("period_start")
+
+    # Update plan_code from invoice lines if known
+    if lines:
+        p_id = lines[0].get("price", {}).get("id")
+        if p_id in PRICE_CATALOG:
+            cat_entry = PRICE_CATALOG[p_id]
+            if cat_entry.get("expected_mode") == "subscription":
+                ent.plan_code = cat_entry["plan"]
 
     if period_end_ts:
         new_valid_until = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
         cur_valid = to_utc(ent.valid_until)
-        if cur_valid and new_valid_until < cur_valid:
-            logger.warning(
-                f"Stale invoice.paid for subscription {sub_id}: period end {new_valid_until} < current valid_until {cur_valid}. Ignoring."
-            )
-            return
-        if cur_valid is None or new_valid_until >= cur_valid:
+
+        # If entitlement has no authoritative period yet, accept invoice bounds unconditionally!
+        if not ent.has_authoritative_period or cur_valid is None:
             ent.valid_until = new_valid_until
             if period_start_ts:
                 ent.current_period_start = datetime.datetime.fromtimestamp(period_start_ts, tz=datetime.timezone.utc)
             elif ent.current_period_start is None:
                 ent.current_period_start = new_valid_until - datetime.timedelta(days=30)
+            ent.has_authoritative_period = 1
+        else:
+            if new_valid_until > cur_valid:
+                # Renewal to a new billing period (28, 29, 30, or 31 days)
+                ent.valid_until = new_valid_until
+                if period_start_ts:
+                    ent.current_period_start = datetime.datetime.fromtimestamp(period_start_ts, tz=datetime.timezone.utc)
+            elif new_valid_until == cur_valid:
+                # Same period duplicate/adjustment:
+                # Do NOT shift current_period_start and do NOT reset usage!
+                pass
+            else:
+                # Stale older invoice
+                logger.warning(
+                    f"Stale invoice.paid for subscription {sub_id}: period end {new_valid_until} < current valid_until {cur_valid}. Ignoring."
+                )
+                return
+
+    ent.last_invoice_id = invoice.get("id")
+    ent.last_invoice_status = "paid"
 
     if ent.plan_code is None:
         logger.warning(f"Subscription {sub_id} has plan_code=None. Preserving quarantined status (C05).")
@@ -386,14 +492,17 @@ async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, An
         logger.warning(f"Subscription {sub_id} is already canceled. Ignoring invoice.payment_failed.")
         return
 
-    # S03: Out-of-order check based on event creation timestamp
-    if event_created_ts and ent.last_event_created_at and event_created_ts < ent.last_event_created_at:
+    invoice_id = invoice.get("id")
+
+    # 1. Check Invoice ID identity:
+    # If this exact invoice was already marked "paid", this is an older/concurrent failed attempt
+    if invoice_id and ent.last_invoice_id == invoice_id and ent.last_invoice_status == "paid":
         logger.warning(
-            f"Stale invoice.payment_failed for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
+            f"Ignoring invoice.payment_failed for invoice {invoice_id} as this invoice is already paid."
         )
         return
 
-    # S03: Period ordering check: if current valid_until is ahead of the failed invoice period, ignore
+    # 2. Period ordering check:
     lines = invoice.get("lines", {}).get("data", [])
     period_end_ts = None
     if lines:
@@ -401,16 +510,28 @@ async def _handle_invoice_payment_failed(db: AsyncSession, invoice: Dict[str, An
     if not period_end_ts:
         period_end_ts = invoice.get("period_end")
 
-    if period_end_ts and ent.valid_until:
+    cur_valid = to_utc(ent.valid_until)
+    if period_end_ts and cur_valid:
         failed_period_end = datetime.datetime.fromtimestamp(period_end_ts, tz=datetime.timezone.utc)
-        cur_valid = to_utc(ent.valid_until)
-        if cur_valid and failed_period_end < cur_valid:
+        # If subscription is active and has already been paid through cur_valid,
+        # any failure for an equal or earlier period is superseded by the successful payment!
+        if ent.status == "active" and failed_period_end <= cur_valid:
             logger.warning(
-                f"Stale invoice.payment_failed for subscription {sub_id}: failed period {failed_period_end} < current valid_until {cur_valid}. Ignoring."
+                f"Ignoring invoice.payment_failed for subscription {sub_id}: failed period {failed_period_end} <= current paid valid_until {cur_valid}."
+            )
+            return
+
+    # 3. Check event timestamp:
+    if event_created_ts and ent.last_event_created_at:
+        if event_created_ts < ent.last_event_created_at:
+            logger.warning(
+                f"Stale invoice.payment_failed for subscription {sub_id}: event ts {event_created_ts} < last processed {ent.last_event_created_at}. Ignoring."
             )
             return
 
     ent.status = "past_due"
+    ent.last_invoice_id = invoice_id
+    ent.last_invoice_status = "payment_failed"
     if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
         ent.last_event_created_at = event_created_ts
 
@@ -441,12 +562,17 @@ async def _handle_subscription_updated(db: AsyncSession, sub: Dict[str, Any], ev
         )
         return
 
-    # Update valid_until forward only
+    # Update valid_until and current_period_start
     if current_period_end_ts:
         new_valid = datetime.datetime.fromtimestamp(current_period_end_ts, tz=datetime.timezone.utc)
         cur_valid = to_utc(ent.valid_until)
-        if cur_valid is None or new_valid >= cur_valid:
+        if not ent.has_authoritative_period or cur_valid is None or new_valid >= cur_valid:
             ent.valid_until = new_valid
+            ent.has_authoritative_period = 1
+
+    current_period_start_ts = sub.get("current_period_start")
+    if current_period_start_ts and (not ent.current_period_start or ent.has_authoritative_period == 0):
+        ent.current_period_start = datetime.datetime.fromtimestamp(current_period_start_ts, tz=datetime.timezone.utc)
 
     # S04: Check items and price ID in catalog.
     # An unknown price ID or incompatible mode must NOT preserve existing privileges!

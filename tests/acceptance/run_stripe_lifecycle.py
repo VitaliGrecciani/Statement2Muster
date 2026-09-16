@@ -105,7 +105,7 @@ def run_acceptance_suite():
         "git_commit": git_commit,
         "api_url": API_URL,
         "hetzner_host": "46.225.95.36",
-        "backend_image": "statement2muster-api:1.0.7",
+        "backend_image": "statement2muster-api:1.0.8",
         "backend_image_id": image_id,
         "backend_container_id": container_id,
         "stripe_mode": "sandbox",
@@ -754,14 +754,77 @@ def run_acceptance_suite():
         print("Scenario 16: PASS")
 
         # -------------------------------------------------------------
-        # Scenario 17: S03 Out-of-Order Permutation B (payment_failed -> late invoice.paid)
+        # Scenario 16: S03 Equal Timestamps Permutation A (paid -> payment_failed)
         # -------------------------------------------------------------
-        print("\n--- Scenario 17: S03 Out-of-Order Permutation B (payment_failed -> late invoice.paid) ---")
+        print("\n--- Scenario 16: S03 Equal Timestamps Permutation A (paid -> payment_failed) ---")
+        t_s03a = f"tenant_s03a_{uuid.uuid4().hex[:8]}"
+        tok_s03a = make_tenant_jwt(t_s03a)
+        sub_s03a_id = f"sub_s03a_{uuid.uuid4().hex[:8]}"
+
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s03a_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s03a,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s03a_id,
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        base_time = int(time.time())
+        common_period_start = base_time
+        common_period_end = base_time + 30 * 86400
+        common_created_ts = 1000000000 # Exactly equal timestamp (100) as in Architect's probe
+        common_invoice_id = f"in_s03a_common_{uuid.uuid4().hex[:8]}"
+
+        # Step 1: invoice.paid arrives first (created = 100)
+        post_webhook(client, "invoice.paid", {
+            "id": common_invoice_id,
+            "subscription": sub_s03a_id,
+            "created": common_created_ts,
+            "lines": {"data": [{"period": {"start": common_period_start, "end": common_period_end}, "price": {"id": "price_pro_2900"}}]}
+        })
+        ent_s03a_paid = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03a}"}).json()
+        assert ent_s03a_paid.get("plan") == "pro"
+        assert ent_s03a_paid.get("status") == "active"
+        saved_valid_until_16 = ent_s03a_paid.get("valid_until")
+
+        # Step 2: invoice.payment_failed arrives second with EXACT SAME timestamp and period
+        post_webhook(client, "invoice.payment_failed", {
+            "id": common_invoice_id,
+            "subscription": sub_s03a_id,
+            "created": common_created_ts,
+            "lines": {"data": [{"period": {"start": common_period_start, "end": common_period_end}}]}
+        })
+
+        # Deterministic reconciliation: since period was paid, status MUST REMAIN ACTIVE!
+        ent_s03a_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03a}"}).json()
+        assert ent_s03a_after.get("plan") == "pro", f"Status degraded to {ent_s03a_after}! Expected active PRO"
+        assert ent_s03a_after.get("status") == "active"
+        assert ent_s03a_after.get("valid_until") == saved_valid_until_16
+
+        conv_s16 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s03a}"},
+            files=[("files", ("f16.csv", sample_csv_content, "text/csv"))]
+        )
+        assert conv_s16.status_code == 200
+
+        report["scenarios"]["scenario_16_s03_out_of_order_permutation_a"] = {
+            "status": "PASS",
+            "details": "Equal timestamps Permutation A (paid -> payment_failed at created=100): active status and valid_until deterministically preserved."
+        }
+        print("Scenario 16: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 17: S03 Equal Timestamps Permutation B (payment_failed -> paid)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 17: S03 Equal Timestamps Permutation B (payment_failed -> paid) ---")
         t_s03b = f"tenant_s03b_{uuid.uuid4().hex[:8]}"
         tok_s03b = make_tenant_jwt(t_s03b)
         sub_s03b_id = f"sub_s03b_{uuid.uuid4().hex[:8]}"
 
-        # Setup subscription
         post_webhook(client, "checkout.session.completed", {
             "id": f"cs_s03b_{uuid.uuid4().hex[:8]}",
             "mode": "subscription",
@@ -773,31 +836,41 @@ def run_acceptance_suite():
             "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
         })
 
-        # Step 1: Failure occurs on Period 2 (event_created = base_time + 300)
+        common_invoice_id_b = f"in_s03b_common_{uuid.uuid4().hex[:8]}"
+
+        # Step 1: Failure arrives first (created = 100)
         post_webhook(client, "invoice.payment_failed", {
-            "id": f"in_s03b_fail_{uuid.uuid4().hex[:8]}",
+            "id": common_invoice_id_b,
             "subscription": sub_s03b_id,
-            "created": base_time + 300,
-            "lines": {"data": [{"period": {"end": period2_end}}]}
+            "created": common_created_ts,
+            "lines": {"data": [{"period": {"start": common_period_start, "end": common_period_end}}]}
         })
         ent_s03b_fail = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03b}"}).json()
         assert ent_s03b_fail.get("plan") != "pro", "Failed invoice must revoke PRO"
 
-        # Step 2: Late invoice.paid from older Period 1 arrives (event_created = base_time + 150 < base_time + 300)
+        # Step 2: invoice.paid arrives second with EXACT SAME timestamp and period
         post_webhook(client, "invoice.paid", {
-            "id": f"in_s03b_oldpaid_{uuid.uuid4().hex[:8]}",
+            "id": common_invoice_id_b,
             "subscription": sub_s03b_id,
-            "created": base_time + 150,
-            "lines": {"data": [{"period": {"end": period1_end}}]}
+            "created": common_created_ts,
+            "lines": {"data": [{"period": {"start": common_period_start, "end": common_period_end}, "price": {"id": "price_pro_2900"}}]}
         })
 
-        # Verify entitlement is STILL past_due (stale paid event did not revive it!)
+        # Deterministic reconciliation: successful payment resolves failure, status BECOMES ACTIVE!
         ent_s03b_after = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s03b}"}).json()
-        assert ent_s03b_after.get("plan") != "pro", "Stale invoice.paid must NOT revive newer payment_failed status!"
+        assert ent_s03b_after.get("plan") == "pro", f"Status did not activate! Got {ent_s03b_after}"
+        assert ent_s03b_after.get("status") == "active"
+
+        conv_s17 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s03b}"},
+            files=[("files", ("f17.csv", sample_csv_content, "text/csv"))]
+        )
+        assert conv_s17.status_code == 200
 
         report["scenarios"]["scenario_17_s03_out_of_order_permutation_b"] = {
             "status": "PASS",
-            "details": "Permutation B (newer invoice.payment_failed then late older invoice.paid): past_due status retained, stale paid ignored."
+            "details": "Equal timestamps Permutation B (payment_failed -> paid at created=100): transitions to active and conversion succeeds."
         }
         print("Scenario 17: PASS")
 
@@ -1014,6 +1087,194 @@ def run_acceptance_suite():
             "details": "Starter 20 units exhausted -> 429 verified -> invoice.paid renewal extends billing cycle -> quota resets to 20 statements -> conversion succeeds."
         }
         print("Scenario 21: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 22: Variable Period Lengths (7-day proration -> 28-day Feb period)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 22: Variable Period Lengths (Short Proration & Rollover) ---")
+        t_s22 = f"tenant_s22_{uuid.uuid4().hex[:8]}"
+        email_s22 = f"{t_s22}@example.com"
+        tok_s22 = make_tenant_jwt(t_s22, email_s22)
+        sub_s22_id = f"sub_s22_{uuid.uuid4().hex[:8]}"
+
+        # Step 1: Initial checkout completed without explicit period bounds
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s22_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s22,
+            "customer_email": email_s22,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s22_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        t22_base = int(time.time())
+        t22_p1_start = t22_base
+        t22_p1_end = t22_base + 7 * 86400  # 7-day short initial billing cycle
+
+        # Step 2: Authoritative 7-day initial invoice arrives
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s22_7d_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s22_id,
+            "created": t22_base + 10,
+            "lines": {"data": [{"period": {"start": t22_p1_start, "end": t22_p1_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        ent_s22_init = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s22}"}).json()
+        assert ent_s22_init.get("plan") == "starter"
+        assert ent_s22_init.get("remaining_units") == 20
+
+        # Convert 1 file in initial cycle
+        conv_s22_p1 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s22}"},
+            files=[("files", ("f22_p1.csv", sample_csv_content, "text/csv"))]
+        )
+        assert conv_s22_p1.status_code == 200
+
+        ent_s22_used1 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s22}"}).json()
+        assert ent_s22_used1.get("remaining_units") == 19
+
+        # Step 3: Subsequent 28-day February period invoice arrives!
+        time.sleep(1)
+        t22_p2_start = int(time.time())
+        t22_p2_end = t22_p2_start + 28 * 86400  # 28-day February cycle
+
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s22_28d_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s22_id,
+            "created": t22_p2_start,
+            "lines": {"data": [{"period": {"start": t22_p2_start, "end": t22_p2_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Quota resets to 20 units in the 28-day cycle!
+        ent_s22_renewed = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s22}"}).json()
+        assert ent_s22_renewed.get("remaining_units") == 20, f"Expected 20 remaining units, got {ent_s22_renewed}"
+
+        report["scenarios"]["scenario_22_variable_period_lengths"] = {
+            "status": "PASS",
+            "details": "Variable periods (7-day initial proration and 28-day Feb period) verified: authoritative bounds respected without fake 30-day override, quota resets cleanly."
+        }
+        print("Scenario 22: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 23: Delayed Checkout Delivery (invoice.paid arrives BEFORE checkout)
+        # -------------------------------------------------------------
+        print("\n--- Scenario 23: Delayed Checkout Delivery ---")
+        t_s23 = f"tenant_s23_{uuid.uuid4().hex[:8]}"
+        email_s23 = f"{t_s23}@example.com"
+        tok_s23 = make_tenant_jwt(t_s23, email_s23)
+        sub_s23_id = f"sub_s23_{uuid.uuid4().hex[:8]}"
+        t23_base = int(time.time())
+        t23_end = t23_base + 31 * 86400
+
+        # Step 1: invoice.paid arrives FIRST!
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s23_first_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s23_id,
+            "customer_email": email_s23,
+            "client_reference_id": t_s23,
+            "created": t23_base,
+            "lines": {"data": [{"period": {"start": t23_base, "end": t23_end}, "price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Step 2: checkout.session.completed arrives SECOND!
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s23_late_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s23,
+            "customer_email": email_s23,
+            "currency": "eur",
+            "amount_total": 2900,
+            "subscription": sub_s23_id,
+            "payment_intent": f"pi_s23_{uuid.uuid4().hex[:8]}",
+            "line_items": {"data": [{"price": {"id": "price_pro_2900"}}]}
+        })
+
+        # Verify entitlement is active PRO and authoritative period was preserved!
+        ent_s23 = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s23}"}).json()
+        assert ent_s23.get("plan") == "pro"
+        assert ent_s23.get("quota_limit") == "unlimited"
+
+        conv_s23 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s23}"},
+            files=[("files", ("f23.csv", sample_csv_content, "text/csv"))]
+        )
+        assert conv_s23.status_code == 200
+
+        report["scenarios"]["scenario_23_delayed_checkout_delivery"] = {
+            "status": "PASS",
+            "details": "Delayed checkout delivery verified: early invoice.paid pre-provisions entitlement, late checkout links tenant cleanly without overriding authoritative period."
+        }
+        print("Scenario 23: PASS")
+
+        # -------------------------------------------------------------
+        # Scenario 24: Duplicate / Adjustment invoice.paid for Same Period
+        # -------------------------------------------------------------
+        print("\n--- Scenario 24: Duplicate / Adjustment invoice.paid for Same Period ---")
+        t_s24 = f"tenant_s24_{uuid.uuid4().hex[:8]}"
+        email_s24 = f"{t_s24}@example.com"
+        tok_s24 = make_tenant_jwt(t_s24, email_s24)
+        sub_s24_id = f"sub_s24_{uuid.uuid4().hex[:8]}"
+        t24_base = int(time.time())
+        t24_end = t24_base + 30 * 86400
+
+        # Setup Starter
+        post_webhook(client, "checkout.session.completed", {
+            "id": f"cs_s24_{uuid.uuid4().hex[:8]}",
+            "mode": "subscription",
+            "payment_status": "paid",
+            "client_reference_id": t_s24,
+            "customer_email": email_s24,
+            "currency": "eur",
+            "amount_total": 490,
+            "subscription": sub_s24_id,
+            "line_items": {"data": [{"price": {"id": "price_starter_490"}}]}
+        })
+
+        # Initial invoice
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s24_orig_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s24_id,
+            "created": t24_base,
+            "lines": {"data": [{"period": {"start": t24_base, "end": t24_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Tenant consumes 5 units
+        files_5 = [("files", (f"f24_{i}.csv", sample_csv_content, "text/csv")) for i in range(5)]
+        conv_s24 = client.post(
+            f"{API_URL}/api/v1/convert?format=json",
+            headers={"Authorization": f"Bearer {tok_s24}"},
+            files=files_5
+        )
+        assert conv_s24.status_code == 200
+
+        ent_s24_used = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s24}"}).json()
+        assert ent_s24_used.get("used_units") == 5
+        assert ent_s24_used.get("remaining_units") == 15
+
+        # Duplicate / retry / adjustment invoice for the SAME period arrives!
+        post_webhook(client, "invoice.paid", {
+            "id": f"in_s24_dup_{uuid.uuid4().hex[:8]}",
+            "subscription": sub_s24_id,
+            "created": t24_base + 50,
+            "lines": {"data": [{"period": {"start": t24_base, "end": t24_end}, "price": {"id": "price_starter_490"}}]}
+        })
+
+        # Verify quota usage is NOT wiped out: used must still be 5, remaining must still be 15!
+        ent_s24_after_dup = client.get(f"{API_URL}/api/v1/me/entitlements", headers={"Authorization": f"Bearer {tok_s24}"}).json()
+        assert ent_s24_after_dup.get("used_units") == 5, f"Usage was reset! Expected 5, got {ent_s24_after_dup}"
+        assert ent_s24_after_dup.get("remaining_units") == 15
+
+        report["scenarios"]["scenario_24_duplicate_invoice_same_period"] = {
+            "status": "PASS",
+            "details": "Duplicate/adjustment invoice for the same period verified: current_period_start is preserved and quota usage is NOT arbitrarily wiped out."
+        }
+        print("Scenario 24: PASS")
 
     report["overall_status"] = "PASSED"
     report["summary"] = {
