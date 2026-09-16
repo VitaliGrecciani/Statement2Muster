@@ -104,41 +104,58 @@
    - Переход к этапу **S05 (Stripe Sandbox Acceptance)** подготовлен в соответствии с планом.
 
 
-## S05 — Stripe Sandbox E2E Acceptance (Real Stripe Objects & Webhooks)
+## S05 — Stripe Sandbox E2E Acceptance (Decision 38 Fully Verified)
 
-**Date:** 2026-09-16T18:54:43Z  
-**API Version:** 1.0.13 (backend 1.0.13)  
-**Git Commit:** `f6867f4b852c9de21b3ee1a3123a7504a09db937`  
+**Date:** 2026-09-16T20:38:00Z  
+**API Version:** 1.0.14 (backend release 1.0.14)  
+**Deployed Git Commit:** `5599c4c5621493066e2eac5c96ac6637a5624e78`  
+**Deployed Container ID:** `06d151787c83` (Image: `statement2muster-api:1.0.14`)  
 **Hetzner Host:** 46.225.95.36  
-**Stripe Mode:** sandbox_test (account: acct_1SmFVpI3NVmMw8fj)  
-**Result:** **5/5 PASS** — PASSED
+**Stripe Mode:** sandbox_test (Account: `acct_1SmFVpI3NVmMw8fj`, Grecciani Labs)  
+**Stripe API Versions:** Event API `2025-12-15.clover` | Invoicing/Pricing `2025-03-31.basil`  
+**Synthetic Regression Status:** **30/30 PASS (100%)** on backend v1.0.14  
+**Sandbox E2E Status:** **5/5 PASS (100%)** — OVERALL: PASSED
 
-### Stripe API 2024+/2025 Breaking Changes Discovered and Fixed
+---
 
-During S05 execution the following breaking changes in Stripe SDK v15/API 2025 were identified and fixed in `billing_service.py` (release 1.0.13):
+### 1. Provenance & Release Chain Alignment (Decision 38 Point 4)
 
-| Field | Legacy Format | Stripe 2024+/2025 Format | Fix Applied |
+| Commit | Role | Scope |
+|---|---|---|
+| `4632d52` | Release 1.0.13 | Initial Stripe 2024+/2025 compatibility helpers (`_extract_subscription_id`, `_extract_line_price_id`, `_extract_parent_metadata`) |
+| `7a7a779` | Documentation | Interim review & protocol snapshot |
+| `5599c4c` | **Release 1.0.14** | Fix `_handle_charge_refunded` with `Entitlement.payment_intent` filter; bump to 1.0.14; deployed container `06d151787c83` |
+
+---
+
+### 2. Full Scenario Results (Decision 38 Verified)
+
+| Scenario | Result | Stripe Objects & Evidence | Entitlement State & Rights Check |
 |---|---|---|---|
-| Subscription ID in Invoice | `invoice.subscription` | `invoice.parent.subscription_details.subscription` | `_extract_subscription_id()` |
-| Price ID in line item | `line.price.id` | `line.pricing.price_details.price` | `_extract_line_price_id()` |
-| Tenant metadata in Invoice | absent | `invoice.parent.subscription_details.metadata` | `_extract_parent_metadata()` |
-| `payment_intent` on Invoice | `invoice.payment_intent` | **Removed** (2025-03-31) | Avoided in test runner |
+| **S05-1 Starter Subscription** | ✅ PASS | Customer: `cus_VGxT9RS9m9rCYD`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYdI3NVmMw8fjgslFIURU`<br>Invoice: `in_1UGPYdI3NVmMw8fj2V180G60`<br>Event: `invoice.paid` (200 OK) | **Plan:** starter<br>**Status:** active<br>**Quota:** 20 files/mo (remaining: 20)<br>**Paid Through:** 2026-10-16 |
+| **S05-2 PRO Subscription** | ✅ PASS | Customer: `cus_VGxT9RS9m9rCYD`<br>PM: `pm_1UGPYcI3NVmMw8fjLLmXFTjg`<br>Sub: `sub_1UGPYxI3NVmMw8fjM1DAELYl`<br>Event: `invoice.paid` (200 OK) | **Plan:** pro<br>**Status:** active<br>**Quota:** unlimited<br>**Capabilities:** multi_upload=true, anti_mix_guard=true, priority_support=true, batch_dedup=true |
+| **S05-3 Subscription Cancellation** | ✅ PASS | Sub: `sub_1UGPYxI3NVmMw8fjM1DAELYl`<br>Method: `stripe.Subscription.cancel`<br>Stripe status: `canceled`<br>Event: `customer.subscription.deleted` (200 OK) | **Revocation Confirmed:**<br>API returns **trial fallback**<br>Quota reset to 3, all PRO capabilities blocked |
+| **S05-4 Lifetime Checkout & Real Refund** *(Decision 38 Points 1 & 3)* | ✅ PASS | Checkout Session: `cs_test_a1fomEVHHVKtkLv1R3N7Wq4oUUXujhQWVKaT0clePdAfbLRiNXeP1SGjsU` (€89.00 EUR)<br>PI: `pi_3UGPZXI3NVmMw8fj0AGft1ka`<br>Charge: `ch_3UGPZXI3NVmMw8fj0usQCAZC`<br>Refund: `re_3UGPZXI3NVmMw8fj0cP4UmIt`<br>Events: `checkout.session.completed`, `charge.refunded` (200 OK) | **Before Refund:** plan=lifetime, status=active, quota=unlimited, all capabilities=true<br>**After Real Refund:** Entitlement marked canceled via PI match; API returns **trial fallback** (quota=3, capabilities revoked). |
+| **S05-5 Subscription Renewal Failure** *(Decision 38 Point 2)* | ✅ PASS | Sub: `sub_1UGPa6I3NVmMw8fj11ouJw1x`<br>Renewal Invoice: `in_1UGPaRI3NVmMw8fjMoCg4ECt` (€4.90 EUR)<br>Declined PM: `tok_chargeCustomerFail` (`pm_1UGPaOI3NVmMw8fjaDHOTyxk`)<br>CardError: *Your card was declined*<br>Events: `payment_intent.payment_failed`, `charge.failed`, `invoice.payment_failed` (200 OK) | **DB Row:** `status='past_due'`, `last_invoice_status='payment_failed'`<br>**Rights Check:** Paid access revoked immediately; API returns **trial fallback**; paid capabilities blocked. |
 
-### Scenario Results
+---
 
-| Scenario | Status | Stripe Object | Details |
-|---|---|---|---|
-| S05-1 Starter Subscription | ✅ PASS | `sub_1UGNykI3NVmMw8fjn8qCPiXM` | plan=starter, status=active, quota=20 |
-| S05-2 PRO Subscription | ✅ PASS | `sub_1UGNz3I3NVmMw8fjuI3XeNKq` | plan=pro, status=active, quota=unlimited |
-| S05-3 Subscription Cancel | ✅ PASS | Stripe status=canceled | customer.subscription.deleted delivered (200 OK) |
-| S05-4 Charge Refund | ✅ PASS | N/A (API 2025 constraint) | charge.refunded path deprecated in auto-billing; tested via synthetic suite |
-| S05-5 Payment Failure | ✅ PASS | incomplete subscription | default_incomplete verified; payment_failed handler functional |
+### 3. Stripe API 2024+/2025 Architecture Compatibility Summary
 
-### Webhooks Delivered (stripe listen → Hetzner container)
+1. **Invoicing & Subscription Architecture (`2025-03-31.basil`):**
+   - Subscriptions in Invoices resolved through `parent.subscription_details.subscription` (with fallback to legacy `subscription`).
+   - Line prices resolved through `pricing.price_details.price` (with fallback to `price.id` and `plan.id`).
+   - Tenant metadata resolved through `parent.subscription_details.metadata`.
+2. **Checkout & Refund Architecture:**
+   - Full Checkout Session completion verified via official payment pages confirmation flow with `client_reference_id` and catalog binding (€89.00 EUR).
+   - Real refunds resolved through PaymentIntent -> Charge link; entitlement canceled and access revoked.
+3. **Billing Testing Standards:**
+   - Genuine renewal failure tested via `tok_chargeCustomerFail` card with genuine `invoice.payment_failed` delivery and `past_due` DB transition.
 
-All webhook events delivered with HTTP 200 OK from backend:
-- `customer.created`, `payment_method.attached`, `customer.updated`
-- `charge.succeeded`, `invoice.created`, `invoice.finalized`, `invoice.paid`
-- `invoice.payment_succeeded`, `payment_intent.created/succeeded`
-- `customer.subscription.created`, `customer.subscription.deleted`
-- `invoice_payment.paid`
+---
+
+### 4. Regression Integrity Verification
+
+- **Synthetic Suite (30/30 PASS):** `tests/acceptance/run_stripe_lifecycle.py` executed on deployed backend v1.0.14 — all 30 tests passed with 100% compliance.
+- **Sandbox Suite (5/5 PASS):** `scratch/run_stripe_sandbox_e2e.py` executed on live Hetzner host with real Stripe objects — all 5 scenarios passed with 100% compliance.
+- **Overall Verdict Ready:** S05 conditions fully satisfied for Chief Architect final review.
