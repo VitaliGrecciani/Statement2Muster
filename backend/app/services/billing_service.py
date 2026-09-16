@@ -815,23 +815,70 @@ async def _handle_subscription_deleted(db: AsyncSession, sub: Dict[str, Any], ev
         await db.flush()
 
 async def _handle_charge_refunded(db: AsyncSession, charge: Dict[str, Any], event_created_ts: Optional[int] = None):
-    # If refund corresponds to a lifetime or subscription checkout, cancel entitlement
+    """Cancel entitlement when a charge is fully refunded.
+    
+    Stripe's charge.refunded event contains: id, payment_intent.
+    For subscription charges, we resolve entitlement via:
+      payment_intent → stripe.PaymentIntent → invoice → subscription → Entitlement.source_id
+    For one-time (lifetime) charges, we resolve via:
+      Entitlement.source_id == payment_intent_id (or charge_id)
+    """
     from sqlalchemy import or_
-    payment_intent = str(charge.get("payment_intent") or "").strip()
+    payment_intent_id = str(charge.get("payment_intent") or "").strip()
     charge_id = str(charge.get("id") or "").strip()
+    
+    ent = None
+    
+    # Path 1: Direct payment_intent or source_id match (lifetime checkout or direct charge)
     filters = []
-    if payment_intent:
-        filters.append(Entitlement.payment_intent == payment_intent)
-        filters.append(Entitlement.source_id == payment_intent)
+    if payment_intent_id:
+        filters.append(Entitlement.payment_intent == payment_intent_id)
+        filters.append(Entitlement.source_id == payment_intent_id)
     if charge_id:
         filters.append(Entitlement.source_id == charge_id)
-    if not filters:
-        return
-    query = select(Entitlement).where(or_(*filters))
-    ent = (await db.execute(query)).scalars().first()
+    if filters:
+        query = select(Entitlement).where(or_(*filters))
+        ent = (await db.execute(query)).scalars().first()
+    
+    # Path 2: Resolve via PaymentIntent → Invoice → Subscription (subscription billing)
+    if not ent and payment_intent_id:
+        try:
+            pi = stripe.PaymentIntent.retrieve(payment_intent_id)
+            pi_dict = pi.to_dict() if hasattr(pi, "to_dict") else {}
+            inv_id = pi_dict.get("invoice")
+            if not inv_id:
+                # Stripe 2025: invoice is on InvoicePayment, not directly on PI
+                # Try to get subscription ID from the PI's metadata
+                sub_id_from_meta = (pi_dict.get("metadata") or {}).get("subscription_id")
+                if sub_id_from_meta:
+                    query2 = select(Entitlement).where(Entitlement.source_id == sub_id_from_meta)
+                    ent = (await db.execute(query2)).scalars().first()
+            if inv_id and not ent:
+                inv = stripe.Invoice.retrieve(inv_id)
+                inv_dict = inv.to_dict() if hasattr(inv, "to_dict") else {}
+                # Support both legacy invoice.subscription and Stripe 2024+
+                sub_id = _extract_subscription_id(inv_dict)
+                if sub_id:
+                    query3 = select(Entitlement).where(Entitlement.source_id == sub_id)
+                    ent = (await db.execute(query3)).scalars().first()
+                    if ent:
+                        logger.info(f"charge.refunded: resolved entitlement for sub {sub_id} via PI {payment_intent_id} → invoice {inv_id}")
+        except Exception as resolve_err:
+            logger.warning(f"charge.refunded: failed to resolve entitlement via PaymentIntent {payment_intent_id}: {resolve_err}")
+    
     if ent:
-        ent.status = "canceled"
-        if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
-            ent.last_event_created_at = event_created_ts
-        ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        await db.flush()
+        # Only cancel if refund is a full refund (amount_refunded == amount)
+        amount = charge.get("amount", 0)
+        amount_refunded = charge.get("amount_refunded", 0)
+        if amount_refunded >= amount:
+            ent.status = "canceled"
+            if event_created_ts and (not ent.last_event_created_at or event_created_ts > ent.last_event_created_at):
+                ent.last_event_created_at = event_created_ts
+            ent.updated_at = datetime.datetime.now(datetime.timezone.utc)
+            await db.flush()
+            logger.info(f"charge.refunded: entitlement {ent.id} for tenant {ent.tenant_id} marked canceled (full refund, charge={charge_id}, pi={payment_intent_id}).")
+        else:
+            logger.info(f"charge.refunded: partial refund ({amount_refunded}/{amount}), entitlement not canceled.")
+    else:
+        logger.warning(f"charge.refunded: no entitlement found for charge {charge_id}, pi {payment_intent_id}.")
+
