@@ -273,15 +273,14 @@
 
         <h2>§ 6 Unterauftragsverhältnisse (Subprozessoren)</h2>
         <p>(1) Der Auftraggeber erteilt hiermit die allgemeine Genehmigung zur Einbindung von Unterauftragsverarbeitern nach folgenden Funktionsbereichen:</p>
-        <p><strong>A. Auftragsverarbeiter für Kontoauszugs- und Buchungsdaten (Kernverarbeitung):</strong></p>
+        <p><strong>A. Auftragsverarbeiter für Kontoauszugs- und Buchungsdaten (Kernverarbeitung) sowie Support-Postfach:</strong></p>
         <ul>
-          <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO/IEC 27001-zertifizierte Cloud-Infrastruktur / Rechenzentrumsbetrieb in Frankfurt am Main. Die gesamte Parsing- und Konvertierungslogik der Auszugsdateien sowie der flüchtige RAM-Cache werden <em>ausschließlich</em> auf diesen Servern in Deutschland betrieben. Kein externer Drittanbieter hat Zugriff auf Mandanten-Auszugsinhalte.</li>
+          <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO/IEC 27001-zertifizierte Cloud-Infrastruktur / Rechenzentrumsbetrieb in Frankfurt am Main. Die gesamte Parsing- und Konvertierungslogik der Auszugsdateien, der flüchtige RAM-Cache sowie das geschäftliche Support-Postfach (<code>support@statement2muster.com</code>) werden <em>ausschließlich</em> auf diesen Servern in Deutschland betrieben. Kein externer Drittanbieter hat Zugriff auf Mandanten-Auszugsinhalte.</li>
         </ul>
         <p><strong>B. Administrative Hilfsdienste und Zahlungsabwicklung (kein Zugriff auf Auszugsinhalte im regulären Konvertierungspfad):</strong></p>
         <ul>
           <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung von Lizenzgebühren und Abonnements. Verarbeitet ausschließlich kaufmännische Abrechnungsmetadaten (Rechnungsbetrag, E-Mail, Stripe Customer ID) als eigenständiger Verantwortlicher bzw. Auftragsverarbeiter für Abrechnungsdaten; erhält zu keinem Zeitpunkt Buchungsauszüge.</li>
           <li><strong>Plus Five Five, Inc. (dba Resend, Delaware, USA):</strong> Bereitstellung von E-Mail-Infrastruktur zur Zustellung transaktionaler Einmalpasswörter (OTP / Login-Codes). Es werden ausschließlich die E-Mail-Adresse und der Einmalcode (Gültigkeit 10 Min.) übertragen; datenschutzrechtlich abgesichert über das Resend Data Processing Addendum (DPA, Stand: 27. August 2026) inkl. Standardvertragsklauseln der EU (SCCs) gemäß Art. 46 DSGVO.</li>
-          <li><strong>ImprovMX Inc. (Delaware, USA) & Apple Distribution International Ltd. / Apple Inc. (Irland / USA):</strong> Technisches MX-Routing (ImprovMX) und Hosting des Kanzlei-Zielpostfachs (Apple iCloud Mail für Custom Domains) für geschäftliche Support-Anfragen von <code>support@statement2muster.com</code> an <code>vitali@grecciani.com</code> (abgesichert über Auftragsverarbeitungsbedingungen bzw. Standardvertragsklauseln der EU / Data Privacy Framework und TLS-Transportverschlüsselung). Der reguläre Konvertierungspfad des Dienstes leitet niemals Auszugsdaten an E-Mail-Dienste weiter; übersendet ein Nutzer dem Support freiwillig Beispieldateien zur Störungsanalyse per E-Mail, erfolgt die Verarbeitung streng zweckgebunden zur Ticketbeantwortung mit anschließender Löschung.</li>
         </ul>
         <p>(2) Der Auftragnehmer informiert den Auftraggeber mindestens 14 Tage vorab über jede beabsichtigte Änderung in Bezug auf die Hinzuziehung oder Ersetzung von Unterauftragsverarbeitern. Dem Auftraggeber steht bei berechtigten datenschutzrechtlichen Bedenken ein Widerspruchsrecht zu.</p>
 
