@@ -441,8 +441,8 @@ const LEGAL_TEXTS = {
     <h3>2. Serverstandort & Hosting (Hetzner)</h3>
     <p>Auszugsverarbeitung ausschließlich bei der <strong>Hetzner Online GmbH</strong> in einem ISO/IEC-27001-zertifizierten Rechenzentrum in <strong>Frankfurt am Main, Deutschland</strong>. Transportverschlüsselung via TLS 1.3 / TLS 1.2 mit Perfect Forward Secrecy.</p>
 
-    <h3>3. E-Mail-OTP & Kommunikation (Resend & Hetzner)</h3>
-    <p>Für Login-Einmalcodes nutzen wir <strong>Plus Five Five, Inc. (dba Resend, USA)</strong> (Übermittlung von E-Mail und 10-Min-Code; Resend DPA Stand 27.08.2026, EU-Standardvertragsklauseln nach Art. 46 DSGVO). Das Support-Postfach (<code>support@statement2muster.com</code>) wird direkt bei der <strong>Hetzner Online GmbH</strong> in Deutschland (Frankfurt am Main) unter dem bestehenden Hetzner-AVV betrieben.</p>
+    <h3>3. E-Mail-OTP & Kommunikation (Resend, ImprovMX & Google)</h3>
+    <p>Für Login-Einmalcodes nutzen wir <strong>Plus Five Five, Inc. (dba Resend, USA)</strong> (Übermittlung von E-Mail und 10-Min-Code; Resend DPA Stand 27.08.2026, EU-Standardvertragsklauseln nach Art. 46 DSGVO). Support-Anfragen an <code>support@statement2muster.com</code> werden über <strong>ImprovMX Inc. (USA)</strong> (abgesichert über ImprovMX DPA vom 09.09.2026 inkl. EU-SCCs) an das Postfach des Verantwortlichen (gehostet bei <strong>Google Ireland Ltd. / Google LLC</strong>, Data Privacy Framework) weitergeleitet.</p>
 
     <h3>4. Zahlungsabwicklung (Stripe)</h3>
     <p>Abrechnungen über <strong>Stripe Payments Europe, Ltd. (Irland)</strong> über PCI-DSS-Level-1-Infrastrukturen (nur kaufmännische Referenz-IDs, keine Auszugsdaten an Stripe).</p>
@@ -460,9 +460,10 @@ const LEGAL_TEXTS = {
     <p>Flüchtige In-Memory-Verarbeitung (Zero Durable Storage) in RAM/<code>tmpfs</code> mit begrenztem 10-Minuten-Cache. Lokale Browser-Erweiterung speichert bis zu 15 Verläufe rein lokal auf dem Client-Gerät.</p>
     <p><strong>Genehmigte Subprozessoren:</strong></p>
     <ul>
-      <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main (Auszugsverarbeitung, RAM-Cache & Support-Postfach).</li>
+      <li><strong>Hetzner Online GmbH (Deutschland):</strong> ISO 27001-Hosting in Frankfurt am Main (Auszugsverarbeitung & RAM-Cache).</li>
       <li><strong>Stripe Payments Europe, Ltd. (Irland / EU):</strong> Zahlungsabwicklung & Lizenzabrechnung (keine Auszugsinhalte).</li>
       <li><strong>Plus Five Five, Inc. / Resend (Delaware, USA):</strong> Transaktionale OTP-Zustellung (Resend DPA 27.08.2026, Art. 46 DSGVO SCCs).</li>
+      <li><strong>ImprovMX Inc. (Delaware, USA) & Google Ireland Ltd. (Irland / EU):</strong> MX-Routing und Hosting des Support-Zielpostfachs (ImprovMX DPA 09.09.2026, Google DPF / SCCs).</li>
     </ul>
     <p>Vollständiger Vertragstext: <a href="/avv" style="color: var(--primary);" target="_blank">statement2muster.com/avv</a></p>
   `,

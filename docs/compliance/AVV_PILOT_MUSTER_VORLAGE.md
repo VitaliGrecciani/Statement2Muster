@@ -152,7 +152,7 @@ Vitali Grecciani (Inhaber)
   - Role-Based Access Control (RBAC).
   - Keine direkten Datenbanktabellen für Finanz- oder Auszugstransaktionen (Zero Statement Retention).
 * **Trennungskontrolle:**
-  - Strikte funktionale Trennung der Pipelines (Kernverarbeitung und Support-Postfach auf Hetzner in DE, Abrechnung bei Stripe in Irland, OTP-Mail bei Resend in USA).
+  - Strikte funktionale Trennung der Pipelines (Kernverarbeitung auf Hetzner in DE, Abrechnung bei Stripe in Irland, OTP-Mail bei Resend in USA, Support-Routing via ImprovMX an Google vitogr24@gmail.com).
   - Mandantendaten werden nicht vermischt; jede Konvertierungsanfrage läuft in einem isolierten flüchtigen Speicherbereich ab.
 
 ### 2. Integrität (Art. 32 Abs. 1 lit. b DSGVO)
@@ -177,6 +177,8 @@ Vitali Grecciani (Inhaber)
 
 | Nr. | Unternehmen | Sitz | Standort der Verarbeitung | Gegenstand & Funktion | Rechtsgrundlage & Garantie |
 |---|---|---|---|---|---|
-| **1** | **Hetzner Online GmbH** | Industriestr. 25, 91710 Gunzenhausen, Deutschland | **Frankfurt am Main, Deutschland (EU)** | **Kernverarbeitung & Support-Postfach:** Bereitstellung Cloud-Infrastruktur / Linux-Container für Parsing, Konvertierung, flüchtigen RAM-Cache (TTL 600s) sowie Hosting des Support-Postfachs `support@statement2muster.com` | Auftragsverarbeitungsvertrag (AVV) gem. Art. 28 DSGVO; ISO/IEC 27001 zertifiziert. 100% EU/DE. |
+| **1** | **Hetzner Online GmbH** | Industriestr. 25, 91710 Gunzenhausen, Deutschland | **Frankfurt am Main, Deutschland (EU)** | **Kernverarbeitung:** Bereitstellung Cloud-Infrastruktur / Linux-Container für Parsing, Konvertierung und flüchtigen RAM-Cache (TTL 600s) | Auftragsverarbeitungsvertrag (AVV) gem. Art. 28 DSGVO; ISO/IEC 27001 zertifiziert. 100% EU/DE. |
 | **2** | **Stripe Payments Europe, Ltd.** | 1 Grand Canal Street Lower, Dublin, D02 H210, Irland | Irland / EU | **Abrechnung:** Abwicklung von Lizenzzahlungen und Abonnements (verarbeitet nur kaufmännische Metadaten, keine Bankauszüge) | Stripe DPA (Stand 16.02.2024), PCI-DSS Level 1. |
 | **3** | **Plus Five Five, Inc. (dba Resend)** | 2261 Market Street #5151, San Francisco, CA 94114, USA | USA / Global | **Authentifizierung:** Zustellung 6-stelliger transaktionaler Login-Einmalcodes (OTP) per E-Mail (nur E-Mail-Adresse + OTP, keine Bankauszüge) | Resend DPA (Stand: 27. August 2026) inkl. Standardvertragsklauseln der EU (SCCs) gem. Art. 46 DSGVO. |
+| **4** | **ImprovMX Inc.** | 2093 Philadelphia Pike #6858, Claymont, DE 19703, USA | USA / EU | **Support-Routing:** MX-Forwarding eingehender E-Mails an `support@statement2muster.com` an das Zielpostfach des Verantwortlichen | Zweiseitig geschlossener ImprovMX DPA (Stand: 09.09.2026) inkl. EU-Standardvertragsklauseln (SCCs). |
+| **5** | **Google Ireland Ltd. / Google LLC** | Gordon House, Barrow St, Dublin 4, Irland / 1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA | Irland / EU / USA | **Support-Zielpostfach:** Hosting des Kanzlei-Zielpostfachs `vitogr24@gmail.com` mit TLS und 2FA | Google Terms of Service & Privacy Policy, EU-U.S. Data Privacy Framework (DPF) gem. Art. 45 DSGVO / EU-SCCs. |

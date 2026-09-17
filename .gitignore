@@ -37,6 +37,7 @@ extension_firefox_build/
 !extension/**/*.png
 !extension/icons/*
 !docs/managed_extension_acceptance/**/*
+!docs/compliance/*.pdf
 
 # Env & Secrets
 .env
