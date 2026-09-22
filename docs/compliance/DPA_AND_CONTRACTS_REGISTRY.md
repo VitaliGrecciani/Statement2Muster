@@ -2,47 +2,53 @@
 
 **Projekt:** Statement2Muster DACH (Grecciani Labs)  
 **Verantwortlicher (Controller):** Vitali Grecciani (Einzelunternehmer, Roseggergasse 37, 3400 Klosterneuburg, Österreich)  
-**Datum:** 2026-09-17  
-**Status:** Реестр применимых договоров и цепочек обработки данных (актуализировано во исполнение Решения № 46 Главного Архитектора — отражение zweiseitig unterzeichneten ImprovMX DPA и реального целевого ящика Google DPF `vitogr24@gmail.com`)  
+**Datum:** 2026-09-22  
+**Status:** Реестр применимых договоров и цепочек обработки данных (актуализировано во исполнение Решений № 46 и № 47 Главного Архитектора — консолидация почтового ящика саппорта на суверенной инфраструктуре Hetzner Online GmbH во Франкфурте-на-Майне в рамках действующего AVV ст. 28 DSGVO, полное исключение ImprovMX и Google из цепочки обработки).
 
 ---
 
 ## 1. Funktionale Trennung der Verarbeitungsketten (Separation of Pipelines)
 
-Zur Vermeidung von Missverständnissen wird die Datenverarbeitung bei Statement2Muster strikt nach Zweck und Datenfluss in drei getrennte Pipelines unterteilt:
+Zur Gewährleistung technischer und vertraglicher Klarheit wird die Datenverarbeitung bei Statement2Muster strikt nach Verarbeitungszweck und Datenfluss in drei getrennte Pipelines unterteilt:
 
 ```
 [Mandant / Kanzlei]
        │
        ├─► PIPELINE 1: Kernverarbeitung (Auszüge) ────────► [Hetzner Frankfurt (RAM / tmpfs)]
-       │   (100% in Deutschland, keine Weiterleitung an Dritte, RAM-Cache TTL 600s)
+       │   (100% in Deutschland, keine Weiterleitung an Dritte, Zero Durable Storage, RAM-Cache TTL 600s)
        │
        ├─► PIPELINE 2: Abrechnung & Lizenzverwaltung ─────► [Stripe Payments Europe (Irland)]
-       │   (Keine Auszugsdaten; nur E-Mail, Betrag, Customer ID, Sub ID)
+       │   (Keine Auszugsdaten; nur E-Mail, Rechnungsbetrag, Customer ID, Sub ID)
        │
-       └─► PIPELINE 3: Authentifizierung & Support ──────► [Resend, ImprovMX & Google]
-           (3A: OTP-Codes per Resend: nur E-Mail + 6-stelliger 10-Minuten-Code, DPA 27.08.2026)
+       └─► PIPELINE 3: Authentifizierung & Support ──────► [Resend & Hetzner Frankfurt]
+           (3A: OTP-Codes per Resend: nur E-Mail + 6-stelliger 10-Minuten-Code, DPA 27.08.2026, SCCs)
            (3B: Support-Routing & Postfach support@statement2muster.com:
-                ImprovMX MX Relay [DPA 09.09.2026, SCCs] ──► Google [vitogr24@gmail.com, DPF / SCCs])
+                100% Hetzner Mailserver [Frankfurt am Main, Hetzner AVV Art. 28 DSGVO])
 ```
 
 ---
 
 ## 2. Detaillierter Dienstleister- und DPA-Nachweis
 
-### A. Kernverarbeitung der Kontoauszüge (Auftragsverarbeitung gem. Art. 28 DSGVO)
+### A. Kernverarbeitung der Kontoauszüge & Support-Postfach (Auftragsverarbeitung gem. Art. 28 DSGVO)
 
 #### 1. Hetzner Online GmbH
 * **Unternehmenssitz:** Industriestr. 25, 91710 Gunzenhausen, Deutschland.
 * **Rechenzentrumsstandort:** Frankfurt am Main, Deutschland (ISO/IEC 27001 zertifiziert).
-* **Rolle:** Auftragsverarbeiter (Sub-processor) für Cloud-Infrastruktur und Rechenzentrumsbetrieb.
-* **Gegenstand der Verarbeitung:** Bereitstellung des Linux-Containers für In-Memory-Parsing, Auszugsstrukturierung und flüchtigen In-Memory-Ergebnis-Cache (TTL: 600 Sekunden / 10 Minuten ab Zwischenspeicherung in `tmpfs`/RAM zur Unterstützung idempotenter Wiederholungsabrufe desselben Zielformats ohne erneuten Parsing-Aufwand und ohne Kontingentverlust).
-* **Verarbeitete Daten:** Hochgeladene PDF- und CSV-Auszugsdaten zur flüchtigen Konvertierung; kryptografisch signierte Sitzungstoken (RS256); Lizenzstatus.
-* **Dauer der Speicherung:** 
-  - Server-RAM-Cache: Maximal 600 Sekunden ab Zwischenspeicherung; danach automatische Freigabe durch das System (Memory Deallocation / Garbage Collection).
-  - Keine Speicherung von Auszugsinhalten auf Festplatten/SSDs (Zero Durable Storage).
+* **Rolle:** Auftragsverarbeiter (Sub-processor) für Cloud-Infrastruktur, Rechenzentrumsbetrieb und Mailhosting.
+* **Gegenstand der Verarbeitung:**
+  1. *Auszugskonvertierung (Pipeline 1):* Bereitstellung des gehärteten Linux-Containers für In-Memory-Parsing, Auszugsstrukturierung und flüchtigen In-Memory-Ergebnis-Cache (TTL: 600 Sekunden / 10 Minuten ab Zwischenspeicherung in `tmpfs`/RAM zur Unterstützung idempotenter Wiederholungsabrufe desselben Zielformats ohne erneuten Parsing-Aufwand und ohne Kontingentverlust).
+  2. *Support-Postfach (Pipeline 3B):* Bereitstellung und Hosting des dedizierten Mailservers (`docker-mailserver` + Roundcube Webmail auf Host `46.225.95.36`), Entgegennahme von geschäftlichen E-Mails an `support@statement2muster.com` über Port 25 (SMTP) und Bereitstellung des verschlüsselten Abrufs über Port 993 (IMAPS).
+* **Verarbeitete Datenkategorien:**
+  - Pipeline 1: Hochgeladene PDF- und CSV-Auszugsdaten zur flüchtigen Konvertierung; kryptografisch signierte Sitzungstoken (RS256); Lizenzstatus.
+  - Pipeline 3B: Support-Anfragen (Absender, Datum, Betreff, Nachrichteninhalt, eventuell vom Nutzer freiwillig zur Fehlerdiagnose übermittelte Beispieldateien).
+* **Aufbewahrungsfristen & Löschkonzepte (Klarstellung gem. Entscheidung 47):**
+  - *Pipeline 1 (Auszüge):* Strikte **Zero Durable Retention**. Auszugsdaten werden niemals auf persistenten Festplatten/SSDs gespeichert, sondern verbleiben ausschließlich im flüchtigen RAM (`tmpfs`). Nach Ablauf von 600 Sekunden erfolgt die vollständige Freigabe.
+  - *Pipeline 3B (Support-E-Mail):* **Politik begrenzter Aufbewahrung (Limited Support Retention / Ticket Closure Policy)**. E-Mails und freiwillig übermittelte Anhänge im Postfach `support@statement2muster.com` werden auf dem Hetzner-Server gespeichert, solange das Ticket in Bearbeitung ist. Nach Klärung und Abschluss der Support-Anfrage werden der Vorgang und eventuelle Beispieldateien manuell gelöscht. Eine dauerhafte Archivierung findet nicht statt.
+* **Sicherheitsniveau & Verschlüsselung (Klarstellung gem. Entscheidung 47):**
+  - E-Mail-Verschlüsselung: **Transportverschlüsselung (TLS 1.3 / STARTTLS)** beim Empfang über SMTP und beim Abruf über IMAPS. Es handelt sich um Transportverschlüsselung zwischen Übertragungsknoten, nicht um eine proprietäre Ende-zu-Ende-Inhaltsverschlüsselung.
 * **Vertragliche Grundlage:** Auftragsverarbeitungsvertrag (AVV) nach Art. 28 DSGVO der Hetzner Online GmbH (DSGVO-konforme Fassung).
-* **Abschlussmethode & Status:** Elektronisch abgeschlossen im Hetzner Kundenkonto (Cloud / Robot Console).
+* **Abschlussmethode & Status:** Rechtswirksam elektronisch abgeschlossen im Hetzner Kundenkonto (Cloud Console).
 * **Account-Bestätigung:** Account aktiv, Host `46.225.95.36`, zugeordnet dem Verantwortlichen Vitali Grecciani.
 * **Drittlandübermittlung:** Keine. Die gesamte Verarbeitung und Speicherung erfolgt zu 100% innerhalb der Bundesrepublik Deutschland (EU).
 * **Quelle:** [Hetzner Datenschutz & AVV](https://www.hetzner.com/de/legal/privacy-policy)
@@ -86,35 +92,12 @@ Zur Vermeidung von Missverständnissen wird die Datenverarbeitung bei Statement2
 
 ---
 
-### D. E-Mail-Routing & Support-Postfach (Inbound MX & Zielpostfach)
+### D. Decommissioned & Ausgeschlossene Drittanbieter
 
-#### 4. ImprovMX Inc. (MX-Relay / E-Mail-Weiterleitung)
-* **Unternehmenssitz:** 2093 Philadelphia Pike #6858, Claymont, DE 19703, USA (Delaware Corporation).
-* **Rolle:** Auftragsverarbeiter (Data Processor) für das Inbound-MX-Routing geschäftlicher E-Mails an `support@statement2muster.com`.
-* **Gegenstand der Verarbeitung:** Entgegennahme eingehender SMTP-Nachrichten an die Domain `statement2muster.com` über autoritative MX-Gateways und Weiterleitung an das Zielpostfach des Verantwortlichen.
-* **Verarbeitete Datenkategorien:** E-Mail-Metadaten (Absender, Empfänger, Zeitstempel, Betreff), Nachrichteninhalt sowie ggf. freiwillig vom Nutzer beigefügte Support-Anhänge.
-* **Strikte Isolation:** Der Konvertierungspfad der Web-Applikation leitet niemals Kontoauszüge an ImprovMX weiter. Freiwillig per E-Mail übersandte Beispieldateien werden streng zweckgebunden zur Ticketbeantwortung genutzt und nach Klärung gelöscht.
-* **Vertragliche Grundlage & Übermittlungsmechanismus:**
-  - **Offizielle Fassung:** *ImprovMX Data Processing Agreement (DPA)* — **Datum: 9. September 2026** (Standard-DPA von ImprovMX Inc.).
-  - **Zweiseitige Unterzeichnung:** Rechtswirksam bilateral gezeichnet durch Matthew Tse (CEO ImprovMX Inc., New York) und Vitali Grecciani (Inhaber Grecciani Labs).
-  - **PDF-Dokumentnachweis:** Vollständig gezeichnetes Exemplar hinterlegt im Repository unter [`docs/compliance/improvmx_dpa_signed.pdf`](file:///c:/Users/zorik/Documents/Obsidian%20Vault/10_Projects/Statement2Muster/docs/compliance/improvmx_dpa_signed.pdf) (143.205 Bytes).
-  - **Übermittlungsmechanismus:** Standard Contractual Clauses (SCCs) der Europäischen Union gemäß Art. 46 Abs. 2 lit. c DSGVO.
-* **Autoritative DNS-Konfiguration (Vercel DNS `ns1.vercel-dns.com`):**
-  - `MX 10 mx1.improvmx.com.`
-  - `MX 20 mx2.improvmx.com.`
-  - `TXT "v=spf1 include:spf.improvmx.com ~all"`
-* **Quelle:** [ImprovMX DPA](https://improvmx.com/dpa/)
-
-#### 5. Google Ireland Limited / Google LLC (Zielpostfach des Verantwortlichen)
-* **Unternehmenssitz:** Gordon House, Barrow Street, Dublin 4, Irland (Google Ireland Limited) / 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA (Google LLC).
-* **Rolle:** Auftragsverarbeiter / E-Mail-Diensteanbieter für das persönliche geschäftliche Zielpostfach des Verantwortlichen (`vitogr24@gmail.com`).
-* **Gegenstand der Verarbeitung:** Empfang, dauerhafte Entgegennahme, Anzeige und Bearbeitung weitergeleiteter Support-Anfragen durch den Verantwortlichen.
-* **Verarbeitete Datenkategorien:** Support-E-Mails von Nutzern an `support@statement2muster.com` (Absenderadresse, Betreff, Nachrichtentext, freiwillige Anhänge).
-* **Rechtsgrundlage & Übermittlungsmechanismus:**
-  - Google Nutzungsbedingungen & Google Datenschutzerklärung.
-  - Zertifizierung unter dem **EU-U.S. Data Privacy Framework (DPF)** gemäß Angemessenheitsbeschluss der EU-Kommission (Art. 45 DSGVO) für Google LLC sowie EU-Standardvertragsklauseln (SCCs) gem. Art. 46 DSGVO.
-  - Sicherheitsniveau: Transportverschlüsselung mit TLS 1.3 / TLS 1.2, Zwei-Faktor-Authentifizierung (2FA / Security Key) und strikter Zugriffsschutz des Inhabers.
-* **Quelle:** [Google Privacy & Terms](https://policies.google.com/privacy), [Data Privacy Framework List](https://www.dataprivacyframework.gov/)
+#### 4. ImprovMX Inc. & Google LLC / Google Ireland Limited (VOLLSTÄNDIG ENTFERNT)
+* **Historischer Status:** ImprovMX diente in der frühen Entwicklungsphase als temporäres Weiterleitungs-Relay an eine Google-Mailadresse.
+* **Aktueller Status (ab 22.09.2026):** **Vollständig außer Betrieb genommen (Decommissioned)**.
+* **Begründung:** Gemäß Entscheidung 47 des leitenden Architekten wurde festgestellt, dass für Standard-Gmail-Konten kein Art.-28-DSGVO-Vertrag vorliegt. Zur Schaffung eines lückenlosen, 100% DSGVO-konformen Rechtsrahmens wurde der gesamte E-Mail-Empfang auf die eigene Hetzner-Serverinfrastruktur in Frankfurt am Main migriert. Weder ImprovMX noch Google sind Bestandteil des aktuellen Datenverarbeitungs- oder Support-Routings.
 
 ---
 
@@ -146,44 +129,43 @@ Zur Gewährleistung einer rechtsverbindlichen Vereinbarung über die Auftragsver
 
 ```text
 ================================================================================
-BESTÄTIGUNG DES VERANTWORTLICHEN / INHABERS (AKTUALISIERT NACH ENTSCHEIDUNG 46)
+BESTÄTIGUNG DES VERANTWORTLICHEN / INHABERS (AKTUALISIERT NACH ENTSCHEIDUNG 47)
 
 Hiermit bestätige ich, Vitali Grecciani, als Inhaber von Grecciani Labs und
 datenschutzrechtlich Verantwortlicher für das Projekt Statement2Muster:
 
 1. Die in diesem Register aufgeführten Verträge und Datenschutzvereinbarungen:
    - Hetzner Online GmbH: Auftragsverarbeitungsvertrag (AVV gem. Art. 28 DSGVO,
-     umfassend die Kernverarbeitung der Kontoauszüge in Frankfurt am Main)
+     umfassend die Kernverarbeitung der Kontoauszüge sowie das E-Mail-Hosting
+     des Support-Postfachs in Frankfurt am Main)
    - Stripe Payments Europe, Ltd.: Stripe DPA (Fassung vom 16.02.2024)
    - Plus Five Five, Inc. (Resend): Resend DPA (Fassung vom 27. August 2026,
-     inkl. EU-Standardvertragsklauseln / SCCs)
-   - ImprovMX Inc.: ImprovMX DPA (Fassung vom 9. September 2026, bilateral
-     unterzeichnet am 17.09.2026 inkl. EU-Standardvertragsklauseln / SCCs,
-     hinterlegt als docs/compliance/improvmx_dpa_signed.pdf)
-   - Google Ireland Limited / Google LLC: Hosting des Zielpostfachs
-     vitogr24@gmail.com unter dem EU-U.S. Data Privacy Framework (DPF)
-     und EU-Standardvertragsklauseln mit 2FA- und TLS-Absicherung
+     inkl. EU-Standardvertragsklauseln / SCCs für OTP-Zustellung)
    wurden für die in Produktion eingesetzten Konten und Systeme wirksam abgeschlossen,
-   entsprechen exakt den tatsächlichen Netzwerk- und DNS-Routings und sind
+   entsprechen exakt den tatsächlichen Netzwerk- und Serverkonfigurationen und sind
    vollumfänglich in Kraft.
 
-2. Die Systeme sind so konfiguriert, dass Mandanten-Auszugsdaten ausschließlich
-   auf den Servern der Hetzner Online GmbH in Frankfurt am Main in flüchtigem
-   Speicher (RAM / tmpfs) verarbeitet werden. Kein Hilfsdienstleister (weder
-   Stripe noch Resend noch ImprovMX) erhält im regulären Konvertierungspfad
-   Zugriff auf Auszugsinhalte. Freiwillig per E-Mail an den Support gesendete
-   Beispieldateien werden streng zweckgebunden bearbeitet und nach Abschluss
-   des Support-Tickets gelöscht.
+2. Der Support-E-Mail-Verkehr (support@statement2muster.com) wird zu 100% direkt
+   auf der Hetzner-Serverinfrastruktur in Frankfurt am Main entgegengenommen und
+   verarbeitet. Weder ImprovMX noch Google LLC / Gmail fungieren als Auftragsverarbeiter
+   oder Weiterleitungsglieder.
 
-3. Für jede Pilot-Kanzlei und jeden B2B-Kunden wird vor der Verarbeitung realer
+3. Die Systeme sind so konfiguriert, dass Mandanten-Auszugsdaten (Pipeline 1) ausschließlich
+   auf den Servern der Hetzner Online GmbH in flüchtigem Speicher (RAM / tmpfs) mit
+   einer maximalen TTL von 600 Sekunden verarbeitet werden (Zero Durable Storage).
+   Freiwillig per E-Mail an den Support gesendete Beispieldateien (Pipeline 3B)
+   unterliegen der Richtlinie begrenzter Aufbewahrung (Limited Support Retention) und
+   werden nach Abschluss des Tickets manuell gelöscht.
+
+4. Für jede Pilot-Kanzlei und jeden B2B-Kunden wird vor der Verarbeitung realer
    Mandantendaten das bilaterale Gegenzeichnungsverfahren auf Basis der Muster-Vorlage
    (docs/compliance/AVV_PILOT_MUSTER_VORLAGE.md) verbindlich umgesetzt.
 
-4. Die veröffentlichten Texte auf https://statement2muster.com (Impressum,
+5. Die veröffentlichten Texte auf https://statement2muster.com (Impressum,
    Datenschutz, AVV, AGB, Widerruf) entsprechen exakt den in diesem Dossier
    dokumentierten Inhalten und Dienstleisterketten.
 
-Klosterneuburg, am 17.09.2026
+Klosterneuburg, am 22.09.2026
 
 Vitali Grecciani (Inhaber / Product Owner)
 ================================================================================
