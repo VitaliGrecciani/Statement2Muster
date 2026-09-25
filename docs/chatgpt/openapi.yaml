@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: Statement2Muster DATEV & BMD Accounting Action
+  description: >
+    Official accounting conversion action for Statement2Muster.
+    Enables ChatGPT to turn bank statements (PDF, CSV, image or text from American Express, Wise, PayPal, Sparkasse, Deutsche Bank, Erste Bank, Raiffeisen, etc.)
+    into certified DATEV EXTF (Buchungsstapel Version 700) and Austrian BMD NTCS 5.1 CSV files.
+    Complies with 100% DSGVO & Zero Durable Retention (data processed in volatile RAM with strict 30-minute TTL).
+  version: 2.0.0
+servers:
+  - url: https://api.statement2muster.com
+    description: Production API Server (Hetzner ISO 27001 Certified)
+paths:
+  /api/v1/gpt/convert:
+    post:
+      operationId: convertStatement
+      summary: Convert bank statement transactions to certified DATEV EXTF or BMD NTCS format
+      description: >
+        Converts extracted transactions into official German DATEV EXTF 700 (Windows-1252, SKR03/SKR04)
+        or Austrian BMD NTCS 5.1 format. Generates financial reconciliation summary (Debit/Credit/Balance)
+        and an ephemeral download link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GptConvertRequest'
+      responses:
+        '200':
+          description: Successful conversion with download URL and accounting summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GptConvertResponse'
+        '400':
+          description: Invalid request parameters or empty data
+        '422':
+          description: Unprocessable transaction data
+
+  /api/v1/gpt/download/{download_id}:
+    get:
+      operationId: downloadConvertedFile
+      summary: Download generated accounting CSV file from RAM cache
+      description: >
+        Streams the generated Windows-1252 encoded DATEV or BMD file directly from volatile memory.
+        Available for 30 minutes following conversion.
+      parameters:
+        - name: download_id
+          in: path
+          required: true
+          description: Unique ephemeral download token returned by convertStatement
+          schema:
+            type: string
+            example: s2m_gpt_a1b2c3d4e5f6
+      responses:
+        '200':
+          description: Windows-1252 encoded CSV file with attachment disposition
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Download link expired or purged from RAM per Zero Durable Retention policy
+
+components:
+  schemas:
+    GptTransactionItem:
+      type: object
+      required:
+        - booking_date
+        - amount
+        - description
+      properties:
+        booking_date:
+          type: string
+          description: Booking date in ISO YYYY-MM-DD or European DD.MM.YYYY format
+          example: "2026-03-15"
+        value_date:
+          type: string
+          description: Optional valuta/value date (YYYY-MM-DD or DD.MM.YYYY)
+          example: "2026-03-16"
+        amount:
+          type: number
+          format: float
+          description: >
+            Signed transaction amount. Negative value represents outgoing expense / debit (Lastschrift / Ausgabe).
+            Positive value represents incoming credit / revenue (Gutschrift / Einnahme).
+          example: -145.20
+        currency:
+          type: string
+          description: ISO 4217 Currency Code (EUR, USD, CHF, GBP)
+          default: EUR
+          example: EUR
+        description:
+          type: string
+          description: Payment purpose, beneficiary or booking text (DATEV Buchungstext)
+          example: AWS EMEA Cloud Services
+        reference:
+          type: string
+          description: Invoice number or transaction reference (DATEV Belegfeld 1)
+          example: INV-99102-DE
+        contra_account:
+          type: string
+          description: Optional pre-assigned contra account / Gegenkonto (e.g. 4900 for SKR03, 6800 for SKR04)
+          example: "4900"
+
+    GptConvertRequest:
+      type: object
+      properties:
+        bank_name:
+          type: string
+          description: Name of card issuer or bank (e.g. American Express, Wise, PayPal)
+          default: Bank Statement
+          example: American Express Business
+        export_format:
+          type: string
+          enum: [datev, bmd, muster_csv]
+          default: datev
+          description: Target accounting format (datev = DATEV EXTF 700, bmd = BMD NTCS 5.1)
+        default_bank_account:
+          type: string
+          description: Bank ledger account number. Default for DATEV is 1200 (SKR03) or 1800 (SKR04). Default for BMD is 2800.
+          example: "1200"
+        transactions:
+          type: array
+          description: Array of extracted transactions
+          items:
+            $ref: '#/components/schemas/GptTransactionItem'
+        raw_content:
+          type: string
+          description: Optional raw CSV or plaintext text if client did not extract individual items
+        filename:
+          type: string
+          description: Original statement filename
+          example: amex_statement_march_2026.pdf
+        license_key:
+          type: string
+          description: Optional Statement2Muster Pro or Lifetime license key to unlock unlimited volume
+          example: "s2m_live_key_xyz"
+
+    FinancialSummary:
+      type: object
+      properties:
+        transaction_count:
+          type: integer
+          example: 42
+        total_debit:
+          type: number
+          format: float
+          description: Total sum of expenses / outgoing amounts
+          example: -4890.50
+        total_credit:
+          type: number
+          format: float
+          description: Total sum of revenues / incoming amounts
+          example: 12500.00
+        net_balance:
+          type: number
+          format: float
+          description: Net period turnover (Credit + Debit)
+          example: 7609.50
+        currency:
+          type: string
+          example: EUR
+        date_from:
+          type: string
+          example: "2026-03-01"
+        date_to:
+          type: string
+          example: "2026-03-31"
+
+    GptConvertResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, warning, error]
+          example: success
+        message:
+          type: string
+          example: Successfully generated DATEV file with 42 transactions.
+        export_format:
+          type: string
+          example: datev
+        filename:
+          type: string
+          example: DATEV_EXTF_American_Express_20260325_143000.csv
+        download_id:
+          type: string
+          example: s2m_gpt_7c3a1b...
+        download_url:
+          type: string
+          format: uri
+          description: Clickable temporary download link (valid for 30 minutes in RAM)
+          example: https://api.statement2muster.com/api/v1/gpt/download/s2m_gpt_7c3a1b...
+        expires_in_minutes:
+          type: integer
+          example: 30
+        summary:
+          $ref: '#/components/schemas/FinancialSummary'
+        preview_csv:
+          type: string
+          description: First 5 lines of the generated accounting file for verification
+        notes:
+          type: array
+          items:
+            type: string
+        upgrade_info:
+          type: object
+          description: Stripe checkout links to purchase or upgrade

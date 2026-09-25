@@ -290,6 +290,10 @@ async def _handle_checkout_completed(
             ent_status = "active"
 
     if mode == "payment":
+        if ent_status != "active" or not plan_code:
+            logger.warning(f"One-time payment {session_id} failed catalog verification (status={ent_status}, plan={plan_code}). Rejecting without granting entitlement.")
+            return
+
         # Check existing entitlement for idempotent upsert
         existing = (await db.execute(select(Entitlement).where(Entitlement.source_id == session_id))).scalars().first()
         if existing:
