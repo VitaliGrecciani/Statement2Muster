@@ -34,7 +34,7 @@ from app.exporters.datev import export_to_datev_csv
 from app.exporters.bmd import export_to_bmd_csv
 from app.exporters.muster_csv import export_to_muster_csv
 from app.services.parser_process_supervisor import parser_supervisor
-from app.api.endpoints import auth, billing, entitlements, gpt
+from app.api.endpoints import auth, billing, entitlements, gpt, gpt_action
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("statement2muster")

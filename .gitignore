@@ -36,6 +36,7 @@ extension_firefox_build/
 !landing/**/*.jpg
 !extension/**/*.png
 !extension/icons/*
+!docs/chatgpt/*.png
 !docs/managed_extension_acceptance/**/*
 !docs/compliance/*.pdf
 

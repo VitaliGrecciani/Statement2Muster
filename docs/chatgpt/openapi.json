@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Statement2Muster DATEV & BMD Accounting Action",
-    "description": "Official accounting conversion action for Statement2Muster. Enables ChatGPT to turn bank statements (PDF, CSV, image or text from American Express, Wise, PayPal, Sparkasse, Deutsche Bank, Erste Bank, Raiffeisen, etc.) into certified DATEV EXTF (Buchungsstapel Version 700) and Austrian BMD NTCS 5.1 CSV files. Complies with 100% DSGVO & Zero Durable Retention (data processed in volatile RAM with strict 30-minute TTL).\n",
-    "version": "2.0.0"
+    "description": "Official accounting conversion action for Statement2Muster. Enables ChatGPT to turn bank statements (PDF, CSV, image or text from American Express, Wise, PayPal, Sparkasse, Deutsche Bank, Erste Bank, Raiffeisen, etc.) into certified DATEV EXTF (Buchungsstapel Version 700 Windows-1252) and Austrian BMD NTCS 5.1 CSV files. Features automated debit/credit determination (Soll/Haben), German bank account mapping (SKR03/SKR04/BMD), financial reconciliation summary, and 100% DSGVO & Zero Durable Retention (data processed strictly in volatile RAM with 30-minute auto-purge).\n",
+    "version": "2.1.0"
   },
   "servers": [
     {
@@ -12,11 +12,11 @@
     }
   ],
   "paths": {
-    "/api/v1/gpt/convert": {
+    "/v1/gpt/convert": {
       "post": {
         "operationId": "convertStatement",
         "summary": "Convert bank statement transactions to certified DATEV EXTF or BMD NTCS format",
-        "description": "Converts extracted transactions into official German DATEV EXTF 700 (Windows-1252, SKR03/SKR04) or Austrian BMD NTCS 5.1 format. Generates financial reconciliation summary (Debit/Credit/Balance) and an ephemeral download link.\n",
+        "description": "Converts extracted transactions, raw statement text/CSV, or base64 PDF into official German DATEV EXTF 700 (Windows-1252, SKR03/SKR04) or Austrian BMD NTCS 5.1 format. Generates financial reconciliation summary (Debit/Credit/Balance), base64 file payload for immediate inline chat access, and an ephemeral download link. Free tier includes 3 conversions per session; unlimited with Starter (€4.90) or Pro (€29) license.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -29,7 +29,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successful conversion with download URL and accounting summary",
+            "description": "Successful conversion with download URL, base64 payload, and accounting turnover summary",
             "content": {
               "application/json": {
                 "schema": {
@@ -41,13 +41,45 @@
           "400": {
             "description": "Invalid request parameters or empty data"
           },
+          "413": {
+            "description": "Payload or file size exceeds allowed limits"
+          },
           "422": {
-            "description": "Unprocessable transaction data"
+            "description": "Unprocessable transaction data or zero bookings extracted"
           }
         }
       }
     },
-    "/api/v1/gpt/download/{download_id}": {
+    "/v1/gpt/check-license": {
+      "post": {
+        "operationId": "checkLicense",
+        "summary": "Check license key or user email subscription status",
+        "description": "Verifies whether a user has an active Statement2Muster Starter, Pro, or Lifetime license using their license key, Stripe checkout session ID, or registered email.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckLicenseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "License validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckLicenseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/gpt/download/{download_id}": {
       "get": {
         "operationId": "downloadConvertedFile",
         "summary": "Download generated accounting CSV file from RAM cache",
@@ -60,7 +92,7 @@
             "description": "Unique ephemeral download token returned by convertStatement",
             "schema": {
               "type": "string",
-              "example": "s2m_gpt_a1b2c3d4e5f6"
+              "example": "s2m_gpt_7c3a1b2c3d4e5f6"
             }
           }
         ],
@@ -135,9 +167,24 @@
       "GptConvertRequest": {
         "type": "object",
         "properties": {
+          "session_id": {
+            "type": "string",
+            "description": "Unique ChatGPT session or conversation identifier to track free tier usage",
+            "example": "chatgpt-sess-88123"
+          },
+          "email": {
+            "type": "string",
+            "description": "Optional user email address to verify active Pro subscription or track quota",
+            "example": "founder@startup.de"
+          },
+          "license_key": {
+            "type": "string",
+            "description": "Optional Statement2Muster Pro / Starter / Lifetime license key or Stripe checkout session ID",
+            "example": "cs_live_12345abcdef"
+          },
           "bank_name": {
             "type": "string",
-            "description": "Name of card issuer or bank (e.g. American Express, Wise, PayPal)",
+            "description": "Name of card issuer or bank (e.g. American Express, Wise, PayPal, Sparkasse, Volksbank)",
             "default": "Bank Statement",
             "example": "American Express Business"
           },
@@ -149,7 +196,7 @@
               "muster_csv"
             ],
             "default": "datev",
-            "description": "Target accounting format (datev = DATEV EXTF 700, bmd = BMD NTCS 5.1)"
+            "description": "Target accounting format (datev = DATEV EXTF 700 Windows-1252, bmd = BMD NTCS 5.1)"
           },
           "default_bank_account": {
             "type": "string",
@@ -158,7 +205,7 @@
           },
           "transactions": {
             "type": "array",
-            "description": "Array of extracted transactions",
+            "description": "Array of extracted transactions from document",
             "items": {
               "$ref": "#/components/schemas/GptTransactionItem"
             }
@@ -167,15 +214,14 @@
             "type": "string",
             "description": "Optional raw CSV or plaintext text if client did not extract individual items"
           },
+          "file_base64": {
+            "type": "string",
+            "description": "Optional base64-encoded PDF or CSV document for server-side supervised extraction"
+          },
           "filename": {
             "type": "string",
             "description": "Original statement filename",
             "example": "amex_statement_march_2026.pdf"
-          },
-          "license_key": {
-            "type": "string",
-            "description": "Optional Statement2Muster Pro or Lifetime license key to unlock unlimited volume",
-            "example": "s2m_live_key_xyz"
           }
         }
       },
@@ -189,13 +235,13 @@
           "total_debit": {
             "type": "number",
             "format": "float",
-            "description": "Total sum of expenses / outgoing amounts",
+            "description": "Total sum of expenses / outgoing amounts (negative)",
             "example": -4890.5
           },
           "total_credit": {
             "type": "number",
             "format": "float",
-            "description": "Total sum of revenues / incoming amounts",
+            "description": "Total sum of revenues / incoming amounts (positive)",
             "example": 12500.0
           },
           "net_balance": {
@@ -218,6 +264,41 @@
           }
         }
       },
+      "FreeTierStatus": {
+        "type": "object",
+        "properties": {
+          "is_unlimited": {
+            "type": "boolean",
+            "description": "True if covered by active paid subscription",
+            "example": false
+          },
+          "plan": {
+            "type": "string",
+            "description": "Active plan code (starter, pro, lifetime) if licensed",
+            "example": "pro"
+          },
+          "conversions_used": {
+            "type": "integer",
+            "description": "Number of free conversions already used",
+            "example": 1
+          },
+          "remaining_free_conversions": {
+            "type": "integer",
+            "description": "Number of free conversions remaining",
+            "example": 2
+          },
+          "max_free_conversions": {
+            "type": "integer",
+            "description": "Maximum allowed free conversions without license",
+            "example": 3
+          },
+          "limit_reached": {
+            "type": "boolean",
+            "description": "True if free tier limit has been exhausted",
+            "example": false
+          }
+        }
+      },
       "GptConvertResponse": {
         "type": "object",
         "properties": {
@@ -226,13 +307,14 @@
             "enum": [
               "success",
               "warning",
-              "error"
+              "error",
+              "limit_reached"
             ],
             "example": "success"
           },
           "message": {
             "type": "string",
-            "example": "Successfully generated DATEV file with 42 transactions."
+            "example": "Erfolgreich 42 Buchungssätze in DATEV konvertiert."
           },
           "export_format": {
             "type": "string",
@@ -240,17 +322,21 @@
           },
           "filename": {
             "type": "string",
-            "example": "DATEV_EXTF_American_Express_20260325_143000.csv"
+            "example": "DATEV_EXTF_American_Express_20260326_120000.csv"
           },
           "download_id": {
             "type": "string",
-            "example": "s2m_gpt_7c3a1b..."
+            "example": "s2m_gpt_7c3a1b2c3d4e5f6"
           },
           "download_url": {
             "type": "string",
             "format": "uri",
             "description": "Clickable temporary download link (valid for 30 minutes in RAM)",
-            "example": "https://api.statement2muster.com/api/v1/gpt/download/s2m_gpt_7c3a1b..."
+            "example": "https://api.statement2muster.com/v1/gpt/download/s2m_gpt_7c3a1b..."
+          },
+          "file_base64": {
+            "type": "string",
+            "description": "Base64-encoded CSV content for inline presentation or Code Interpreter in ChatGPT"
           },
           "expires_in_minutes": {
             "type": "integer",
@@ -263,6 +349,9 @@
             "type": "string",
             "description": "First 5 lines of the generated accounting file for verification"
           },
+          "free_tier_status": {
+            "$ref": "#/components/schemas/FreeTierStatus"
+          },
           "notes": {
             "type": "array",
             "items": {
@@ -272,6 +361,48 @@
           "upgrade_info": {
             "type": "object",
             "description": "Stripe checkout links to purchase or upgrade"
+          }
+        }
+      },
+      "CheckLicenseRequest": {
+        "type": "object",
+        "required": [
+          "license_key"
+        ],
+        "properties": {
+          "license_key": {
+            "type": "string",
+            "description": "License key, Stripe checkout session ID, or user email",
+            "example": "cs_live_12345abcdef"
+          },
+          "email": {
+            "type": "string",
+            "description": "Optional user email",
+            "example": "user@example.com"
+          }
+        }
+      },
+      "CheckLicenseResponse": {
+        "type": "object",
+        "required": [
+          "valid",
+          "message"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": true
+          },
+          "plan": {
+            "type": "string",
+            "example": "pro"
+          },
+          "message": {
+            "type": "string",
+            "example": "Valid license confirmed (PRO)."
+          },
+          "upgrade_info": {
+            "type": "object"
           }
         }
       }

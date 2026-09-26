@@ -56,7 +56,12 @@ class StructuredCsvParser(BaseBankParser):
             )
 
         date_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['buchungstag', 'buchungsdatum', 'datum', 'date', 'tag', 'zeitraum', 'buchung'])), None)
-        amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount', 'umsatz', 'summe', 'wert'])), None)
+        # Prioritize betrag/amount and avoid false positives like 'umsatzart'
+        amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount']) and not any(ex in str(c).lower() for ex in ['art', 'typ', 'type'])), None)
+        if not amount_col:
+            amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['umsatz', 'summe', 'wert']) and not any(ex in str(c).lower() for ex in ['art', 'typ', 'type'])), None)
+        if not amount_col:
+            amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount', 'umsatz', 'summe', 'wert'])), None)
         curr_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['währung', 'waehrung', 'currency', 'wkz', 'curr'])), None)
         saldo_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['saldo nach buchung', 'kontostand nach', 'endsaldo', 'saldo'])), None)
         iban_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['auftragskonto', 'iban', 'kontonummer'])), None)
