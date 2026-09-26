@@ -7,7 +7,7 @@ from app.api.endpoints.gpt_action import (
     gpt_free_tier_tracker,
     STRIPE_LINKS,
     MAX_FREE_CONVERSIONS,
-    parse_flexible_date,
+    parse_strict_date,
     normalize_currency,
     parse_amount_to_cents,
     GptTransactionItem,
@@ -15,11 +15,7 @@ from app.api.endpoints.gpt_action import (
     FinancialSummary,
     FreeTierStatus,
     GptConvertResponse,
-    CheckLicenseRequest,
-    CheckLicenseResponse,
-    verify_license,
-    resolve_client_identity,
-    check_license_endpoint,
+    resolve_verified_tenant,
     gpt_convert_statement,
     gpt_download_file
 )
@@ -30,7 +26,7 @@ __all__ = [
     "gpt_free_tier_tracker",
     "STRIPE_LINKS",
     "MAX_FREE_CONVERSIONS",
-    "parse_flexible_date",
+    "parse_strict_date",
     "normalize_currency",
     "parse_amount_to_cents",
     "GptTransactionItem",
@@ -38,11 +34,7 @@ __all__ = [
     "FinancialSummary",
     "FreeTierStatus",
     "GptConvertResponse",
-    "CheckLicenseRequest",
-    "CheckLicenseResponse",
-    "verify_license",
-    "resolve_client_identity",
-    "check_license_endpoint",
+    "resolve_verified_tenant",
     "gpt_convert_statement",
     "gpt_download_file"
 ]

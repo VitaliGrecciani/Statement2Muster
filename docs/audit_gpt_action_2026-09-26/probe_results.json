@@ -1,0 +1,126 @@
+{
+  "git_head": "9c38ef1a28df29b2b96a266cc99abb480aeabc29",
+  "scope": "local ASGI app; synthetic data; isolated SQLite in memory",
+  "keys_accepted_with_production_setting": {
+    "s2m_test_pro_key": {
+      "valid": true,
+      "plan": "pro"
+    },
+    "PRO-DEMO-2026": {
+      "valid": true,
+      "plan": "pro"
+    },
+    "cs_live_audit_nonexistent": {
+      "valid": true,
+      "plan": "pro"
+    },
+    "sub_audit_nonexistent": {
+      "valid": true,
+      "plan": "pro"
+    },
+    "s2m_live_audit_nonexistent": {
+      "valid": true,
+      "plan": "pro"
+    }
+  },
+  "db_failure_injected": {
+    "valid": true,
+    "plan": "pro"
+  },
+  "unauthenticated_email_of_exhausted_starter": {
+    "http": 200,
+    "status": "success",
+    "free_tier_status": {
+      "is_unlimited": true,
+      "plan": "starter",
+      "conversions_used": 0,
+      "remaining_free_conversions": 0,
+      "max_free_conversions": 3,
+      "limit_reached": false
+    },
+    "ledger_units_after": 20
+  },
+  "canceled_subscription_id": {
+    "valid": true,
+    "plan": "pro",
+    "message": "Active Pro license key format recognized.",
+    "upgrade_info": {
+      "starter": "https://buy.stripe.com/cNi6oH9vDcnL2v0dWTebu03",
+      "pro": "https://buy.stripe.com/14AfZh6jr2NbedI6urebu04",
+      "lifetime": "https://buy.stripe.com/14A00j6jrfzX2v0bOLebu05"
+    }
+  },
+  "session_rotation_statuses": [
+    "success",
+    "success",
+    "success",
+    "limit_reached",
+    "success"
+  ],
+  "invalid_date": {
+    "http": 200,
+    "date_from": "2026-09-26",
+    "server_today": "2026-09-26"
+  },
+  "datev_mixed_years": {
+    "http": 200,
+    "header_year": "20250101",
+    "booking_dates": [
+      "\"0201\"",
+      "\"0201\""
+    ]
+  },
+  "mixed_currency_summary": {
+    "http": 200,
+    "summary": {
+      "transaction_count": 2,
+      "total_debit": 0.0,
+      "total_credit": 30.0,
+      "net_balance": 30.0,
+      "currency": "EUR",
+      "date_from": "2026-01-02",
+      "date_to": "2026-01-02"
+    }
+  },
+  "action_response_1500_rows": {
+    "http": 200,
+    "json_characters": 138413,
+    "transactions": 1500,
+    "native_openai_file_response": false
+  },
+  "configured_row_budget": {
+    "configured_limit": 2,
+    "submitted_rows": 3,
+    "http": 200,
+    "status": "success"
+  },
+  "raw_input_budget": {
+    "configured_bytes": 32,
+    "submitted_bytes": 83,
+    "http": 200,
+    "status": "success",
+    "detail": null
+  },
+  "concurrent_free_quota": {
+    "used_before": 2,
+    "statuses": [
+      "success",
+      "success"
+    ],
+    "http": [
+      200,
+      200
+    ],
+    "used_after": 3
+  },
+  "schema": {
+    "yaml_json_equal": true,
+    "openapi": "3.1.0",
+    "operation_description_lengths": {
+      "POST /v1/gpt/convert": 420,
+      "POST /v1/gpt/check-license": 163,
+      "GET /v1/gpt/download/{download_id}": 139
+    },
+    "file_response_declared": false
+  }
+}

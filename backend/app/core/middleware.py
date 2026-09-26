@@ -13,8 +13,11 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
     Starlette's multipart form parser reads or spools files into disk/RAM.
     """
     async def dispatch(self, request: Request, call_next):
-        # We enforce early rejection on protected conversion endpoints
-        if request.url.path.startswith("/api/v1/convert"):
+        # Enforce early DoS and size checks on conversion endpoints
+        is_primary_convert = request.url.path.startswith("/api/v1/convert")
+        is_gpt_convert = request.url.path in ("/v1/gpt/convert", "/api/v1/gpt/convert") or request.url.path.startswith("/v1/gpt/") or request.url.path.startswith("/api/v1/gpt/")
+
+        if is_primary_convert or is_gpt_convert:
             # 1. Early Content-Length check (DoS budget)
             content_length = request.headers.get("content-length")
             if content_length:
@@ -32,33 +35,50 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                 except ValueError:
                     pass
 
-            # 2. Early Authorization verification before multipart stream is consumed
+            # 2. Authorization verification
             auth_header = request.headers.get("authorization")
-            if not auth_header or not auth_header.startswith("Bearer "):
-                return Response(
-                    content=json.dumps({
-                        "error": "unauthorized",
-                        "detail": "Bearer token required for conversion"
-                    }),
-                    status_code=401,
-                    media_type="application/json"
-                )
+            if is_primary_convert:
+                # Primary convert endpoint REQUIRES Bearer token
+                if not auth_header or not auth_header.startswith("Bearer "):
+                    return Response(
+                        content=json.dumps({
+                            "error": "unauthorized",
+                            "detail": "Bearer token required for conversion"
+                        }),
+                        status_code=401,
+                        media_type="application/json"
+                    )
 
-            token = auth_header[7:].strip()
-            try:
-                payload = decode_access_token(token)
-                # Store tenant info in request state for downstream handlers
-                request.state.tenant = payload
-            except HTTPException as exc:
-                err_type = "unauthorized" if exc.status_code == 401 else "service_unavailable" if exc.status_code == 503 else "error"
-                return Response(
-                    content=json.dumps({
-                        "error": err_type,
-                        "detail": exc.detail
-                    }),
-                    status_code=exc.status_code,
-                    media_type="application/json"
-                )
+                token = auth_header[7:].strip()
+                try:
+                    payload = decode_access_token(token)
+                    request.state.tenant = payload
+                except HTTPException as exc:
+                    err_type = "unauthorized" if exc.status_code == 401 else "service_unavailable" if exc.status_code == 503 else "error"
+                    return Response(
+                        content=json.dumps({
+                            "error": err_type,
+                            "detail": exc.detail
+                        }),
+                        status_code=exc.status_code,
+                        media_type="application/json"
+                    )
+            elif is_gpt_convert and auth_header and auth_header.startswith("Bearer "):
+                # GPT convert endpoint optionally accepts Bearer token
+                token = auth_header[7:].strip()
+                try:
+                    payload = decode_access_token(token)
+                    request.state.tenant = payload
+                except HTTPException as exc:
+                    err_type = "unauthorized" if exc.status_code == 401 else "service_unavailable" if exc.status_code == 503 else "error"
+                    return Response(
+                        content=json.dumps({
+                            "error": err_type,
+                            "detail": exc.detail
+                        }),
+                        status_code=exc.status_code,
+                        media_type="application/json"
+                    )
 
             # 3. Wrap request._receive to count actual incoming stream bytes (A18 chunked DoS protection)
             request.state.batch_size_exceeded = False

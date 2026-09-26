@@ -1,0 +1,30 @@
+{
+  "/api/v1/health": {
+    "http": 200,
+    "body": {
+      "status": "ok",
+      "message": "Statement2Muster API is running",
+      "version": "1.0.14"
+    }
+  },
+  "/openapi.json": {
+    "http": 200,
+    "version": "1.0.14",
+    "gpt_paths": [
+      "/api/v1/gpt/convert",
+      "/api/v1/gpt/download/{download_id}"
+    ]
+  },
+  "/v1/gpt/convert": {
+    "method": "GET (read-only route presence probe)",
+    "http": 404
+  },
+  "/v1/gpt/check-license": {
+    "method": "GET (read-only route presence probe)",
+    "http": 404
+  },
+  "/api/v1/gpt/convert": {
+    "method": "GET (read-only route presence probe)",
+    "http": 405
+  }
+}
