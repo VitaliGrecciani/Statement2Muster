@@ -1,0 +1,144 @@
+{
+  "scope": "Independent local artifact review and public GETs only; no JWT issuance, production changes or conversions",
+  "time_utc": "2026-09-26T13:17:54.354714+00:00",
+  "head": "297308f2cf774be88ab6f53a560127ae479db454",
+  "backend_and_compose_unchanged_since_56": true,
+  "csv": {
+    "size": 463,
+    "sha256": "1fb54c0e92d357faac88ee77a010624a4a6fb0b4848aaea615645e0f04943770",
+    "matches_reported": true,
+    "crlf_only": true,
+    "windows1252_roundtrip": true,
+    "posting_count": 1,
+    "header_timestamp": "20260926130448000",
+    "field_checks": {
+      "amount": true,
+      "sh": true,
+      "currency": true,
+      "account": true,
+      "date": true,
+      "reference": true,
+      "description": true
+    }
+  },
+  "reported_ledger_final": [
+    [
+      "builder_tenant_a",
+      "gpt_req_builder_g07_seq1",
+      1,
+      "COMMITTED",
+      "2026-09-26 13:04:48.414862"
+    ],
+    [
+      "builder_tenant_b",
+      "pre_spent_quota",
+      20,
+      "COMMITTED",
+      "2026-09-26T13:02:32.380626+00:00"
+    ]
+  ],
+  "reported_download_id_equal": true,
+  "scenario_fields": {
+    "1_tenant_a_convert_success": [
+      "auth_mode",
+      "download_id",
+      "download_url",
+      "downloaded_csv_bytes",
+      "downloaded_csv_sha256",
+      "financial_summary",
+      "http_bytes_transferred",
+      "http_status",
+      "ledger_entry",
+      "nginx_log",
+      "plan",
+      "request_payload",
+      "response_bytes",
+      "response_sha256",
+      "tenant_id",
+      "timestamp_utc"
+    ],
+    "2_tenant_a_idempotent_replay": [
+      "auth_mode",
+      "download_id",
+      "download_id_identical",
+      "http_bytes_transferred",
+      "http_status",
+      "ledger_state_after_replay",
+      "new_reservations_created",
+      "nginx_log",
+      "plan",
+      "request_id_identical",
+      "request_payload",
+      "response_bytes",
+      "response_sha256",
+      "response_sha256_matches_initial",
+      "served_from_ram_cache",
+      "tenant_id",
+      "timestamp_utc"
+    ],
+    "3_tenant_b_quota_exhausted_isolation": [
+      "auth_mode",
+      "chatgpt_ui_message",
+      "error_body",
+      "http_bytes_transferred",
+      "http_status",
+      "ledger_entry",
+      "new_reservations_created",
+      "nginx_log",
+      "plan",
+      "request_payload",
+      "response_bytes",
+      "response_sha256",
+      "tenant_a_cache_inaccessible",
+      "tenant_a_data_leak_prevented",
+      "tenant_id",
+      "timestamp_utc"
+    ]
+  },
+  "request_capture_present": {
+    "initial": true,
+    "replay": true,
+    "tenant_b": true
+  },
+  "successful_response_capture_present": {
+    "initial": true,
+    "replay": true
+  },
+  "error_body": {
+    "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+  },
+  "public_get": {
+    "schema": {
+      "http": 200,
+      "sha256": "f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15",
+      "size": 13265,
+      "tls": "Default certificate and hostname verification enabled",
+      "matches_reported_schema": true
+    },
+    "synthetic_download": {
+      "http": 200,
+      "sha256": "1fb54c0e92d357faac88ee77a010624a4a6fb0b4848aaea615645e0f04943770",
+      "size": 463,
+      "tls": "Default certificate and hostname verification enabled",
+      "matches_saved_csv": true,
+      "content_type": "text/csv; charset=windows-1252",
+      "zero_retention": "enforced-in-memory-only"
+    }
+  },
+  "payloads_equal": true,
+  "request_ids_equal": true,
+  "response_equality": {
+    "initial_sha256": "bc9d8f2840b7ce39bf73c5ed32b3e7bbb734635c6d6820c87379f46fe3676bb0",
+    "replay_sha256": "bc9d8f2840b7ce39bf73c5ed32b3e7bbb734635c6d6820c87379f46fe3676bb0",
+    "sha256_equal": true,
+    "scope": "Comparison of reported engineer measurements; successful wire bodies not independently recaptured"
+  },
+  "error_body_check": {
+    "compact_utf8_size": 116,
+    "sha256": "cd9b9a66a157c77a097c7358315aa80789390ae7bf3cf965af77614ff167f3ef",
+    "hash_matches_reported": true,
+    "reported_response_bytes": 104,
+    "size_matches_reported": false
+  },
+  "reported_token_fixture": "API Key (Bearer JWT, issued with expires_delta=120m for test session)"
+}

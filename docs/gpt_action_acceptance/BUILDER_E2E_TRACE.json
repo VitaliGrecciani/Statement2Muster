@@ -107,7 +107,7 @@
       "error_body": {
         "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
       },
-      "response_bytes": 104,
+      "response_bytes": 116,
       "response_sha256": "cd9b9a66a157c77a097c7358315aa80789390ae7bf3cf965af77614ff167f3ef",
       "chatgpt_ui_message": "Die Konvertierung konnte nicht abgeschlossen werden: Das monatliche Limit des Starter-Plans von 20 Auszügen ist erreicht. Daher wurde kein DATEV-Download-Link erzeugt. Vorgang: 15.03.2026 · AWS Cloud Services EMEA · INV-2026-991, Request-ID: req_builder_g07_seq1",
       "tenant_a_data_leak_prevented": true,
