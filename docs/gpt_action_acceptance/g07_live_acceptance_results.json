@@ -1,0 +1,84 @@
+{
+  "target_url": "https://api.statement2muster.com",
+  "timestamp": "2026-09-26T11:38:42.126060+00:00",
+  "build_commit": "271d9ed3e6b90968bc1a9bb56ce8c7522e397603",
+  "audit_head_commit": "8533cd3d08257078015372eaee2214d172314258",
+  "version": "1.0.15",
+  "container_id": "8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511",
+  "image_id": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
+  "tests": {
+    "healthz": {
+      "http": 200,
+      "body": {
+        "status": "healthy",
+        "service": "statement2muster-api",
+        "version": "1.0.15",
+        "database": "connected",
+        "zero_retention": "enforced"
+      }
+    },
+    "openapi": {
+      "http": 200,
+      "has_gpt_convert": true,
+      "has_gpt_download": true
+    },
+    "conversion_and_download": {
+      "convert_http": 200,
+      "download_http": 200,
+      "content_type": "text/csv; charset=windows-1252",
+      "zero_retention_header": "enforced-in-memory-only",
+      "line_count": 4,
+      "file_sha256": "05a8d7cb17c50ee60cfe3d5196a8802d9d5feb8e397bfd0e1fb3595e132b98e8",
+      "net_balance": 3210.5
+    },
+    "idempotent_replay": {
+      "http": 200,
+      "byte_identical": true,
+      "download_id_identical": true
+    },
+    "tenant_isolation_r52_1": {
+      "other_tenant_http": 429,
+      "other_tenant_detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions.",
+      "cache_leak_prevented": true
+    },
+    "anonymous_demo_tier": [
+      {
+        "step": 1,
+        "http": 200,
+        "status": "success"
+      },
+      {
+        "step": 2,
+        "http": 200,
+        "status": "success"
+      },
+      {
+        "step": 3,
+        "http": 200,
+        "status": "success"
+      },
+      {
+        "step": 4,
+        "http": 200,
+        "status": "limit_reached"
+      }
+    ],
+    "validation_error_truncation": {
+      "http": 422,
+      "response_length_chars": 1316,
+      "error_count": 6,
+      "last_error_type": "too_many_errors"
+    },
+    "large_batch": {
+      "http": 200,
+      "inline_base64_omitted": true,
+      "has_download_url": true,
+      "transaction_count": 150
+    },
+    "ledger_verification": [
+      "g07_live_a_64d2892e|gpt_op_live_64d2892e|1|COMMITTED",
+      "g07_live_b_64d2892e|pre_spent_quota|20|COMMITTED",
+      "g07_live_c_64d2892e|gpt_sess_large_64d2892e_995b08e732e6ff96_f0c9f7f1|1|COMMITTED"
+    ]
+  }
+}
