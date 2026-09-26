@@ -1,0 +1,231 @@
+{
+  "git_head": "8f8cac809039644cd38c3b52ae7adb6f68ca9757",
+  "scope": "local ASGI; synthetic data; temporary isolated SQLite",
+  "fake_keys": {
+    "s2m_test_pro_key": {
+      "http": 200,
+      "status": "success",
+      "plan": null,
+      "detail": null
+    },
+    "PRO-DEMO-2026": {
+      "http": 200,
+      "status": "success",
+      "plan": null,
+      "detail": null
+    },
+    "cs_live_audit_nonexistent": {
+      "http": 200,
+      "status": "success",
+      "plan": null,
+      "detail": null
+    },
+    "sub_audit_nonexistent": {
+      "http": 200,
+      "status": "success",
+      "plan": null,
+      "detail": null
+    }
+  },
+  "bare_email": {
+    "http": 200,
+    "status": "success",
+    "plan": null,
+    "detail": null
+  },
+  "exhausted_starter_new_request": {
+    "http": 429,
+    "status": null,
+    "plan": null,
+    "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+  },
+  "different_inputs_same_session": {
+    "responses": [
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      }
+    ],
+    "returned_net_balances": [
+      -10.0,
+      -20.0,
+      -30.0
+    ],
+    "ledger": [
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "request_hash": "19db420cbe9278980e40b405e06e49db8bfd72e1894731289d1cba8651765085"
+      },
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "request_hash": "2f274a52386287819b9ec8027533045cadc51eb5167e299a46bc6c2f26944bad"
+      },
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "request_hash": "d57d2739e13feafb3ab8d9a6e95ac118cc4c64c4e20d57673c7db9528edcf495"
+      }
+    ]
+  },
+  "invalid_retry_mutates_prior_committed_ledger": {
+    "response": {
+      "http": 422,
+      "status": null,
+      "plan": null,
+      "detail": "Ungültiges Datumsformat 'invalid' für 'booking_date' in Zeile 1. Erwartet wird YYYY-MM-DD oder DD.MM.YYYY."
+    },
+    "ledger_after": [
+      {
+        "status": "COMMITTED",
+        "units": 1
+      },
+      {
+        "status": "COMMITTED",
+        "units": 1
+      },
+      {
+        "status": "COMMITTED",
+        "units": 1
+      }
+    ]
+  },
+  "revoked_token_header": {
+    "http": 401,
+    "status": null,
+    "plan": null,
+    "detail": "Token has been revoked. Please re-authenticate."
+  },
+  "revoked_token_body": {
+    "http": 401,
+    "status": null,
+    "plan": null,
+    "detail": "Token has been revoked. Please re-authenticate."
+  },
+  "missing_registry_header": {
+    "http": 503,
+    "status": null,
+    "plan": null,
+    "detail": "Revocation registry unavailable. Operation rejected for security."
+  },
+  "missing_registry_body": {
+    "http": 503,
+    "status": null,
+    "plan": null,
+    "detail": "Revocation registry unavailable. Operation rejected for security."
+  },
+  "invalid_date": {
+    "http": 422,
+    "status": null,
+    "plan": null,
+    "detail": "Ungültiges Datumsformat 'invalid' für 'booking_date' in Zeile 1. Erwartet wird YYYY-MM-DD oder DD.MM.YYYY."
+  },
+  "mixed_years": {
+    "http": 422,
+    "status": null,
+    "plan": null,
+    "detail": "Export blockiert: Buchungen über mehrere Geschäftsjahre erkannt ([2025, 2026]). DATEV-Buchungsstapel müssen genau einem Geschäftsjahr angehören."
+  },
+  "mixed_currencies": {
+    "http": 422,
+    "status": null,
+    "plan": null,
+    "detail": "Export blockiert: Gemischte Währungen erkannt (['EUR', 'USD']). Buchhaltungsexport erfordert eine einheitliche Währung."
+  },
+  "ambiguous_date": {
+    "response": {
+      "http": 422,
+      "status": null,
+      "plan": null,
+      "detail": "Mehrdeutiges Datumsformat '03/04/2026' für 'booking_date' in Zeile 1. Aus Sicherheitsgründen werden nur eindeutige Formate akzeptiert: YYYY-MM-DD (ISO) oder DD.MM.YYYY (DATEV/BMD)."
+    },
+    "parsed_date": null
+  },
+  "concurrent_demo_real_parser": {
+    "responses": [
+      {
+        "http": 200,
+        "status": "success",
+        "plan": null,
+        "detail": null
+      },
+      {
+        "http": 200,
+        "status": "limit_reached",
+        "plan": null,
+        "detail": null
+      }
+    ],
+    "used_after": 3
+  },
+  "content_length_budget": {
+    "http": 413,
+    "status": null,
+    "plan": null,
+    "detail": "Batch exceeds maximum limit of 0 MiB"
+  },
+  "chunked_budget": {
+    "http": 413,
+    "status": null,
+    "plan": null,
+    "detail": "Batch payload exceeds limit of 64 bytes"
+  },
+  "normal_large_batch": {
+    "response": {
+      "http": 200,
+      "status": "success",
+      "plan": null,
+      "detail": null
+    },
+    "json_characters": 2180,
+    "inline_base64": false
+  },
+  "response_bound_counterexample": {
+    "response": {
+      "http": 422,
+      "status": null,
+      "plan": null,
+      "detail": [
+        {
+          "type": "string_too_long",
+          "loc": [
+            "body",
+            "default_bank_account"
+          ],
+          "msg": "String should have at most 20 characters",
+          "input": "11111111111111111111111111111111111111111111111...",
+          "ctx": {
+            "max_length": 20
+          },
+          "url": "https://errors.pydantic.dev/2.6/v/string_too_long"
+        }
+      ]
+    },
+    "request_json_characters": 40300,
+    "response_json_characters": 283,
+    "inline_base64": false
+  },
+  "schema": {
+    "yaml_json_equal": true,
+    "description_characters": 167,
+    "paths": [
+      "/v1/gpt/convert",
+      "/v1/gpt/download/{download_id}"
+    ]
+  }
+}

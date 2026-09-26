@@ -708,3 +708,170 @@ async def test_gpt_many_validation_errors_truncated_under_platform_limit():
         assert len(errors) <= 6
         assert errors[-1]["type"] == "too_many_errors"
 
+
+@pytest.mark.asyncio
+async def test_gpt_replay_tenant_isolation_r52_1():
+    """R52-1: Operation cache is isolated per tenant/session; cross-tenant cache hit is forbidden."""
+    transport = ASGITransport(app=app)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    uid = uuid.uuid4().hex[:8]
+    tenant_a = f"tenant_a_{uid}"
+    tenant_b = f"tenant_b_{uid}"
+
+    async with async_session_maker() as db:
+        db.add_all([
+            Tenant(id=tenant_a, email=f"a_{uid}@test.de"),
+            Tenant(id=tenant_b, email=f"b_{uid}@test.de"),
+            Entitlement(tenant_id=tenant_a, plan_code="starter", status="active",
+                        source_type="subscription", source_id=f"sub_a_{uid}",
+                        current_period_start=now - datetime.timedelta(days=1),
+                        valid_until=now + datetime.timedelta(days=30)),
+            Entitlement(tenant_id=tenant_b, plan_code="starter", status="active",
+                        source_type="subscription", source_id=f"sub_b_{uid}",
+                        current_period_start=now - datetime.timedelta(days=1),
+                        valid_until=now + datetime.timedelta(days=30)),
+            # Pre-exhaust tenant B's quota with 20 committed units
+            UsageReservation(tenant_id=tenant_b, idempotency_key=f"prior_b_{uid}",
+                             units=20, status="COMMITTED")
+        ])
+        await db.commit()
+
+    token_a = create_access_token(user_id=f"a_{uid}@test.de", tenant_id=tenant_a)
+    token_b = create_access_token(user_id=f"b_{uid}@test.de", tenant_id=tenant_b)
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        sess_id = f"sess_{uid}"
+        payload = {
+            "session_id": sess_id,
+            "request_id": f"shared_req_{uid}",
+            "transactions": [{"booking_date": "2026-03-10", "amount": -25.0, "description": "Shared payload"}]
+        }
+        # 1. Tenant A succeeds (200)
+        res_a = await client.post("/v1/gpt/convert", json=payload, headers={"Authorization": f"Bearer {token_a}"})
+        assert res_a.status_code == 200
+        dl_a = res_a.json()["download_id"]
+
+        # 2. Tenant B with same request_id and payload MUST NOT hit A's cache -> Quota check triggers 429
+        res_b = await client.post("/v1/gpt/convert", json=payload, headers={"Authorization": f"Bearer {token_b}"})
+        assert res_b.status_code == 429
+        assert "quota" in res_b.json()["detail"].lower()
+
+        # 3. Anonymous user with exhausted free tier MUST NOT hit A's cache -> Demo limit_reached
+        gpt_free_tier_tracker.set(f"used_sess_{sess_id}", 3)
+        res_anon = await client.post("/v1/gpt/convert", json=payload)
+        assert res_anon.status_code == 200
+        assert res_anon.json()["status"] == "limit_reached"
+        assert res_anon.json()["download_id"] != dl_a
+
+
+@pytest.mark.asyncio
+async def test_gpt_file_replay_parser_execution_r52_2():
+    """R52-2: File replay lookup and quota admission occur before parser invocation; count is exactly 1."""
+    from app.api.endpoints import gpt_action as gpt_module
+    transport = ASGITransport(app=app)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_parser_{uid}"
+
+    async with async_session_maker() as db:
+        db.add_all([
+            Tenant(id=tenant_id, email=f"parser_{uid}@test.de"),
+            Entitlement(tenant_id=tenant_id, plan_code="starter", status="active",
+                        source_type="subscription", source_id=f"sub_parser_{uid}",
+                        current_period_start=now - datetime.timedelta(days=1),
+                        valid_until=now + datetime.timedelta(days=30))
+        ])
+        await db.commit()
+
+    token = create_access_token(user_id=f"parser_{uid}@test.de", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    csv_data = b"Buchungstag;Betrag;Waehrung;Verwendungszweck\n10.03.2026;-10,00;EUR;Synthetic Replay\n"
+    file_b64 = base64.b64encode(csv_data).decode("ascii")
+
+    real_parse = gpt_module.parser_supervisor.parse_file
+    parse_call_count = 0
+
+    async def counting_parse(*args, **kwargs):
+        nonlocal parse_call_count
+        parse_call_count += 1
+        return await real_parse(*args, **kwargs)
+
+    gpt_module.parser_supervisor.parse_file = counting_parse
+    try:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+            payload = {
+                "session_id": f"sess_file_{uid}",
+                "request_id": f"req_file_{uid}",
+                "file_base64": file_b64,
+                "filename": "statement.csv"
+            }
+            # First call -> parses and commits
+            r1 = await client.post("/v1/gpt/convert", json=payload, headers=headers)
+            assert r1.status_code == 200
+            assert parse_call_count == 1
+
+            # Second call (replay) -> cache hit, zero parser calls!
+            r2 = await client.post("/v1/gpt/convert", json=payload, headers=headers)
+            assert r2.status_code == 200
+            assert parse_call_count == 1
+            assert r1.content == r2.content
+
+            # Clear cache to simulate eviction
+            gpt_download_cache.clear()
+
+            # Third call -> DB sees COMMITTED, raises 410 without parsing!
+            r3 = await client.post("/v1/gpt/convert", json=payload, headers=headers)
+            assert r3.status_code == 410
+            assert parse_call_count == 1
+    finally:
+        gpt_module.parser_supervisor.parse_file = real_parse
+
+
+@pytest.mark.asyncio
+async def test_gpt_referential_integrity_eviction_r52_3():
+    """R52-3: When file entry is evicted independently from operation entry, replay returns 410 Gone."""
+    transport = ASGITransport(app=app)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_evict_{uid}"
+
+    async with async_session_maker() as db:
+        db.add_all([
+            Tenant(id=tenant_id, email=f"evict_{uid}@test.de"),
+            Entitlement(tenant_id=tenant_id, plan_code="starter", status="active",
+                        source_type="subscription", source_id=f"sub_evict_{uid}",
+                        current_period_start=now - datetime.timedelta(days=1),
+                        valid_until=now + datetime.timedelta(days=30))
+        ])
+        await db.commit()
+
+    token = create_access_token(user_id=f"evict_{uid}@test.de", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 150 transactions ensures no inline base64
+    big_payload = {
+        "session_id": f"sess_evict_{uid}",
+        "request_id": f"req_evict_{uid}",
+        "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Synthetic"}] * 150
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # First call succeeds
+        r1 = await client.post("/v1/gpt/convert", json=big_payload, headers=headers)
+        assert r1.status_code == 200
+        dl_id = r1.json()["download_id"]
+
+        # Simulate independent LRU eviction of the file entry only
+        gpt_download_cache.delete(dl_id)
+
+        # Replay call: operation entry exists, but referenced file is missing -> Must return 410 Gone!
+        r2 = await client.post("/v1/gpt/convert", json=big_payload, headers=headers)
+        assert r2.status_code == 410
+        assert "abgelaufen" in r2.json()["detail"]
+
+        # Verify dangling operation entry was removed from cache
+        op_key = f"op_tenant_{tenant_id}_gpt_{big_payload['request_id']}"
+        assert gpt_download_cache.get(op_key) is None
+
+

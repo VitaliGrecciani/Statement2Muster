@@ -1,0 +1,182 @@
+{
+  "git_head": "691d61605d01e72c07a9355ce7383ede68e27334",
+  "scope": "synthetic local ASGI; temporary SQLite",
+  "distinct_accounts_same_request_id": {
+    "hashes_equal": false,
+    "account_1": "1200",
+    "account_2": "120",
+    "responses": [
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 409,
+        "status": null,
+        "plan": null,
+        "detail": "Idempotency key reused with different request payload"
+      }
+    ],
+    "previews_differ": true,
+    "second_quota": null,
+    "ledger": [
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "key": "gpt_same-operation",
+        "hash": "3b25c839cfd0bf04bcda82d69a215976d81eb413b5d907c070bb5ffe0c1864e9"
+      }
+    ]
+  },
+  "changed_amount_conflict": {
+    "http": 409,
+    "status": null,
+    "plan": null,
+    "detail": "Idempotency key reused with different request payload"
+  },
+  "file_and_raw_input_hash_mismatch": {
+    "hashes_equal": false,
+    "responses": [
+      {
+        "http": 200,
+        "net_balance": -10.0
+      },
+      {
+        "http": 409,
+        "net_balance": null
+      }
+    ],
+    "ledger": [
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "key": "gpt_mixed-input-operation",
+        "hash": "331f18598a383e90b784ea9ac153857e7e6af2bc8de5388b485dcf9f4f61a098"
+      }
+    ]
+  },
+  "released_retry_after_exhaustion": {
+    "injection": "one exporter RuntimeError before commit; subsequently restored",
+    "failed_response": {
+      "http": 500,
+      "status": null,
+      "plan": null,
+      "detail": "Interner Verarbeitungsfehler: Synthetic audit exporter failure"
+    },
+    "ledger_after_failure": [
+      {
+        "status": "RELEASED",
+        "units": 1,
+        "key": "gpt_released-operation",
+        "hash": "19db420cbe9278980e40b405e06e49db8bfd72e1894731289d1cba8651765085"
+      }
+    ],
+    "fresh_request": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "released_retry": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "ledger_after_retry": [
+      {
+        "status": "RELEASED",
+        "units": 1,
+        "key": "gpt_released-operation",
+        "hash": "19db420cbe9278980e40b405e06e49db8bfd72e1894731289d1cba8651765085"
+      },
+      {
+        "status": "COMMITTED",
+        "units": 20,
+        "key": "other-usage",
+        "hash": null
+      }
+    ]
+  },
+  "completed_replay_execution": {
+    "instrumentation": "wrapper counts real exporter calls; clear simulates cache eviction",
+    "responses": [
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 410,
+        "status": null,
+        "plan": null,
+        "detail": "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). Das Kontingent wurde für diesen Vorgang bereits verbucht. Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+      }
+    ],
+    "exporter_calls": 1,
+    "distinct_download_ids": 2,
+    "ledger": [
+      {
+        "status": "COMMITTED",
+        "units": 1,
+        "key": "gpt_completed-operation",
+        "hash": "19db420cbe9278980e40b405e06e49db8bfd72e1894731289d1cba8651765085"
+      }
+    ]
+  },
+  "twenty_one_distinct_statements": {
+    "codes": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      429
+    ],
+    "twentieth_quota": {
+      "is_unlimited": false,
+      "plan": "starter",
+      "conversions_used": 20,
+      "remaining_free_conversions": 0,
+      "max_free_conversions": 20,
+      "limit_reached": true
+    },
+    "last": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "ledger_rows": 20
+  },
+  "many_validation_errors": {
+    "http": 422,
+    "request_characters": 41445,
+    "response_characters": 1251,
+    "error_count": 6
+  }
+}

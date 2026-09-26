@@ -438,7 +438,7 @@ async def gpt_convert_statement(
     ChatGPT Action: Converts bank transactions into DATEV EXTF 700 or BMD NTCS 5.1 format.
     Processes data strictly in volatile RAM with 30-minute auto-purge.
     """
-    # 1. Input Validation and Budget Checks (Architect G04 / F03)
+    # 1. Pre-validation and Input Budget Checks (Architect G04 / F03)
     if req.default_bank_account:
         acc_str = req.default_bank_account.strip()
         if not re.match(r"^[0-9]{3,9}$", acc_str):
@@ -446,6 +446,16 @@ async def gpt_convert_statement(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Ungültiges Bankkonto '{acc_str[:20]}'. Erwartet wird eine 3- bis 9-stellige Ziffernfolge (z.B. 1200 für SKR03, 1800 für SKR04, 2800 für BMD)."
             )
+
+    has_transactions = req.transactions is not None and len(req.transactions) > 0
+    has_file = req.file_base64 is not None and len(req.file_base64.strip()) > 0
+    has_raw = req.raw_content is not None and len(req.raw_content.strip()) > 0
+
+    if not (has_transactions or has_file or has_raw):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Weder 'transactions'-Array noch 'file_base64' oder 'raw_content' übergeben."
+        )
 
     if req.transactions is not None:
         if len(req.transactions) > settings.MAX_ROWS_PER_FILE:
@@ -464,8 +474,12 @@ async def gpt_convert_statement(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Belegfeld 1 in Zeile {idx + 1} überschreitet das Maximum von 50 Zeichen."
                 )
+            # Synchronous in-memory date check to guarantee 422 before quota admission (G05 / F04)
+            parse_strict_date(item.booking_date, "booking_date", idx)
+            if item.value_date:
+                parse_strict_date(item.value_date, "value_date", idx)
 
-    if req.raw_content is not None:
+    if has_raw:
         raw_bytes_len = len(req.raw_content.encode("utf-8"))
         if raw_bytes_len > settings.MAX_FILE_SIZE_BYTES:
             raise HTTPException(
@@ -473,7 +487,8 @@ async def gpt_convert_statement(
                 detail=f"Raw content size ({raw_bytes_len} bytes) exceeds maximum limit of {settings.MAX_FILE_SIZE_BYTES} bytes."
             )
 
-    if req.file_base64 is not None:
+    decoded_file_bytes = None
+    if has_file:
         raw_b64 = req.file_base64.strip()
         # Fast length check before base64 decode:
         if len(raw_b64) > (settings.MAX_FILE_SIZE_BYTES * 4 // 3 + 1024):
@@ -481,109 +496,27 @@ async def gpt_convert_statement(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"File exceeds maximum allowed limit of {settings.MAX_FILE_SIZE_BYTES // (1024*1024)} MiB."
             )
-
-    # 2. Transaction Ingestion & Invariant Validation BEFORE Quota Reservation (Architect G05 / F02)
-    canonical_txs: List[CanonicalTransaction] = []
-    bank_name = req.bank_name or "Bank Statement"
-    client_sess_id = req.session_id.strip() if (req.session_id and req.session_id.strip()) else "guest"
-
-    # Branch A: Structured transactions list extracted by ChatGPT
-    if req.transactions and len(req.transactions) > 0:
-        for idx, item in enumerate(req.transactions):
-            # Strict date parsing: Raises HTTP 422 on invalid or ambiguous formats (F04)
-            booking_dt = parse_strict_date(item.booking_date, "booking_date", idx)
-            value_dt = parse_strict_date(item.value_date, "value_date", idx) if item.value_date else booking_dt
-            curr = normalize_currency(item.currency)
-            amount_cents = parse_amount_to_cents(item.amount)
-
-            tx = CanonicalTransaction(
-                transaction_id=str(uuid.uuid4()),
-                tenant_id=f"sess_{client_sess_id}",
-                client_entity_id="chatgpt-session",
-                account_id="",
-                bank_name=bank_name,
-                source_file_id=req.filename or "chatgpt_input.pdf",
-                source_row_page=str(idx + 1),
-                booking_date=booking_dt,
-                value_date=value_dt,
-                amount_cents=amount_cents,
-                currency=curr,
-                description=(item.description or "").strip(),
-                reference=(item.reference or "").strip(),
-                contra_account=item.contra_account
-            )
-            canonical_txs.append(tx)
-
-    # Branch B: Base64-encoded PDF or CSV document provided
-    elif req.file_base64 and len(req.file_base64.strip()) > 0:
         try:
-            file_bytes = base64.b64decode(req.file_base64.strip(), validate=True)
+            decoded_file_bytes = base64.b64decode(raw_b64, validate=True)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ungültiger base64-Inhalt in 'file_base64': {str(e)}"
             )
-
-        if len(file_bytes) > settings.MAX_FILE_SIZE_BYTES:
+        if len(decoded_file_bytes) > settings.MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Dateigröße ({len(file_bytes)} Bytes) überschreitet das Limit von {settings.MAX_FILE_SIZE_BYTES} Bytes."
+                detail=f"Dateigröße ({len(decoded_file_bytes)} Bytes) überschreitet das Limit von {settings.MAX_FILE_SIZE_BYTES} Bytes."
             )
 
-        parsed_txs, _ = await parser_supervisor.parse_file(
-            content=file_bytes,
-            filename=req.filename or "statement.pdf",
-            tenant_id=f"sess_{client_sess_id}",
-            timeout=float(settings.PARSER_TIMEOUT_SECONDS)
-        )
-        canonical_txs = parsed_txs
-
-    # Branch C: Raw CSV or plaintext content provided
-    elif req.raw_content and len(req.raw_content.strip()) > 0:
-        raw_bytes = req.raw_content.encode("utf-8")
-        parsed_txs, _ = await parser_supervisor.parse_file(
-            content=raw_bytes,
-            filename=req.filename or "statement.csv",
-            tenant_id=f"sess_{client_sess_id}",
-            timeout=float(settings.PARSER_TIMEOUT_SECONDS)
-        )
-        canonical_txs = parsed_txs
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Weder 'transactions'-Array noch 'file_base64' oder 'raw_content' übergeben."
-        )
-
-    if not canonical_txs:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Keine Buchungssätze in den bereitgestellten Daten gefunden."
-        )
-
-    # Accounting Safeguards:
-    # Currency consistency check
-    distinct_currencies = {tx.currency for tx in canonical_txs if tx.currency}
-    if len(distinct_currencies) > 1:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Export blockiert: Gemischte Währungen erkannt ({sorted(distinct_currencies)}). Buchhaltungsexport erfordert eine einheitliche Währung."
-        )
-
-    # DATEV single fiscal year check
-    target_format = req.export_format.lower().strip()
-    if target_format == "datev":
-        distinct_years = {tx.booking_date.year for tx in canonical_txs if tx.booking_date}
-        if len(distinct_years) > 1:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Export blockiert: Buchungen über mehrere Geschäftsjahre erkannt ({sorted(distinct_years)}). DATEV-Buchungsstapel müssen genau einem Geschäftsjahr angehören."
-            )
-
-    canonical_txs.sort(key=lambda t: t.booking_date or datetime.date.min)
+    # 2. Deterministic Hash Computation (Architect F02 / Decision 51 & 52)
+    payload_hash = compute_payload_hash(req)
 
     # 3. Authoritative Identity & License Verification (Architect G01 / F01)
+    bank_name = req.bank_name or "Bank Statement"
+    client_sess_id = req.session_id.strip() if (req.session_id and req.session_id.strip()) else "guest"
+
     verified_auth = await resolve_verified_tenant(request, req.license_key, db)
-    
     tenant_id = None
     plan_code = None
     is_licensed = False
@@ -592,32 +525,56 @@ async def gpt_convert_statement(
     if verified_auth:
         tenant_id, plan_code, active_entitlement = verified_auth
         is_licensed = plan_code in ("starter", "pro", "lifetime")
-        for tx in canonical_txs:
-            tx.tenant_id = tenant_id
+        owner_scope = f"tenant_{tenant_id}"
+    else:
+        owner_scope = f"anon_{client_sess_id}"
 
-    # 4. Quota, Idempotency & Free Tier Reservation (Architect G02 / F02)
-    reservation = None
-    payload_hash = compute_payload_hash(req)
-
+    # 4. Replay Cache Lookup with Tenant Isolation & Referential Integrity (R52-1, R52-2, R52-3)
     has_client_request_id = bool(req.request_id and req.request_id.strip())
     if has_client_request_id:
         idempotency_key = f"gpt_{req.request_id.strip()}"
-        # Check RAM-only replay cache first (Architect F02 / Decision 51 section 4.1)
-        cached_op = gpt_download_cache.get(f"op_{idempotency_key}")
+        op_cache_key = f"op_{owner_scope}_{idempotency_key}"
+
+        cached_op = gpt_download_cache.get(op_cache_key)
         if cached_op:
+            # Check payload hash match
             if cached_op.get("payload_hash") != payload_hash:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Idempotency key reused with different request payload"
                 )
+            # Ownership check (defense-in-depth)
+            if cached_op.get("owner_scope") != owner_scope:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Operation cache belongs to a different identity"
+                )
+            # Referential Integrity check (R52-3): verify referenced file entry still exists
+            cached_dl_id = cached_op.get("download_id")
+            if not cached_dl_id or not gpt_download_cache.get(cached_dl_id):
+                # File entry expired or evicted from cache
+                gpt_download_cache.delete(op_cache_key)
+                raise HTTPException(
+                    status_code=status.HTTP_410_GONE,
+                    detail=(
+                        "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). "
+                        "Das Kontingent wurde für diesen Vorgang bereits verbucht. "
+                        "Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+                    )
+                )
+            # Clean replay hit: return cached response without touching parser or DB quota (R52-2)
             return Response(content=cached_op["response_json"], media_type="application/json")
     else:
-        # Separate unique operation per conversion call (F02)
         sess_part = req.session_id.strip() if req.session_id else "op"
         idempotency_key = f"gpt_{sess_part}_{payload_hash[:16]}_{uuid.uuid4().hex[:8]}"
+        op_cache_key = f"op_{owner_scope}_{idempotency_key}"
+
+    # 5. Quota & Admission Control BEFORE Ingestion / Parser Invocation (R52-2)
+    reservation = None
+    anon_reserved = False
+    anon_key = f"used_sess_{client_sess_id}"
 
     if is_licensed and tenant_id:
-        # A. Authenticated Paid Tenant -> Core Quota Service
         try:
             reservation = await check_and_reserve_quota(
                 db=db,
@@ -627,7 +584,7 @@ async def gpt_convert_statement(
                 request_hash=payload_hash
             )
             if reservation.status == "COMMITTED":
-                # Result expired from volatile RAM cache (Architect F02 / Decision 51 section 4.1)
+                # Operation already committed in DB, but expired/evicted from volatile RAM cache
                 raise HTTPException(
                     status_code=status.HTTP_410_GONE,
                     detail=(
@@ -642,8 +599,7 @@ async def gpt_convert_statement(
             logger.error(f"Quota reservation error for tenant {tenant_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal quota service error.")
     else:
-        # B. Anonymous Guest Demo Mode
-        anon_key = f"used_sess_{client_sess_id}"
+        # Anonymous demo mode admission
         with _anon_quota_lock:
             current_used = gpt_free_tier_tracker.get(anon_key, 0)
             if current_used >= MAX_FREE_CONVERSIONS:
@@ -684,9 +640,85 @@ async def gpt_convert_statement(
                     upgrade_info=STRIPE_LINKS
                 )
             gpt_free_tier_tracker.set(anon_key, current_used + 1)
+            anon_reserved = True
 
-    # 5. Exporter Execution
+    # 6. Ingestion & Exporter Execution (Protected by Quota Release on Failure)
+    target_format = req.export_format.lower().strip()
     try:
+        canonical_txs: List[CanonicalTransaction] = []
+
+        if has_transactions:
+            for idx, item in enumerate(req.transactions):
+                booking_dt = parse_strict_date(item.booking_date, "booking_date", idx)
+                value_dt = parse_strict_date(item.value_date, "value_date", idx) if item.value_date else booking_dt
+                curr = normalize_currency(item.currency)
+                amount_cents = parse_amount_to_cents(item.amount)
+
+                tx = CanonicalTransaction(
+                    transaction_id=str(uuid.uuid4()),
+                    tenant_id=tenant_id or f"sess_{client_sess_id}",
+                    client_entity_id="chatgpt-session",
+                    account_id="",
+                    bank_name=bank_name,
+                    source_file_id=req.filename or "chatgpt_input.pdf",
+                    source_row_page=str(idx + 1),
+                    booking_date=booking_dt,
+                    value_date=value_dt,
+                    amount_cents=amount_cents,
+                    currency=curr,
+                    description=(item.description or "").strip(),
+                    reference=(item.reference or "").strip(),
+                    contra_account=item.contra_account
+                )
+                canonical_txs.append(tx)
+
+        elif has_file:
+            parsed_txs, _ = await parser_supervisor.parse_file(
+                content=decoded_file_bytes,
+                filename=req.filename or "statement.pdf",
+                tenant_id=tenant_id or f"sess_{client_sess_id}",
+                timeout=float(settings.PARSER_TIMEOUT_SECONDS)
+            )
+            canonical_txs = parsed_txs
+
+        elif has_raw:
+            raw_bytes = req.raw_content.encode("utf-8")
+            parsed_txs, _ = await parser_supervisor.parse_file(
+                content=raw_bytes,
+                filename=req.filename or "statement.csv",
+                tenant_id=tenant_id or f"sess_{client_sess_id}",
+                timeout=float(settings.PARSER_TIMEOUT_SECONDS)
+            )
+            canonical_txs = parsed_txs
+
+        if not canonical_txs:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Keine Buchungssätze in den bereitgestellten Daten gefunden."
+            )
+
+        # Currency consistency check
+        distinct_currencies = {tx.currency for tx in canonical_txs if tx.currency}
+        if len(distinct_currencies) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Export blockiert: Gemischte Währungen erkannt ({sorted(distinct_currencies)}). Buchhaltungsexport erfordert eine einheitliche Währung."
+            )
+
+        # DATEV single fiscal year check
+        if target_format == "datev":
+            distinct_years = {tx.booking_date.year for tx in canonical_txs if tx.booking_date}
+            if len(distinct_years) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Export blockiert: Buchungen über mehrere Geschäftsjahre erkannt ({sorted(distinct_years)}). DATEV-Buchungsstapel müssen genau einem Geschäftsjahr angehören."
+                )
+
+        canonical_txs.sort(key=lambda t: t.booking_date or datetime.date.min)
+        if tenant_id:
+            for tx in canonical_txs:
+                tx.tenant_id = tenant_id
+
         now = datetime.datetime.now()
         sanitized_bank = re.sub(r'[^a-zA-Z0-9_-]', '_', bank_name).strip('_') or "Bank"
 
@@ -712,17 +744,23 @@ async def gpt_convert_statement(
     except HTTPException:
         if reservation and reservation.status == "RESERVED":
             await release_quota(db, reservation)
+        if anon_reserved:
+            with _anon_quota_lock:
+                gpt_free_tier_tracker.set(anon_key, max(0, gpt_free_tier_tracker.get(anon_key, 1) - 1))
         raise
     except Exception as exc:
         if reservation and reservation.status == "RESERVED":
             await release_quota(db, reservation)
+        if anon_reserved:
+            with _anon_quota_lock:
+                gpt_free_tier_tracker.set(anon_key, max(0, gpt_free_tier_tracker.get(anon_key, 1) - 1))
         logger.error(f"Unexpected conversion failure: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Interner Verarbeitungsfehler: {str(exc)}"
         )
 
-    # 6. Ephemeral RAM Cache (30 min TTL)
+    # 7. Ephemeral RAM Cache (30 min TTL)
     download_id = f"s2m_gpt_{uuid.uuid4().hex}"
     gpt_download_cache.set(
         key=download_id,
@@ -864,10 +902,11 @@ async def gpt_convert_statement(
                 resp_json = resp_obj.model_dump_json()
 
     if has_client_request_id:
-        # Cache operation response for idempotent replay (Architect F02 / Decision 51)
+        # Cache operation response for idempotent replay scoped to owner (Architect R52-1 / Decision 52)
         gpt_download_cache.set(
-            key=f"op_{idempotency_key}",
+            key=op_cache_key,
             value={
+                "owner_scope": owner_scope,
                 "payload_hash": payload_hash,
                 "response_json": resp_json,
                 "download_id": download_id

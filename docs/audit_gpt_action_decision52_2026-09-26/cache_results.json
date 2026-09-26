@@ -1,0 +1,90 @@
+{
+  "git_head": "691d61605d01e72c07a9355ce7383ede68e27334",
+  "scope": "local ASGI; synthetic data; temporary SQLite",
+  "cross_identity_operation_cache": {
+    "owner": {
+      "http": 200,
+      "status": "success",
+      "plan": "starter",
+      "detail": null
+    },
+    "other_tenant": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "anonymous": {
+      "http": 200,
+      "status": "limit_reached",
+      "plan": null,
+      "detail": null
+    },
+    "other_received_exact_owner_response": false,
+    "anonymous_received_exact_owner_response": false,
+    "download_id_shared": false,
+    "download_http": 200,
+    "other_tenant_new_id_control": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "anonymous_new_id_control": {
+      "http": 200,
+      "status": "limit_reached",
+      "plan": null,
+      "detail": null
+    },
+    "other_tenant_ledger": [
+      {
+        "units": 20,
+        "status": "COMMITTED",
+        "key": "other-spend"
+      }
+    ]
+  },
+  "file_replay_parser_execution": {
+    "instrumentation": "wrapper counts calls to real supervisor; clear simulates cache eviction",
+    "responses": [
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 200,
+        "status": "success",
+        "plan": "starter",
+        "detail": null
+      },
+      {
+        "http": 410,
+        "status": null,
+        "plan": null,
+        "detail": "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). Das Kontingent wurde für diesen Vorgang bereits verbucht. Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+      }
+    ],
+    "real_parser_calls": 1,
+    "first_and_second_response_identical": true
+  },
+  "file_entry_evicted_operation_entry_present": {
+    "injection": "delete file entry only, modeling independent LRU eviction",
+    "initial": {
+      "http": 200,
+      "status": "success",
+      "plan": "starter",
+      "detail": null
+    },
+    "replay": {
+      "http": 410,
+      "status": null,
+      "plan": null,
+      "detail": "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). Das Kontingent wurde für diesen Vorgang bereits verbucht. Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+    },
+    "inline_base64": false,
+    "operation_response_identical": false,
+    "download_http": null
+  }
+}
