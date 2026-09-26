@@ -102,35 +102,43 @@
    - Источник: `https://api.statement2muster.com/gpt-openapi.json`
    - SHA-256: `f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15`
    - Операции зарегистрированы: `convertStatement` (POST `/v1/gpt/convert`), `downloadConvertedFile` (GET `/v1/gpt/download/{download_id}`).
-3. **Режим аутентификации:** `None` (штатный анонимный Demo Tier, отслеживание лимитов в оперативной памяти).
-4. **Трассировка живых вызовов (зафиксирована в `BUILDER_E2E_TRACE.json` и логах Nginx):**
-   - **Первая попытка (12:30:50 UTC):** ChatGPT передал невалидное имя поля (`"date"` вместо `"booking_date"`). Бэкенд строго отверг запрос с кодом **HTTP 422 Unprocessable Entity** (`"booking_date": Field required`).
-   - **Автоматическое исправление (12:30:52 UTC):** ChatGPT скорректировал схему и отправил валидный запрос. Бэкенд вернул **HTTP 200 OK** (2906 байт). ChatGPT отобразил финансовую сводку:
-     * *Erfolgreich in DATEV EXTF 700 konvertiert.*
-     * *Soll -189,50 EUR · Haben 3.400,00 EUR · Saldo +3.210,50 EUR.*
-     * Ссылка на скачивание: *DATEV-EXTF-Datei herunterladen* (TTL 30 минут).
-   - **Проверка Replay (12:37:02 UTC):** По команде *«Wiederhole bitte dieselbe Konvertierung»* отправлен повторный запрос. Бэкенд вернул **HTTP 200 OK** (побайтно идентичные 2906 байт) из кэша. ChatGPT отобразил:
-     * *Erneut erfolgreich in DATEV EXTF 700 konvertiert.*
-     * Те же самые суммы и ссылки, без сбоев и без повторного списания квоты.
-5. **Записи в логах Nginx (`/var/log/nginx/access.log`):**
+3. **Режимы аутентификации и протестированные сценарии:**
+   - **Сценарий 1 (Анонимный Demo Tier):** Auth: `None`. Обработка ошибок схемы (422), автоисправление (200 OK), Replay (200 OK из RAM-кэша).
+   - **Сценарий 2 (Authenticated Persona Tenant A):** Auth: `API Key (Bearer JWT)`. Успешная конвертация выписки (200 OK, 2844 байт), фиксация списания 1 единицы квоты в SQLite `usage_reservations` (`gpt_req_builder_001_fix1`).
+   - **Сценарий 3 (Authenticated Persona Tenant B — Изоляция квот R54-1):** Auth: `API Key (Bearer JWT)` для арендатора с предварительно исчерпанной квотой (20/20 единиц). ChatGPT получил **HTTP 429 Too Many Requests** и корректно уведомил пользователя на немецком языке:
+     > *«Die Konvertierung konnte nicht abgeschlossen werden: Das monatliche Kontingent von 20 Auszügen im Starter-Tarif ist erreicht. Daher wurde kein DATEV-Download erzeugt.»*
+     Утечка данных и ссылок Tenant A предотвращена. Новых списаний в ledger не создано.
+
+4. **Трассировка живых вызовов в Nginx (`/var/log/nginx/access.log`):**
    ```text
    172.199.137.82 - [26/Sep/2026:12:27:39 +0000] "GET /gpt-openapi.json HTTP/1.1" 200 13265 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
    172.199.137.87 - [26/Sep/2026:12:30:50 +0000] "POST /v1/gpt/convert HTTP/1.1" 422 390 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
    172.199.137.92 - [26/Sep/2026:12:30:52 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
    172.199.137.92 - [26/Sep/2026:12:37:02 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.87 - [26/Sep/2026:12:51:36 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2844 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.87 - [26/Sep/2026:12:53:24 +0000] "POST /v1/gpt/convert HTTP/1.1" 429 116 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
    ```
-6. **Графические доказательства сохранены:**
-   - `docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png`
-   - `docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png`
-   - `docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png`
+
+5. **Фактическое состояние SQLite Ledger (`statement2muster_prod.db`):**
+   ```text
+   ('builder_tenant_a', 'gpt_req_builder_001', 1, 'COMMITTED', '2026-09-26 12:48:39.142746')
+   ('builder_tenant_a', 'gpt_req_builder_001_fix1', 1, 'COMMITTED', '2026-09-26 12:51:36.167109')
+   ('builder_tenant_b', 'pre_spent_quota', 20, 'COMMITTED', '2026-09-26T12:48:08.262607+00:00')
+   ```
+
+6. **Графические артефакты и скриншоты сохранены в репозитории:**
+   - `docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png` — общий вид редактора Actions в ChatGPT Builder.
+   - `docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png` — раскладка дебаг-трейса запроса и ответа (Request/Response) анонимной сессии.
+   - `docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png` — дебаг-трейс успешного повторного вызова (Replay).
+   - `docs/gpt_action_acceptance/chatgpt_builder_tenant_b_quota_429.png` — живой скриншот перехвата ошибки 429 Too Many Requests при превышении квоты Tenant B.
 
 ---
 
 ## 5. Итоговое резюме для Главного Архитектора
 
-1. Все три условия **Решения 54** закрыты в полном объёме:
-   - **R54-1 (Builder E2E):** Выполнен реальный запуск в ChatGPT Builder Preview (ID: `g-6ab7b524949881919d6f3ac8d6945deb`), зафиксированы трассы 422, 200 и Replay 200 от бота `ChatGPT-User/1.0`.
-   - **R54-2 (Файл, вытеснение, восстановление):** Все 13 сценариев в `tests/acceptance/run_g07_live_acceptance.py` пройдены со статусом PASS. Сверка CSV (Windows-1252, CRLF, проводки, суммы), Error & Recovery и 410 Replay при вытеснении подтверждены.
-   - **R54-3 (Политика JWT и лимиты файлов):** Лимит 10 минут (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10`) и 10 MiB восстановлены и проверены на живом контейнере на Hetzner.
-2. Все формулировки и параметры приведены в строгое соответствие с требованиями раздела 4 Решения 54.
+1. Все условия **Решений 54 и 55** закрыты полностью:
+   - **R54-1 (Builder E2E с аутентифицированными персонами и изоляцией квот):** Подтверждены сценарии Demo Tier, Authenticated Tenant A (200 OK) и Authenticated Tenant B (429 Quota Exceeded). Все взаимодействия зафиксированы в логах Nginx от `ChatGPT-User/1.0`, проверены в базе SQLite и задокументированы скриншотами.
+   - **R54-2 (Файл, вытеснение, восстановление):** 13/13 сценариев в `tests/acceptance/run_g07_live_acceptance.py` имеют статус PASS. Поколоночный аудит CSV (Windows-1252, CRLF, проводки), Error & Recovery и 410 Replay подтверждены.
+   - **R54-3 (Политика JWT и лимиты файлов):** Лимит 10 минут (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10`) и 10 MiB восстановлены и активны в контейнере `s2m-backend-api` (образ `1.0.15`).
+2. Терминология финансовых итогов приведена к немецким банковским стандартам: *Abflüsse / Zuflüsse / Saldo*.
 3. Запрашивается официальное утверждение Главным Архитектором: **Окончательный вердикт G07 Acceptance Clearance (GO)**.

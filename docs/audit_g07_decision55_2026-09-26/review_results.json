@@ -1,0 +1,199 @@
+{
+  "scope": "Independent Git/artifact/file review and public HTTPS GETs; no production modifications, token issuance, conversions or restart",
+  "time_utc": "2026-09-26T12:42:53.013303+00:00",
+  "head": "b4e1d43ea1c286b4e44dc79a851c270ffcc5f463",
+  "source": {
+    "normalization": "CRLF to LF",
+    "manifest_equal": true,
+    "commits": {
+      "271d9ed3e6b90968bc1a9bb56ce8c7522e397603": {
+        "files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      },
+      "8533cd3d08257078015372eaee2214d172314258": {
+        "files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      },
+      "b4e1d43ea1c286b4e44dc79a851c270ffcc5f463": {
+        "files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      }
+    }
+  },
+  "backend_unchanged_since_54": true,
+  "inspect": {
+    "container_id": "5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b",
+    "image_id": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
+    "image_name": "statement2muster-api:1.0.15",
+    "jwt_expiry_minutes": "10",
+    "max_file_size_bytes": "10485760",
+    "health_interval_ns": 15000000000,
+    "health": "healthy"
+  },
+  "container_binding": true,
+  "reported_jwt_test": {
+    "token_lifetime_seconds": 600,
+    "expected_lifetime_seconds": 600,
+    "expired_token_http": 401,
+    "expired_token_detail": "Token expired. Please re-authenticate."
+  },
+  "reported_eviction_test": {
+    "initial_convert_http": 200,
+    "evicted_download_http": 404,
+    "replay_after_eviction_http": 410,
+    "replay_detail": "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). Das Kontingent wurde für diesen Vorgang bereits verbucht. Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+  },
+  "csv": {
+    "sha256": "cc0861fc934c562a953acb0ea9c728d504a628ec33e11f81ee3232553ae70357",
+    "matches_reported_sha256": true,
+    "bytes": 559,
+    "header": [
+      "EXTF",
+      "700",
+      "21",
+      "Buchungsstapel",
+      "12"
+    ],
+    "crlf_only": true,
+    "windows1252_roundtrip": true,
+    "contains_non_ascii_windows1252": true,
+    "posting_count": 2,
+    "input_count": 2,
+    "rows": [
+      {
+        "checks": {
+          "amount": true,
+          "sh": true,
+          "currency": true,
+          "bank_account": true,
+          "booking_date": true,
+          "reference": true,
+          "description": true
+        },
+        "pass": true
+      },
+      {
+        "checks": {
+          "amount": true,
+          "sh": true,
+          "currency": true,
+          "bank_account": true,
+          "booking_date": true,
+          "reference": true,
+          "description": true
+        },
+        "pass": true
+      }
+    ],
+    "net": "3210.5"
+  },
+  "reported_ledger": {
+    "rows": 5,
+    "all_committed": true,
+    "tenant_units": {
+      "g07_live_a_6e544c30": 1,
+      "g07_live_b_6e544c30": 20,
+      "g07_live_c_6e544c30": 2,
+      "g07_live_exp_6e544c30": 1
+    }
+  },
+  "runner": {
+    "tracked": true,
+    "sha256": "26dbff8176a1d3c54a27bd0d72dd7399a2e895e8bc56d0d6ad1b77fbbb68b4ab",
+    "assertions": 76,
+    "eviction_method": "docker restart in runner, not natural TTL expiry",
+    "expired_token_method": "create_access_token(expires_delta=timedelta(seconds=-30)); no natural 600-second wait",
+    "private_key_export_removed": true
+  },
+  "builder": {
+    "gpt_id": "g-6ab7b524949881919d6f3ac8d6945deb",
+    "auth_mode": "None (Anonymous Demo Tier)",
+    "schema_sha256": "f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15",
+    "successful_attempt_keys": [
+      "http_bytes_transferred",
+      "outcome",
+      "status_code"
+    ],
+    "replay_attempt_keys": [
+      "byte_identical_to_initial",
+      "http_bytes_transferred",
+      "outcome",
+      "status_code",
+      "timestamp"
+    ],
+    "successful_request_saved": false,
+    "successful_response_saved": false,
+    "replay_request_saved": false,
+    "replay_response_saved": false,
+    "screenshot_hashes": {
+      "docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png": "5d2d8a6c3e418a1a7a6ec20dcf5d4589dce51520bc9ce3ed2508eeded879382a",
+      "docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png": "8f2dac86185f4298060dc148ffb3acd6fe328028cfa5ad094fd55475a629d42b",
+      "docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png": "376ecabd5816081e91c02dc41d6f1e2ba5b295246f547c83c8bc6f8d404df856"
+    }
+  },
+  "https": {
+    "/healthz": {
+      "http": 200,
+      "tls": "Default certificate and hostname verification enabled",
+      "body_sha256": "7e79f603e8702c99f224f1b844c59fc6b6bd4ce07067eefae61c335b412d617c",
+      "body": {
+        "status": "healthy",
+        "service": "statement2muster-api",
+        "version": "1.0.15",
+        "database": "connected",
+        "zero_retention": "enforced"
+      }
+    },
+    "/openapi.json": {
+      "http": 200,
+      "tls": "Default certificate and hostname verification enabled",
+      "body_sha256": "50243be1ef3710097deb84730a92dbdb3b796ede41f35ae0f4fb437f17369973",
+      "info": {
+        "title": "Statement2Muster DACH",
+        "version": "1.0.15"
+      },
+      "operation_ids": {
+        "/api/v1/gpt/convert": {
+          "post": "gpt_convert_statement_api_v1_gpt_convert_post"
+        },
+        "/v1/gpt/convert": {
+          "post": "gpt_convert_statement_v1_gpt_convert_post"
+        },
+        "/api/v1/gpt/download/{download_id}": {
+          "get": "gpt_download_file_api_v1_gpt_download__download_id__get"
+        },
+        "/v1/gpt/download/{download_id}": {
+          "get": "gpt_download_file_v1_gpt_download__download_id__get"
+        }
+      }
+    },
+    "/gpt-openapi.json": {
+      "http": 200,
+      "tls": "Default certificate and hostname verification enabled",
+      "body_sha256": "f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15",
+      "info": {
+        "title": "Statement2Muster DATEV & BMD Accounting Action",
+        "description": "Accounting conversion action for Statement2Muster. Enables ChatGPT to turn bank statements (American Express, Wise, PayPal, Sparkasse, etc.) into DATEV EXTF 700 (Windows-1252) and Austrian BMD NTCS 5.1 CSV files. Zero Durable Storage on server (RAM-only processing, 30-minute auto-purge).\n",
+        "version": "2.1.1"
+      },
+      "operation_ids": {
+        "/v1/gpt/convert": {
+          "post": "convertStatement"
+        },
+        "/v1/gpt/download/{download_id}": {
+          "get": "downloadConvertedFile"
+        }
+      },
+      "matches_builder_import_sha256": true
+    }
+  }
+}

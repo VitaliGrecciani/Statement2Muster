@@ -1,0 +1,32 @@
+{
+  "scope": "Local synthetic ASGI, temporary SQLite, no production keys or network",
+  "instrumentation": "Counter wrapper calls the real DATEV exporter",
+  "cases": {
+    "without_request_id": {
+      "codes": [
+        200,
+        200
+      ],
+      "exporter_calls": 2,
+      "byte_identical": false,
+      "same_download_id": false,
+      "demo_used": [
+        1,
+        2
+      ]
+    },
+    "with_request_id": {
+      "codes": [
+        200,
+        200
+      ],
+      "exporter_calls": 1,
+      "byte_identical": true,
+      "same_download_id": true,
+      "demo_used": [
+        1,
+        1
+      ]
+    }
+  }
+}
