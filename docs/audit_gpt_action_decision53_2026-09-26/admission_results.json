@@ -1,0 +1,61 @@
+{
+  "git_head": "8533cd3d08257078015372eaee2214d172314258",
+  "scope": "synthetic local ASGI; temporary SQLite",
+  "exhausted_raw": {
+    "response": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "parser_calls": 0
+  },
+  "exhausted_file": {
+    "response": {
+      "http": 429,
+      "status": null,
+      "plan": null,
+      "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
+    },
+    "parser_calls": 0
+  },
+  "in_progress_raw": {
+    "response": {
+      "http": 409,
+      "status": null,
+      "plan": null,
+      "detail": "An operation with this idempotency key is currently in progress. Please retry shortly."
+    },
+    "parser_calls": 0
+  },
+  "changed_raw_replay": {
+    "response": {
+      "http": 409,
+      "status": null,
+      "plan": null,
+      "detail": "Idempotency key reused with different request payload"
+    },
+    "parser_calls": 0
+  },
+  "two_allowed_tenants_same_id_and_payload": {
+    "codes": [
+      200,
+      200
+    ],
+    "distinct_download_ids": true,
+    "parser_calls": 2,
+    "ledger": [
+      {
+        "tenant": "admission-a",
+        "status": "COMMITTED",
+        "units": 1
+      },
+      {
+        "tenant": "admission-b",
+        "status": "COMMITTED",
+        "units": 1
+      }
+    ]
+  },
+  "all_checks_passed": true
+}
