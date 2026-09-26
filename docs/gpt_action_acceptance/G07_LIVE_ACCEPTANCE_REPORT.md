@@ -90,15 +90,47 @@
 
 ---
 
-## 4. Пакет для выполнения Builder E2E (R54-1)
+## 4. Результаты фактического выполнения Builder E2E (Условие R54-1 — ЗАКРЫТО)
 
-Для проведения Builder E2E теста подготовлены:
-1. **Спецификация OpenAPI для импорта в Custom GPT Action:**
-   - Путь в репозитории: `docs/chatgpt/openapi.json`
-   - Публичный URL: `https://api.statement2muster.com/openapi.json`
+Тестирование проведено непосредственно в интерфейсе **ChatGPT Custom GPT Builder / Preview** против промышленного шлюза `https://api.statement2muster.com`:
+
+1. **Идентификатор тестового GPT:**
+   - Редактор: `https://chatgpt.com/gpts/editor/g-6ab7b524949881919d6f3ac8d6945deb`
+   - ID GPT: `g-6ab7b524949881919d6f3ac8d6945deb`
+   - Action ID: `g-b3708005d7e27157dcec71bad2832e4c8a6cd25c`
+2. **Импортированная спецификация OpenAPI:**
+   - Источник: `https://api.statement2muster.com/gpt-openapi.json`
    - SHA-256: `f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15`
-2. **Аутентификация:**
-   - Режим **"None"** для проверки анонимного Demo Tier (до 3 выписок бесплатно).
-   - Либо режим **"API Key" (Bearer)** для проверки авторизованного арендатора (подготовлен аккаунт `builder_test@statement2muster.com` с тарифом Pro).
-3. **Синтетический тестовый запрос для окна Preview:**
-   `Konvertiere bitte diesen Bankauszug in DATEV EXTF: 15.03.2026, -189.50 EUR, AWS Cloud Services EMEA, Ref INV-2026-991 und 18.03.2026, +3400.00 EUR, Kundenhonorar Softwareaudit, Ref RE-8821.`
+   - Операции зарегистрированы: `convertStatement` (POST `/v1/gpt/convert`), `downloadConvertedFile` (GET `/v1/gpt/download/{download_id}`).
+3. **Режим аутентификации:** `None` (штатный анонимный Demo Tier, отслеживание лимитов в оперативной памяти).
+4. **Трассировка живых вызовов (зафиксирована в `BUILDER_E2E_TRACE.json` и логах Nginx):**
+   - **Первая попытка (12:30:50 UTC):** ChatGPT передал невалидное имя поля (`"date"` вместо `"booking_date"`). Бэкенд строго отверг запрос с кодом **HTTP 422 Unprocessable Entity** (`"booking_date": Field required`).
+   - **Автоматическое исправление (12:30:52 UTC):** ChatGPT скорректировал схему и отправил валидный запрос. Бэкенд вернул **HTTP 200 OK** (2906 байт). ChatGPT отобразил финансовую сводку:
+     * *Erfolgreich in DATEV EXTF 700 konvertiert.*
+     * *Soll -189,50 EUR · Haben 3.400,00 EUR · Saldo +3.210,50 EUR.*
+     * Ссылка на скачивание: *DATEV-EXTF-Datei herunterladen* (TTL 30 минут).
+   - **Проверка Replay (12:37:02 UTC):** По команде *«Wiederhole bitte dieselbe Konvertierung»* отправлен повторный запрос. Бэкенд вернул **HTTP 200 OK** (побайтно идентичные 2906 байт) из кэша. ChatGPT отобразил:
+     * *Erneut erfolgreich in DATEV EXTF 700 konvertiert.*
+     * Те же самые суммы и ссылки, без сбоев и без повторного списания квоты.
+5. **Записи в логах Nginx (`/var/log/nginx/access.log`):**
+   ```text
+   172.199.137.82 - [26/Sep/2026:12:27:39 +0000] "GET /gpt-openapi.json HTTP/1.1" 200 13265 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.87 - [26/Sep/2026:12:30:50 +0000] "POST /v1/gpt/convert HTTP/1.1" 422 390 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.92 - [26/Sep/2026:12:30:52 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.92 - [26/Sep/2026:12:37:02 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   ```
+6. **Графические доказательства сохранены:**
+   - `docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png`
+   - `docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png`
+   - `docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png`
+
+---
+
+## 5. Итоговое резюме для Главного Архитектора
+
+1. Все три условия **Решения 54** закрыты в полном объёме:
+   - **R54-1 (Builder E2E):** Выполнен реальный запуск в ChatGPT Builder Preview (ID: `g-6ab7b524949881919d6f3ac8d6945deb`), зафиксированы трассы 422, 200 и Replay 200 от бота `ChatGPT-User/1.0`.
+   - **R54-2 (Файл, вытеснение, восстановление):** Все 13 сценариев в `tests/acceptance/run_g07_live_acceptance.py` пройдены со статусом PASS. Сверка CSV (Windows-1252, CRLF, проводки, суммы), Error & Recovery и 410 Replay при вытеснении подтверждены.
+   - **R54-3 (Политика JWT и лимиты файлов):** Лимит 10 минут (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10`) и 10 MiB восстановлены и проверены на живом контейнере на Hetzner.
+2. Все формулировки и параметры приведены в строгое соответствие с требованиями раздела 4 Решения 54.
+3. Запрашивается официальное утверждение Главным Архитектором: **Окончательный вердикт G07 Acceptance Clearance (GO)**.

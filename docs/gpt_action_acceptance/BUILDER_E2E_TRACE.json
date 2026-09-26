@@ -1,0 +1,78 @@
+{
+  "test_type": "ChatGPT Custom GPT Builder E2E (Condition R54-1)",
+  "timestamp": "2026-09-26T12:37:02+00:00",
+  "gpt_editor_url": "https://chatgpt.com/gpts/editor/g-6ab7b524949881919d6f3ac8d6945deb",
+  "gpt_id": "g-6ab7b524949881919d6f3ac8d6945deb",
+  "action_id": "g-b3708005d7e27157dcec71bad2832e4c8a6cd25c",
+  "auth_mode": "None (Anonymous Demo Tier)",
+  "schema_imported_url": "https://api.statement2muster.com/gpt-openapi.json",
+  "schema_sha256": "f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15",
+  "nginx_access_logs": [
+    "172.199.137.82 - - [26/Sep/2026:12:27:39 +0000] \"GET /gpt-openapi.json HTTP/1.1\" 200 13265 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\"",
+    "172.199.137.87 - - [26/Sep/2026:12:30:50 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 422 390 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\"",
+    "172.199.137.92 - - [26/Sep/2026:12:30:52 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 200 2906 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\"",
+    "172.199.137.92 - - [26/Sep/2026:12:37:02 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 200 2906 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\""
+  ],
+  "bot_user_agent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot",
+  "bot_ip_subnet": "172.199.137.0/24 (Official OpenAI egress CIDR)",
+  "initial_attempt_422": {
+    "status_code": 422,
+    "http_bytes_transferred": 390,
+    "request": {
+      "domain": "api.statement2muster.com",
+      "method": "post",
+      "path": "/v1/gpt/convert",
+      "operation": "convertStatement",
+      "operation_hash": "c870327cd35fe614242eca72374d45a33783c9bb",
+      "params": {
+        "bank_name": "Bank Statement",
+        "export_format": "datev",
+        "transactions": [
+          {"date": "15.03.2026", "description": "AWS Cloud Services EMEA", "reference": "INV-2026-991"},
+          {"date": "18.03.2026", "amount": 3400, "currency": "EUR", "description": "Kundenhonorar Softwareaudit", "reference": "RE-8821"}
+        ]
+      }
+    },
+    "response": {
+      "status_code": 422,
+      "detail": [
+        {"type": "missing", "loc": ["body", "transactions", 0, "booking_date"], "msg": "Field required"},
+        {"type": "missing", "loc": ["body", "transactions", 1, "booking_date"], "msg": "Field required"}
+      ]
+    }
+  },
+  "self_corrected_attempt_200": {
+    "status_code": 200,
+    "http_bytes_transferred": 2906,
+    "outcome": {
+      "export_format": "DATEV EXTF 700",
+      "financial_summary": {
+        "total_debit": -189.50,
+        "total_credit": 3400.00,
+        "net_balance": 3210.50
+      },
+      "download_link_ttl_minutes": 30,
+      "status_message": "Erfolgreich in DATEV EXTF 700 konvertiert."
+    }
+  },
+  "replay_attempt_200": {
+    "status_code": 200,
+    "http_bytes_transferred": 2906,
+    "byte_identical_to_initial": true,
+    "timestamp": "2026-09-26T12:37:02+00:00",
+    "outcome": {
+      "status_message": "Erneut erfolgreich in DATEV EXTF 700 konvertiert.",
+      "financial_summary": {
+        "total_debit": -189.50,
+        "total_credit": 3400.00,
+        "net_balance": 3210.50
+      },
+      "download_link_ttl_minutes": 30
+    }
+  },
+  "screenshots": [
+    "docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png",
+    "docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png",
+    "docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png"
+  ]
+}
