@@ -1,5 +1,5 @@
 {
-  "git_head": "691d61605d01e72c07a9355ce7383ede68e27334",
+  "git_head": "271d9ed3e6b90968bc1a9bb56ce8c7522e397603",
   "scope": "local ASGI; synthetic data; temporary isolated SQLite",
   "fake_keys": {
     "s2m_test_pro_key": {
