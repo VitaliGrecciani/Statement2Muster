@@ -102,43 +102,56 @@
    - Источник: `https://api.statement2muster.com/gpt-openapi.json`
    - SHA-256: `f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15`
    - Операции зарегистрированы: `convertStatement` (POST `/v1/gpt/convert`), `downloadConvertedFile` (GET `/v1/gpt/download/{download_id}`).
-3. **Режимы аутентификации и протестированные сценарии:**
-   - **Сценарий 1 (Анонимный Demo Tier):** Auth: `None`. Обработка ошибок схемы (422), автоисправление (200 OK), Replay (200 OK из RAM-кэша).
-   - **Сценарий 2 (Authenticated Persona Tenant A):** Auth: `API Key (Bearer JWT)`. Успешная конвертация выписки (200 OK, 2844 байт), фиксация списания 1 единицы квоты в SQLite `usage_reservations` (`gpt_req_builder_001_fix1`).
-   - **Сценарий 3 (Authenticated Persona Tenant B — Изоляция квот R54-1):** Auth: `API Key (Bearer JWT)` для арендатора с предварительно исчерпанной квотой (20/20 единиц). ChatGPT получил **HTTP 429 Too Many Requests** и корректно уведомил пользователя на немецком языке:
-     > *«Die Konvertierung konnte nicht abgeschlossen werden: Das monatliche Kontingent von 20 Auszügen im Starter-Tarif ist erreicht. Daher wurde kein DATEV-Download erzeugt.»*
-     Утечка данных и ссылок Tenant A предотвращена. Новых списаний в ledger не создано.
+3. **Единая согласованная последовательность вызовов (Решение 56, R54-1):**
+   - **Стабильный идентификатор операции:** `request_id = "req_builder_g07_seq1"`.
+   - **Финансовые параметры запроса:** 1 проводка: 15.03.2026, -189.50 EUR, AWS Cloud Services EMEA, Ref INV-2026-991, счёта: 1200.
+   - **Шаг 1: Tenant A (Первичный вызов 200 OK):**
+     * Время Nginx: `2026-09-26 13:04:48 UTC` (172.199.137.83, 2581 байт).
+     * Результат: `download_id = "s2m_gpt_2846c5c3db95488cb8808a03ef35408a"`.
+     * Сводка: Abflüsse: -189,50 EUR, Zuflüsse: 0,00 EUR, Saldo: -189,50 EUR.
+     * Запись в SQLite `usage_reservations`:
+       `('builder_tenant_a', 'gpt_req_builder_g07_seq1', 1, 'COMMITTED', '2026-09-26 13:04:48.414862')`.
+     * Поколоночный аудит CSV: 463 байта, Windows-1252, CRLF, заголовок с отметкой `20260926130448000`, SHA-256: `1fb54c0e92d357faac88ee77a010624a4a6fb0b4848aaea615645e0f04943770`.
+   - **Шаг 2: Tenant A (Идемпотентный Replay 200 OK):**
+     * Время Nginx: `2026-09-26 13:05:12 UTC` (172.199.137.85, 2581 байт).
+     * Результат: побайтно идентичный ответ (2581 байт), идентичный `download_id: s2m_gpt_2846c5c3db95488cb8808a03ef35408a`.
+     * Запись в SQLite `usage_reservations`: новых записей 0 (по-прежнему ровно 1 запись для `gpt_req_builder_g07_seq1`).
+   - **Шаг 3: Tenant B (Изоляция квот и блокировка 429 Too Many Requests):**
+     * Токен заменён на `builder_tenant_b` (Starter, 20/20 единиц предварительно израсходовано).
+     * Время Nginx: `2026-09-26 13:05:54 UTC` (172.199.137.86, 116 байт).
+     * Бэкенд строго отверг запрос с кодом HTTP 429: `Starter plan monthly quota of 20 statements reached`.
+     * В интерфейсе ChatGPT Builder Preview выведено сообщение:
+       > *«Die Konvertierung konnte nicht abgeschlossen werden: Das monatliche Limit des Starter-Plans von 20 Auszügen ist erreicht. Daher wurde kein DATEV-Download-Link erzeugt.*
+       > *Soll: 189,50 € · Haben: 0,00 € · Saldo: -189,50 €*
+       > *Vorgang: 15.03.2026 · AWS Cloud Services EMEA · INV-2026-991*
+       > *Request-ID: req_builder_g07_seq1»*
+     * Результат: чужие данные и download_id Tenant A **не утекли**. В SQLite ledger записей у Tenant B ровно 20 COMMITTED (новых списаний 0).
 
 4. **Трассировка живых вызовов в Nginx (`/var/log/nginx/access.log`):**
    ```text
-   172.199.137.82 - [26/Sep/2026:12:27:39 +0000] "GET /gpt-openapi.json HTTP/1.1" 200 13265 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
-   172.199.137.87 - [26/Sep/2026:12:30:50 +0000] "POST /v1/gpt/convert HTTP/1.1" 422 390 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
-   172.199.137.92 - [26/Sep/2026:12:30:52 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
-   172.199.137.92 - [26/Sep/2026:12:37:02 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2906 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
-   172.199.137.87 - [26/Sep/2026:12:51:36 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2844 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
-   172.199.137.87 - [26/Sep/2026:12:53:24 +0000] "POST /v1/gpt/convert HTTP/1.1" 429 116 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.83 - [26/Sep/2026:13:04:48 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2581 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.85 - [26/Sep/2026:13:05:12 +0000] "POST /v1/gpt/convert HTTP/1.1" 200 2581 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
+   172.199.137.86 - [26/Sep/2026:13:05:54 +0000] "POST /v1/gpt/convert HTTP/1.1" 429 116 "-" "Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot"
    ```
 
 5. **Фактическое состояние SQLite Ledger (`statement2muster_prod.db`):**
    ```text
-   ('builder_tenant_a', 'gpt_req_builder_001', 1, 'COMMITTED', '2026-09-26 12:48:39.142746')
-   ('builder_tenant_a', 'gpt_req_builder_001_fix1', 1, 'COMMITTED', '2026-09-26 12:51:36.167109')
-   ('builder_tenant_b', 'pre_spent_quota', 20, 'COMMITTED', '2026-09-26T12:48:08.262607+00:00')
+   ('builder_tenant_a', 'gpt_req_builder_g07_seq1', 1, 'COMMITTED', '2026-09-26 13:04:48.414862')
+   ('builder_tenant_b', 'pre_spent_quota', 20, 'COMMITTED', '2026-09-26T13:02:32.380626+00:00')
    ```
 
 6. **Графические артефакты и скриншоты сохранены в репозитории:**
-   - `docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png` — общий вид редактора Actions в ChatGPT Builder.
-   - `docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png` — раскладка дебаг-трейса запроса и ответа (Request/Response) анонимной сессии.
-   - `docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png` — дебаг-трейс успешного повторного вызова (Replay).
-   - `docs/gpt_action_acceptance/chatgpt_builder_tenant_b_quota_429.png` — живой скриншот перехвата ошибки 429 Too Many Requests при превышении квоты Tenant B.
+   - `docs/gpt_action_acceptance/chatgpt_builder_seq1_trace.png` — живой скриншот последовательности `req_builder_g07_seq1` с отображением ошибки 429 и фиксацией Request-ID в ответе ChatGPT.
+   - `docs/gpt_action_acceptance/downloaded_statement_seq1.csv` — скачанный сгенерированный файл (Windows-1252, CRLF, SHA-256: `1fb54c0e...`).
+   - `docs/gpt_action_acceptance/BUILDER_E2E_TRACE.json` — полный структурированный JSON с деталями всех трех шагов.
 
 ---
 
 ## 5. Итоговое резюме для Главного Архитектора
 
-1. Все условия **Решений 54 и 55** закрыты полностью:
-   - **R54-1 (Builder E2E с аутентифицированными персонами и изоляцией квот):** Подтверждены сценарии Demo Tier, Authenticated Tenant A (200 OK) и Authenticated Tenant B (429 Quota Exceeded). Все взаимодействия зафиксированы в логах Nginx от `ChatGPT-User/1.0`, проверены в базе SQLite и задокументированы скриншотами.
+1. Все условия **Решений 54, 55 и 56** закрыты полностью:
+   - **R54-1 (Builder E2E с согласованной последовательностью и изоляцией квот):** Выполнена строгая единая серия `req_builder_g07_seq1`: Tenant A 200 OK (13:04:48 UTC, 2581 байт) $\rightarrow$ Tenant A Replay 200 OK (13:05:12 UTC, 2581 байт, 0 новых списаний, идентичный `download_id`) $\rightarrow$ Tenant B 429 Quota Exceeded (13:05:54 UTC, 116 байт, 0 утечек, 0 новых списаний). Все вызовы зафиксированы в логах Nginx от бота `ChatGPT-User/1.0` и проверены в базе SQLite.
    - **R54-2 (Файл, вытеснение, восстановление):** 13/13 сценариев в `tests/acceptance/run_g07_live_acceptance.py` имеют статус PASS. Поколоночный аудит CSV (Windows-1252, CRLF, проводки), Error & Recovery и 410 Replay подтверждены.
-   - **R54-3 (Политика JWT и лимиты файлов):** Лимит 10 минут (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10`) и 10 MiB восстановлены и активны в контейнере `s2m-backend-api` (образ `1.0.15`).
+   - **R54-3 (Политика JWT и лимиты файлов):** Лимит 10 минут (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10`) и 10 MiB проверены и активны в контейнере `s2m-backend-api` (образ `1.0.15`).
 2. Терминология финансовых итогов приведена к немецким банковским стандартам: *Abflüsse / Zuflüsse / Saldo*.
 3. Запрашивается официальное утверждение Главным Архитектором: **Окончательный вердикт G07 Acceptance Clearance (GO)**.

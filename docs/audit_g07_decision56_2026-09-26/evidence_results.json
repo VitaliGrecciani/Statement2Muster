@@ -1,0 +1,89 @@
+{
+  "scope": "Independent local evidence review and public schema GET only",
+  "head": "9d2b774c2806ef9f0f9d9e6d0cbe808bc7c934be",
+  "trace_sha256": "62ca8f0b3b3cade25b00093978253426d2d65478e7fe23e78c5f97e00dc16155",
+  "backend_and_runtime_config_unchanged": true,
+  "tenant_a": {
+    "reported_request_id": "req_builder_001",
+    "reported_event": "172.199.137.87 - - [26/Sep/2026:12:51:36 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 200 2844 \"-\" \"Mozilla/5.0... ChatGPT-User/1.0; +https://openai.com/bot\"",
+    "selected_ledger": [
+      "builder_tenant_a",
+      "gpt_req_builder_001",
+      1,
+      "COMMITTED",
+      "2026-09-26 12:48:39.142746"
+    ],
+    "all_ledger_entries": [
+      [
+        "builder_tenant_a",
+        "gpt_req_builder_001",
+        1,
+        "COMMITTED",
+        "2026-09-26 12:48:39.142746"
+      ],
+      [
+        "builder_tenant_a",
+        "gpt_req_builder_001_fix1",
+        1,
+        "COMMITTED",
+        "2026-09-26 12:51:36.167109"
+      ]
+    ],
+    "reported_summary": {
+      "abfluesse": -189.5,
+      "zufluesse": 3400.0,
+      "saldo": 3210.5
+    }
+  },
+  "tenant_b": {
+    "reported_request_id": "req_builder_001",
+    "http": 429,
+    "reported_new_reservations": 0
+  },
+  "scenario_fields": {
+    "1_anonymous_demo_tier": [
+      "auth_mode",
+      "nginx_logs",
+      "outcome"
+    ],
+    "2_authenticated_tenant_a": [
+      "auth_mode",
+      "download_link_ttl_minutes",
+      "financial_summary",
+      "http_bytes_transferred",
+      "http_status",
+      "ledger_entry",
+      "nginx_log",
+      "plan",
+      "request_id",
+      "tenant_id"
+    ],
+    "3_authenticated_tenant_b_quota_isolation": [
+      "auth_mode",
+      "chatgpt_ui_message",
+      "http_bytes_transferred",
+      "http_status",
+      "leak_prevented",
+      "ledger_entry",
+      "new_reservations_created",
+      "nginx_log",
+      "plan",
+      "request_id",
+      "tenant_id"
+    ]
+  },
+  "replay_capture_present": false,
+  "visual_artifact_hashes": {
+    "docs/gpt_action_acceptance/chatgpt_builder_preview_overview.png": "5d2d8a6c3e418a1a7a6ec20dcf5d4589dce51520bc9ce3ed2508eeded879382a",
+    "docs/gpt_action_acceptance/chatgpt_builder_preview_trace.png": "8f2dac86185f4298060dc148ffb3acd6fe328028cfa5ad094fd55475a629d42b",
+    "docs/gpt_action_acceptance/chatgpt_builder_replay_trace.png": "376ecabd5816081e91c02dc41d6f1e2ba5b295246f547c83c8bc6f8d404df856",
+    "docs/gpt_action_acceptance/chatgpt_builder_tenant_b_quota_429.png": "7f1fed8484aabe79cb564fdf2cb0a9987b5942709c21098e2b6c5a92dc1a6d37"
+  },
+  "earlier_replay_screenshots_unchanged": true,
+  "public_schema": {
+    "http": 200,
+    "sha256": "f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15",
+    "matches_claimed": true,
+    "tls": "Default hostname and certificate verification enabled"
+  }
+}
