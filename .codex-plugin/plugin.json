@@ -1,0 +1,12 @@
+{
+  "name": "statement2muster",
+  "display_name": "Statement2Muster DATEV & BMD Auszugskonverter",
+  "version": "1.0.17",
+  "description": "Konvertiert Kreditkarten- und Bankauszüge in DATEV EXTF 700 & BMD NTCS 5.1 Buchungsstapel.",
+  "icon": "https://statement2muster.com/logo.png",
+  "mcp_server": {
+    "url": "https://api.statement2muster.com/api/v1/mcp"
+  },
+  "contact_email": "support@statement2muster.com",
+  "legal_info_url": "https://statement2muster.com/datenschutz.html"
+}

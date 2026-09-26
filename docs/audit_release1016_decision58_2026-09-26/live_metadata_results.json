@@ -1,0 +1,163 @@
+{
+  "/api/v1/health": {
+    "http": 200,
+    "content_type": "application/json",
+    "json": {
+      "status": "ok",
+      "message": "Statement2Muster API is running",
+      "version": "1.0.16"
+    }
+  },
+  "/.well-known/ai-plugin.json": {
+    "http": 200,
+    "content_type": "application/json",
+    "json": {
+      "schema_version": "v1",
+      "name_for_human": "Statement2Muster • DATEV & BMD Auszugskonverter",
+      "name_for_model": "statement2muster",
+      "description_for_human": "Wandelt Kreditkarten- und Bankauszüge (Amex, Wise, PayPal, Sparkasse u.v.m.) in DATEV EXTF 700 & BMD NTCS 5.1 Buchungsstapel um.",
+      "description_for_model": "Konvertiert vorstrukturierte Bank-, Kreditkarten- und Zahlungsdienstleisterauszüge (American Express, Wise, PayPal, Stripe, Sparkasse, Deutsche Bank etc.) in zertifizierte Buchungsstapel für Steuerberater und Buchhalter im DACH-Raum (DATEV EXTF 700 Windows-1252 ANSI oder BMD NTCS 5.1). Unterstützt Einzelkonten (SKR03/SKR04), periodengerechte Saldenabstimmung und Zero Durable Storage (flüchtige 30-Minuten-RAM-Verarbeitung).",
+      "auth": {
+        "type": "none"
+      },
+      "api": {
+        "type": "openapi",
+        "url": "https://api.statement2muster.com/openapi.json",
+        "is_user_authenticated": false
+      },
+      "logo_url": "https://statement2muster.com/logo.png",
+      "contact_email": "support@statement2muster.com",
+      "legal_info_url": "https://statement2muster.com/datenschutz.html"
+    }
+  },
+  "/api/v1/mcp": {
+    "http": 200,
+    "content_type": "application/json",
+    "json": {
+      "name": "statement2muster-mcp-server",
+      "version": "1.0.16",
+      "protocolVersion": "2024-11-05",
+      "description": "Statement2Muster Model Context Protocol (MCP) Server for DATEV and BMD statement conversion.",
+      "tools": [
+        "convert_statement"
+      ],
+      "manifest_url": "https://api.statement2muster.com/.well-known/ai-plugin.json"
+    }
+  },
+  "initialize": {
+    "http": 200,
+    "json": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "protocolVersion": "2024-11-05",
+        "capabilities": {
+          "tools": {
+            "listChanged": false
+          }
+        },
+        "serverInfo": {
+          "name": "statement2muster-mcp-server",
+          "version": "1.0.16"
+        }
+      }
+    }
+  },
+  "tools/list": {
+    "http": 200,
+    "json": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "tools": [
+          {
+            "name": "convert_statement",
+            "description": "Konvertiert extrahierte Transaktionsdaten eines Bank- oder Kreditkartenauszugs in zertifizierte DATEV EXTF 700 oder BMD NTCS 5.1 Buchungsstapel inklusive Saldenabstimmung und direktem Download-Link (Zero Durable Storage, 30 Min. flüchtiger RAM-Speicher).",
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "bank_name",
+                "transactions"
+              ],
+              "properties": {
+                "bank_name": {
+                  "type": "string",
+                  "description": "Name des Finanzinstituts oder der Karte (z. B. 'American Express', 'Wise', 'PayPal', 'Sparkasse')"
+                },
+                "export_format": {
+                  "type": "string",
+                  "enum": [
+                    "datev",
+                    "bmd"
+                  ],
+                  "default": "datev",
+                  "description": "Zielformat: 'datev' (Deutschland, EXTF 700) oder 'bmd' (Österreich, NTCS 5.1)"
+                },
+                "default_bank_account": {
+                  "type": "string",
+                  "default": "1200",
+                  "description": "Sachkonto des Geldkontos (z. B. '1200' für SKR03, '1800' für SKR04, '2800' für BMD)"
+                },
+                "session_id": {
+                  "type": "string",
+                  "description": "Optionale Sitzungs-ID zur Steuerung des kostenlosen Demo-Kontingents (3 Auszüge) und Idempotenz"
+                },
+                "license_key": {
+                  "type": "string",
+                  "description": "Optionaler Statement2Muster Auth-Token oder Lizenzschlüssel zur Freischaltung unbegrenzter Kontingente"
+                },
+                "transactions": {
+                  "type": "array",
+                  "description": "Liste der vorstrukturierten Buchungszeilen",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "booking_date",
+                      "amount",
+                      "currency",
+                      "description"
+                    ],
+                    "properties": {
+                      "booking_date": {
+                        "type": "string",
+                        "description": "Buchungsdatum im Format YYYY-MM-DD oder DD.MM.YYYY"
+                      },
+                      "value_date": {
+                        "type": "string",
+                        "description": "Valutadatum (falls vorhanden)"
+                      },
+                      "amount": {
+                        "type": "number",
+                        "description": "Vorzeichenbehafteter Betrag: Negativ für Lastschriften/Ausgaben (z. B. -49.90), Positiv für Gutschriften (z. B. 1250.00)"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "description": "Währungscode (z. B. 'EUR'). Alle Zeilen müssen dieselbe Währung haben."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Buchungstext oder Verwendungszweck"
+                      },
+                      "reference": {
+                        "type": "string",
+                        "description": "Belegfeld 1 / Rechnungsnummer"
+                      },
+                      "contra_account": {
+                        "type": "string",
+                        "description": "Gegenkonto (z. B. '4900' für Reisekosten)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "notifications/initialized": {
+    "http": 204,
+    "json": null
+  }
+}

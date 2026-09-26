@@ -1,0 +1,88 @@
+{
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "message": "Statement2Muster API is running",
+      "version": "1.0.17"
+    }
+  },
+  "plugin_manifest": {
+    "status": 200,
+    "schema_version": "v1"
+  },
+  "mcp_discovery": {
+    "status": 200,
+    "servers": [
+      "statement2muster"
+    ]
+  },
+  "streamable_get_405": {
+    "status": 405
+  },
+  "mcp_diagnostics": {
+    "status": 200,
+    "version": "1.0.17"
+  },
+  "reject_jsonrpc_1_0": {
+    "status": 400,
+    "code": -32600
+  },
+  "reject_array_params": {
+    "status": 400,
+    "code": -32602
+  },
+  "lifecycle": {
+    "init_status": 200,
+    "notif_status": 202
+  },
+  "tools_list": {
+    "declared_request_id": true,
+    "properties": [
+      "request_id",
+      "bank_name",
+      "export_format",
+      "default_bank_account",
+      "session_id",
+      "license_key",
+      "transactions"
+    ]
+  },
+  "conversion_summary": {
+    "tx_count": 2,
+    "debit": -189.5,
+    "credit": 3400.0,
+    "saldo": "+3210.50 EUR",
+    "text_preview": "\u2705 **Sparkasse Auszug erfolgreich konvertiert!**\n\n### Finanz- & Salden\u00fcbersicht\n- **Buchungszeilen:** 2\n- **Abfl\u00fcsse (Ausgaben):** -189.50 EUR\n- **Zufl\u00fcsse (Einnahmen):** 3400.00 EUR\n- **Saldo (Periodensaldo):** +3210.50 EUR\n- **Zeitraum:** 2026-03-01"
+  },
+  "ram_download_verified": {
+    "url": "https://api.statement2muster.com/v1/gpt/download/s2m_gpt_b4310582688b4460bf2f687102a811f3",
+    "status": 200,
+    "bytes": 538
+  },
+  "replay_verified": {
+    "idempotent_match": true,
+    "request_id": "live-test-req-1790444410"
+  },
+  "replay_conflict_409": {
+    "status": 409,
+    "error": {
+      "code": -32602,
+      "message": "Idempotency key reused with different request payload"
+    }
+  },
+  "validation_error_sanitization": {
+    "status": 400,
+    "code": -32602,
+    "msg_length": 718,
+    "secret_leaked": false,
+    "capped_under_4000": true
+  },
+  "early_budget_dos_413": {
+    "status": 413,
+    "detail": {
+      "error": "payload_too_large",
+      "detail": "Payload exceeds maximum limit of 10 MiB"
+    }
+  }
+}

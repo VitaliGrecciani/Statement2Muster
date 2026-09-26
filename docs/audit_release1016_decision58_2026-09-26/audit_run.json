@@ -1,0 +1,14 @@
+{
+  "git_head": "5bcfe4a683ee3050501dc8326a59dee022a56324",
+  "scope": "temporary SQLite + ephemeral keys; synthetic local data; live discovery only",
+  "regression_exit": 0,
+  "local_probe_exit": 0,
+  "live_methods": {
+    "/api/v1/health": 200,
+    "/.well-known/ai-plugin.json": 200,
+    "/api/v1/mcp": 200,
+    "initialize": 200,
+    "tools/list": 200,
+    "notifications/initialized": 204
+  }
+}

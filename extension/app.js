@@ -176,17 +176,32 @@ if (btnOpenTab) {
         lastAccountsFound: currentAccountsFound || [],
         lastDuplicatesCount: currentDuplicatesCount || 0
       };
-      chrome.storage.local.set(stateToSave, async () => {
+
+      // Safely persist state
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         try {
-          const currentWindow = await chrome.windows.getCurrent();
-          if (chrome.sidePanel && chrome.sidePanel.open) {
-            await chrome.sidePanel.open({ windowId: currentWindow.id });
-          }
-        } catch (e) {
-          console.warn('Could not open sidepanel automatically:', e);
+          chrome.storage.local.set(stateToSave);
+        } catch (storageErr) {
+          console.warn('Storage save failed:', storageErr);
         }
+      }
+
+      // Check Side Panel API support
+      if (typeof chrome === 'undefined' || !chrome.sidePanel || !chrome.sidePanel.open) {
+        showToast('Side Panel API wird in diesem Browser-Kontext nicht unterstützt. Der Tab bleibt geöffnet.');
+        return;
+      }
+
+      // Attempt to open sidepanel under direct user gesture
+      try {
+        const currentWindow = await chrome.windows.getCurrent();
+        await chrome.sidePanel.open({ windowId: currentWindow.id });
+        // Only close window if sidePanel.open succeeded!
         window.close();
-      });
+      } catch (e) {
+        console.warn('Could not open sidepanel automatically:', e);
+        showToast('Seitenleiste konnte nicht automatisch geöffnet werden. Bitte nutzen Sie das Erweiterungs-Icon in der Leiste.');
+      }
     });
   } else {
     // In sidepanel: expand to full tab and close sidepanel to avoid duplicate window!

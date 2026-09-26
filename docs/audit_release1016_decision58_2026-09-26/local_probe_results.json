@@ -1,0 +1,107 @@
+{
+  "summary_vs_download": {
+    "http": 200,
+    "markdown": "✅ **Bank Auszug erfolgreich konvertiert!**\n\n### Finanz- & Saldenübersicht\n- **Buchungszeilen:** 0\n- **Ausgaben (Soll):** 0.00 EUR\n- **Einnahmen (Haben):** 0.00 EUR\n- **Periodensaldo:** 0.00 EUR\n- **Zeitraum:** N/A bis N/A\n\n### Download bereitgestellt\n👉 **[📥 DATEV EXTF Buchungsstapel herunterladen (DATEV_EXTF_Synthetic_Bank_20260926_185910.csv)](https://audit/v1/gpt/download/s2m_gpt_26c684247f704f93920c0575232538db)**\n\n🛡️ *Zero Durable Storage: Die Exportdatei verfällt nach 30 Minuten (TTL 1800s) aus dem flüchtigen RAM-Speicher.*\n\n**DATEV Import-Anleitung:** Bestand ➔ Importieren ➔ Stapelverarbeitung ➔ ASCII-Import / DATEV-Format ➔ Datei einlesen.",
+    "download_http": 200,
+    "csv_rows": [
+      {
+        "amount": "189,50",
+        "direction": "H",
+        "bank": "1200"
+      },
+      {
+        "amount": "3400,00",
+        "direction": "S",
+        "bank": "1200"
+      }
+    ],
+    "expected_net": 3210.5,
+    "privacy_openai_note_present": false
+  },
+  "declared_body_budget_/v1/gpt/convert": {
+    "http": 413,
+    "limit": 256
+  },
+  "declared_body_budget_/api/v1/mcp": {
+    "http": 200,
+    "limit": 256
+  },
+  "declared_body_budget_/mcp": {
+    "http": 200,
+    "limit": 256
+  },
+  "stream_body_budget_/v1/gpt/convert": {
+    "http": 413,
+    "limit": 256
+  },
+  "stream_body_budget_/api/v1/mcp": {
+    "http": 200,
+    "limit": 256
+  },
+  "stream_body_budget_/mcp": {
+    "http": 200,
+    "limit": 256
+  },
+  "manual_validation_error": {
+    "http": 500,
+    "response_characters": 152417,
+    "rpc_error_code": -32603,
+    "input_echoed_in_response": true,
+    "input_echoed_in_log": true,
+    "log_characters": 301636
+  },
+  "sse_get": {
+    "http": 200,
+    "content_type": "application/json",
+    "body_prefix": "{\"name\":\"statement2muster-mcp-server\",\"version\":\"1.0.16\",\"protocolVersion\":\"2024-11-05\",\"description\":\"Statement2Muster Model Context Protoc"
+  },
+  "initialized_notification": {
+    "http": 204,
+    "content_type": null,
+    "body_prefix": ""
+  },
+  "unsupported_protocol_header": {
+    "http": 200,
+    "content_type": "application/json",
+    "body_prefix": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}"
+  },
+  "untrusted_origin": {
+    "http": 200,
+    "content_type": "application/json",
+    "body_prefix": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}"
+  },
+  "wrong_jsonrpc": {
+    "http": 200,
+    "content_type": "application/json",
+    "body_prefix": "{\"jsonrpc\":\"1.0\",\"id\":1,\"result\":{}}"
+  },
+  "non_object_params": {
+    "http": 500,
+    "content_type": "text/plain; charset=utf-8",
+    "body_prefix": "Internal Server Error"
+  },
+  "schema": {
+    "request_id_exposed": false,
+    "license_key_exposed": true
+  },
+  "advertised_fields_replay": {
+    "different_download_ids": true,
+    "ledger": [
+      {
+        "status": "COMMITTED",
+        "units": 1
+      },
+      {
+        "status": "COMMITTED",
+        "units": 1
+      }
+    ]
+  },
+  "undeclared_explicit_request_id_control": {
+    "http": [
+      200,
+      200
+    ],
+    "identical_response": true
+  }
+}

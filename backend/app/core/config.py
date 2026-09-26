@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Statement2Muster API"
-    VERSION: str = "2.0.0"
+    VERSION: str = "1.0.17"
     ENVIRONMENT: str = "development"
     
     # Database
@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Fair Use & Resource Budgets (ADR-001)
     MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024       # 10 MiB
     MAX_BATCH_SIZE_BYTES: int = 50 * 1024 * 1024      # 50 MiB
+    MAX_MCP_PAYLOAD_BYTES: int = 10 * 1024 * 1024     # 10 MiB
     MAX_FILES_PER_BATCH: int = 12
     MAX_PAGES_PER_FILE: int = 100
     MAX_ROWS_PER_FILE: int = 10_000

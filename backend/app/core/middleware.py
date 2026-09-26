@@ -16,18 +16,22 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
         # Enforce early DoS and size checks on conversion endpoints
         is_primary_convert = request.url.path.startswith("/api/v1/convert")
         is_gpt_convert = request.url.path in ("/v1/gpt/convert", "/api/v1/gpt/convert") or request.url.path.startswith("/v1/gpt/") or request.url.path.startswith("/api/v1/gpt/")
+        clean_path = request.url.path.rstrip("/")
+        is_mcp = clean_path in ("/api/v1/mcp", "/mcp")
+        limit_bytes = getattr(settings, "MAX_MCP_PAYLOAD_BYTES", 10 * 1024 * 1024) if is_mcp else settings.MAX_BATCH_SIZE_BYTES
+        limit_desc = f"{limit_bytes // (1024*1024)} MiB"
 
-        if is_primary_convert or is_gpt_convert:
+        if is_primary_convert or is_gpt_convert or is_mcp:
             # 1. Early Content-Length check (DoS budget)
             content_length = request.headers.get("content-length")
             if content_length:
                 try:
                     length_val = int(content_length)
-                    if length_val > settings.MAX_BATCH_SIZE_BYTES:
+                    if length_val > limit_bytes:
                         return Response(
                             content=json.dumps({
                                 "error": "payload_too_large",
-                                "detail": f"Batch exceeds maximum limit of {settings.MAX_BATCH_SIZE_BYTES // (1024*1024)} MiB"
+                                "detail": f"Payload exceeds maximum limit of {limit_desc}"
                             }),
                             status_code=413,
                             media_type="application/json"
@@ -63,8 +67,8 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                         status_code=exc.status_code,
                         media_type="application/json"
                     )
-            elif is_gpt_convert and auth_header and auth_header.startswith("Bearer "):
-                # GPT convert endpoint optionally accepts Bearer token
+            elif (is_gpt_convert or is_mcp) and auth_header and auth_header.startswith("Bearer "):
+                # GPT convert and MCP endpoints optionally accept Bearer token
                 token = auth_header[7:].strip()
                 try:
                     payload = decode_access_token(token)
@@ -91,9 +95,9 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                 if msg["type"] == "http.request":
                     chunk = msg.get("body", b"")
                     received_bytes += len(chunk)
-                    if received_bytes > settings.MAX_BATCH_SIZE_BYTES:
+                    if received_bytes > limit_bytes:
                         request.state.batch_size_exceeded = True
-                        raise ValueError(f"Batch payload exceeds limit of {settings.MAX_BATCH_SIZE_BYTES} bytes")
+                        raise ValueError(f"Payload exceeds limit of {limit_bytes} bytes")
                 return msg
 
             request._receive = counting_receive
@@ -104,7 +108,7 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                 return Response(
                     content=json.dumps({
                         "error": "payload_too_large",
-                        "detail": f"Batch payload exceeds limit of {settings.MAX_BATCH_SIZE_BYTES} bytes"
+                        "detail": f"Payload exceeds limit of {limit_desc}"
                     }),
                     status_code=413,
                     media_type="application/json"
@@ -115,7 +119,7 @@ class EarlyAuthAndBudgetMiddleware(BaseHTTPMiddleware):
                 return Response(
                     content=json.dumps({
                         "error": "payload_too_large",
-                        "detail": f"Batch payload exceeds limit of {settings.MAX_BATCH_SIZE_BYTES} bytes"
+                        "detail": f"Payload exceeds limit of {limit_desc}"
                     }),
                     status_code=413,
                     media_type="application/json"

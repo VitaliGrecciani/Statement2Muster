@@ -1,0 +1,15 @@
+{
+  "scope": "actual handler in VM; failure injection, not real Chrome E2E",
+  "failures": [
+    {
+      "sidepanel_api_present": true,
+      "open_attempted": true,
+      "tab_closed_without_open_success": true
+    },
+    {
+      "sidepanel_api_present": false,
+      "open_attempted": false,
+      "tab_closed_without_open_success": true
+    }
+  ]
+}
