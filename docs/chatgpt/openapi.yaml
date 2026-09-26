@@ -103,46 +103,59 @@ components:
           example: EUR
         description:
           type: string
-          maxLength: 500
+          maxLength: 300
           description: Payment purpose or payee (DATEV Buchungstext)
           example: AWS EMEA Cloud Services
         reference:
           type:
             - string
             - "null"
-          maxLength: 100
+          maxLength: 50
           description: Invoice number or reference (DATEV Belegfeld 1)
           example: INV-99102-DE
         contra_account:
           type:
             - string
             - "null"
-          description: Optional contra account / Gegenkonto (e.g. 4900 for SKR03)
+          maxLength: 20
+          pattern: "^[0-9]{3,9}$"
+          description: Optional contra account / Gegenkonto (3-9 digits, e.g. 4900 for SKR03)
           example: "4900"
 
     GptConvertRequest:
       type: object
       properties:
+        request_id:
+          type:
+            - string
+            - "null"
+          maxLength: 100
+          description: Optional unique client operation or idempotency ID
+          example: "req-2026-03-10-001"
         session_id:
           type:
             - string
             - "null"
+          maxLength: 100
           description: Unique ChatGPT session ID to track demo usage
           example: "chatgpt-sess-88123"
         email:
           type:
             - string
             - "null"
+          maxLength: 120
           description: Optional user email
           example: "founder@startup.de"
         license_key:
           type:
             - string
             - "null"
+          maxLength: 4096
           description: Optional signed JWT access token to activate paid entitlements
           example: "eyJhbGciOiJSUzI1Ni..."
         bank_name:
           type: string
+          maxLength: 100
           description: Card issuer or bank name
           default: Bank Statement
           example: American Express Business
@@ -155,7 +168,9 @@ components:
           type:
             - string
             - "null"
-          description: "Bank ledger account (default: 1200 for DATEV, 2800 for BMD)"
+          maxLength: 20
+          pattern: "^[0-9]{3,9}$"
+          description: "Bank ledger account (3-9 digits, default: 1200 for DATEV, 2800 for BMD)"
           example: "1200"
         transactions:
           type:
@@ -176,6 +191,7 @@ components:
           description: Optional base64-encoded PDF or CSV document
         filename:
           type: string
+          maxLength: 100
           description: Original statement filename
           example: amex_statement_march_2026.pdf
 

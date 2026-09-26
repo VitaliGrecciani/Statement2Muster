@@ -18,6 +18,7 @@ import multiprocessing
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Depends, Header, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -50,6 +51,23 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for err in exc.errors():
+        err_copy = dict(err)
+        if "input" in err_copy:
+            val = err_copy["input"]
+            if isinstance(val, (str, bytes)) and len(val) > 100:
+                err_copy["input"] = str(val)[:100] + "... [truncated]"
+            elif isinstance(val, (list, dict)):
+                err_copy["input"] = "[Complex object truncated]"
+        errors.append(err_copy)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": errors}
+    )
 
 # 1. Early ASGI Auth & Budget Middleware (Zero Retention & DoS protection)
 app.add_middleware(EarlyAuthAndBudgetMiddleware)

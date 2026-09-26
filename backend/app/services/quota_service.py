@@ -216,7 +216,9 @@ async def commit_quota(db: AsyncSession, reservation: UsageReservation, successf
         await db.flush()
 
 async def release_quota(db: AsyncSession, reservation: UsageReservation):
-    """Releases reservation back to available quota pool on error."""
+    """Releases reservation back to available quota pool on error. Never mutates COMMITTED records."""
+    if reservation.status != "RESERVED":
+        return
     reservation.status = "RELEASED"
     try:
         await db.commit()

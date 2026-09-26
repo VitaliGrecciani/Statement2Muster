@@ -1,7 +1,9 @@
 import io
 import re
+import json
 import uuid
 import base64
+import hashlib
 import datetime
 import logging
 import threading
@@ -58,8 +60,12 @@ MAX_FREE_CONVERSIONS = 3
 
 def parse_strict_date(date_str: Optional[str], field_name: str = "booking_date", row_idx: int = 0) -> datetime.date:
     """
-    Parses dates strictly without silent fallback to today() (Architect G05).
-    Raises HTTP 422 if date is missing or invalid.
+    Parses dates strictly using unambiguous standard formats (Architect G05 / F04).
+    Accepted formats:
+      - ISO 8601: YYYY-MM-DD
+      - German/Austrian standard: DD.MM.YYYY
+    Ambiguous formats (such as slash-separated DD/MM/YYYY vs MM/DD/YYYY or 2-digit years)
+    are strictly rejected with HTTP 422 to prevent silent date corruption.
     """
     if not date_str or not isinstance(date_str, str) or not date_str.strip():
         raise HTTPException(
@@ -67,24 +73,37 @@ def parse_strict_date(date_str: Optional[str], field_name: str = "booking_date",
             detail=f"Fehlendes Datum für '{field_name}' in Zeile {row_idx + 1}."
         )
     cleaned = date_str.strip()
-    formats = [
-        "%Y-%m-%d",
-        "%d.%m.%Y",
-        "%d/%m/%Y",
-        "%Y/%m/%d",
-        "%d-%m-%Y",
-        "%m/%d/%Y",
-        "%d.%m.%y",
-        "%d/%m/%y"
-    ]
-    for fmt in formats:
+
+    # Reject ambiguous slash-separated dates explicitly (F04)
+    if "/" in cleaned:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Mehrdeutiges Datumsformat '{cleaned}' für '{field_name}' in Zeile {row_idx + 1}. "
+                f"Aus Sicherheitsgründen werden nur eindeutige Formate akzeptiert: YYYY-MM-DD (ISO) oder DD.MM.YYYY (DATEV/BMD)."
+            )
+        )
+
+    # Check ISO: YYYY-MM-DD
+    if re.match(r"^\d{4}-\d{1,2}-\d{1,2}$", cleaned):
         try:
-            return datetime.datetime.strptime(cleaned, fmt).date()
+            return datetime.datetime.strptime(cleaned, "%Y-%m-%d").date()
         except ValueError:
-            continue
+            pass
+
+    # Check German standard dot format: DD.MM.YYYY
+    if re.match(r"^\d{1,2}\.\d{1,2}\.\d{4}$", cleaned):
+        try:
+            return datetime.datetime.strptime(cleaned, "%d.%m.%Y").date()
+        except ValueError:
+            pass
+
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=f"Ungültiges Datumsformat '{cleaned}' für '{field_name}' in Zeile {row_idx + 1}. Erwartet wird YYYY-MM-DD oder DD.MM.YYYY."
+        detail=(
+            f"Ungültiges Datumsformat '{cleaned}' für '{field_name}' in Zeile {row_idx + 1}. "
+            f"Erwartet wird YYYY-MM-DD oder DD.MM.YYYY."
+        )
     )
 
 
@@ -146,11 +165,13 @@ def parse_amount_to_cents(amt_val: Any) -> int:
 class GptTransactionItem(BaseModel):
     booking_date: str = Field(
         ...,
-        description="Booking date in ISO YYYY-MM-DD or DD.MM.YYYY format",
+        max_length=20,
+        description="Booking date in ISO YYYY-MM-DD or German DD.MM.YYYY format",
         json_schema_extra={"example": "2026-03-15"}
     )
     value_date: Optional[str] = Field(
         None,
+        max_length=20,
         description="Optional valuta/value date (YYYY-MM-DD or DD.MM.YYYY)",
         json_schema_extra={"example": "2026-03-16"}
     )
@@ -161,45 +182,61 @@ class GptTransactionItem(BaseModel):
     )
     currency: Optional[str] = Field(
         "EUR",
+        max_length=10,
         description="ISO 4217 currency code (e.g. EUR, USD, CHF, GBP)",
         json_schema_extra={"example": "EUR"}
     )
     description: str = Field(
         ...,
-        description="Transaction description, payee, or payment purpose (DATEV Buchungstext)",
+        min_length=1,
+        max_length=300,
+        description="Transaction description, payee, or payment purpose (DATEV Buchungstext, max 300 chars)",
         json_schema_extra={"example": "AWS EMEA SARL Cloud Services"}
     )
     reference: Optional[str] = Field(
         None,
-        description="Invoice, voucher or reference ID (DATEV Belegfeld 1)",
+        max_length=50,
+        description="Invoice, voucher or reference ID (DATEV Belegfeld 1, max 50 chars)",
         json_schema_extra={"example": "INV-2026-98102"}
     )
     contra_account: Optional[str] = Field(
         None,
-        description="Optional pre-assigned bookkeeping contra account / Gegenkonto (e.g. '4900' for SKR03, '6800' for SKR04)",
+        max_length=20,
+        pattern=r"^[0-9]{3,9}$",
+        description="Optional pre-assigned bookkeeping contra account / Gegenkonto (3-9 digits, e.g. '4900' for SKR03, '6800' for SKR04)",
         json_schema_extra={"example": "4900"}
     )
 
 
 class GptConvertRequest(BaseModel):
+    request_id: Optional[str] = Field(
+        None,
+        max_length=100,
+        description="Optional unique client operation or idempotency ID",
+        json_schema_extra={"example": "req-2026-03-10-001"}
+    )
     session_id: Optional[str] = Field(
         None,
+        max_length=100,
         description="Optional ChatGPT conversation or session identifier to track demo usage",
         json_schema_extra={"example": "chatgpt-sess-88123"}
     )
     email: Optional[str] = Field(
         None,
+        max_length=120,
         description="Optional user email. Note: Paid rights require authentication via Bearer token or signed token in license_key.",
         json_schema_extra={"example": "founder@startup.de"}
     )
     license_key: Optional[str] = Field(
         None,
+        max_length=4096,
         description="Optional signed JWT access token or API license token to activate paid entitlements without Authorization header",
         json_schema_extra={"example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."}
     )
     bank_name: Optional[str] = Field(
         "Bank Statement",
-        description="Name of the financial institution or card provider (e.g. American Express, Wise, PayPal, Sparkasse)",
+        max_length=100,
+        description="Name of the financial institution or card provider (max 100 chars)",
         json_schema_extra={"example": "American Express Business"}
     )
     export_format: Literal["datev", "bmd", "muster_csv"] = Field(
@@ -209,7 +246,9 @@ class GptConvertRequest(BaseModel):
     )
     default_bank_account: Optional[str] = Field(
         None,
-        description="Bank ledger account (e.g. '1200' for SKR03, '1800' for SKR04, '2800' for BMD NTCS). Defaults to 1200 for DATEV and 2800 for BMD.",
+        max_length=20,
+        pattern=r"^[0-9]{3,9}$",
+        description="Bank ledger account (3-9 digits, e.g. '1200' for SKR03, '1800' for SKR04, '2800' for BMD NTCS). Defaults to 1200 for DATEV and 2800 for BMD.",
         json_schema_extra={"example": "1200"}
     )
     transactions: Optional[List[GptTransactionItem]] = Field(
@@ -226,8 +265,40 @@ class GptConvertRequest(BaseModel):
     )
     filename: Optional[str] = Field(
         "statement.csv",
+        max_length=100,
         description="Original statement filename hint (e.g. amex_march_2026.pdf)."
     )
+
+
+def compute_payload_hash(req: GptConvertRequest) -> str:
+    """Computes deterministic SHA-256 hash of the conversion payload and export settings."""
+    hasher = hashlib.sha256()
+    hasher.update(req.export_format.encode("utf-8"))
+    if req.default_bank_account:
+        hasher.update(req.default_bank_account.strip().encode("utf-8"))
+    if req.bank_name:
+        hasher.update(req.bank_name.strip().encode("utf-8"))
+    
+    if req.transactions:
+        tx_repr = []
+        for t in req.transactions:
+            tx_repr.append({
+                "d": t.booking_date.strip() if t.booking_date else "",
+                "a": t.amount,
+                "c": (t.currency or "EUR").upper(),
+                "t": t.description.strip() if t.description else "",
+                "r": t.reference.strip() if t.reference else "",
+                "k": t.contra_account.strip() if t.contra_account else ""
+            })
+        hasher.update(json.dumps(tx_repr, sort_keys=True).encode("utf-8"))
+    elif req.raw_content:
+        hasher.update(req.raw_content.encode("utf-8"))
+    elif req.file_base64:
+        hasher.update(req.file_base64.encode("utf-8"))
+    else:
+        hasher.update(b"empty")
+
+    return hasher.hexdigest()
 
 
 class FinancialSummary(BaseModel):
@@ -293,14 +364,16 @@ async def resolve_verified_tenant(
             token_str = auth_header[7:].strip()
     
     # B. Check license_key if passed as signed JWT
-    if not token_str and license_key and len(license_key.strip()) > 20:
-        token_str = license_key.strip()
+    if not token_str and license_key and license_key.strip():
+        candidate = license_key.strip()
+        # Explicit JWT structure (header.payload.signature)
+        if candidate.count(".") == 2:
+            token_str = candidate
 
     if token_str and not tenant_payload:
-        try:
-            tenant_payload = decode_access_token(token_str)
-        except Exception:
-            tenant_payload = None
+        # F01: Any failure to validate an explicitly presented JWT must fail closed!
+        # Do NOT catch HTTPException (401, 503) and silently fall back to anonymous success!
+        tenant_payload = decode_access_token(token_str)
 
     if not tenant_payload:
         return None
@@ -363,7 +436,15 @@ async def gpt_convert_statement(
     ChatGPT Action: Converts bank transactions into DATEV EXTF 700 or BMD NTCS 5.1 format.
     Processes data strictly in volatile RAM with 30-minute auto-purge.
     """
-    # 1. Input Budget and DoS Checks (Architect G04)
+    # 1. Input Validation and Budget Checks (Architect G04 / F03)
+    if req.default_bank_account:
+        acc_str = req.default_bank_account.strip()
+        if not re.match(r"^[0-9]{3,9}$", acc_str):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Ungültiges Bankkonto '{acc_str[:20]}'. Erwartet wird eine 3- bis 9-stellige Ziffernfolge (z.B. 1200 für SKR03, 1800 für SKR04, 2800 für BMD)."
+            )
+
     if req.transactions is not None:
         if len(req.transactions) > settings.MAX_ROWS_PER_FILE:
             raise HTTPException(
@@ -371,10 +452,16 @@ async def gpt_convert_statement(
                 detail=f"Batch exceeds maximum allowed limit of {settings.MAX_ROWS_PER_FILE} rows."
             )
         for idx, item in enumerate(req.transactions):
-            if len(item.description or "") > 500:
-                item.description = item.description[:500]
-            if len(item.reference or "") > 100:
-                item.reference = item.reference[:100]
+            if len(item.description or "") > 300:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Buchungstext in Zeile {idx + 1} überschreitet das Maximum von 300 Zeichen."
+                )
+            if item.reference and len(item.reference) > 50:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Belegfeld 1 in Zeile {idx + 1} überschreitet das Maximum von 50 Zeichen."
+                )
 
     if req.raw_content is not None:
         raw_bytes_len = len(req.raw_content.encode("utf-8"))
@@ -393,7 +480,106 @@ async def gpt_convert_statement(
                 detail=f"File exceeds maximum allowed limit of {settings.MAX_FILE_SIZE_BYTES // (1024*1024)} MiB."
             )
 
-    # 2. Authoritative Identity & License Verification (Architect G01)
+    # 2. Transaction Ingestion & Invariant Validation BEFORE Quota Reservation (Architect G05 / F02)
+    canonical_txs: List[CanonicalTransaction] = []
+    bank_name = req.bank_name or "Bank Statement"
+    client_sess_id = req.session_id.strip() if (req.session_id and req.session_id.strip()) else "guest"
+
+    # Branch A: Structured transactions list extracted by ChatGPT
+    if req.transactions and len(req.transactions) > 0:
+        for idx, item in enumerate(req.transactions):
+            # Strict date parsing: Raises HTTP 422 on invalid or ambiguous formats (F04)
+            booking_dt = parse_strict_date(item.booking_date, "booking_date", idx)
+            value_dt = parse_strict_date(item.value_date, "value_date", idx) if item.value_date else booking_dt
+            curr = normalize_currency(item.currency)
+            amount_cents = parse_amount_to_cents(item.amount)
+
+            tx = CanonicalTransaction(
+                transaction_id=str(uuid.uuid4()),
+                tenant_id=f"sess_{client_sess_id}",
+                client_entity_id="chatgpt-session",
+                account_id="",
+                bank_name=bank_name,
+                source_file_id=req.filename or "chatgpt_input.pdf",
+                source_row_page=str(idx + 1),
+                booking_date=booking_dt,
+                value_date=value_dt,
+                amount_cents=amount_cents,
+                currency=curr,
+                description=(item.description or "").strip(),
+                reference=(item.reference or "").strip(),
+                contra_account=item.contra_account
+            )
+            canonical_txs.append(tx)
+
+    # Branch B: Base64-encoded PDF or CSV document provided
+    elif req.file_base64 and len(req.file_base64.strip()) > 0:
+        try:
+            file_bytes = base64.b64decode(req.file_base64.strip(), validate=True)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Ungültiger base64-Inhalt in 'file_base64': {str(e)}"
+            )
+
+        if len(file_bytes) > settings.MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Dateigröße ({len(file_bytes)} Bytes) überschreitet das Limit von {settings.MAX_FILE_SIZE_BYTES} Bytes."
+            )
+
+        parsed_txs, _ = await parser_supervisor.parse_file(
+            content=file_bytes,
+            filename=req.filename or "statement.pdf",
+            tenant_id=f"sess_{client_sess_id}",
+            timeout=float(settings.PARSER_TIMEOUT_SECONDS)
+        )
+        canonical_txs = parsed_txs
+
+    # Branch C: Raw CSV or plaintext content provided
+    elif req.raw_content and len(req.raw_content.strip()) > 0:
+        raw_bytes = req.raw_content.encode("utf-8")
+        parsed_txs, _ = await parser_supervisor.parse_file(
+            content=raw_bytes,
+            filename=req.filename or "statement.csv",
+            tenant_id=f"sess_{client_sess_id}",
+            timeout=float(settings.PARSER_TIMEOUT_SECONDS)
+        )
+        canonical_txs = parsed_txs
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Weder 'transactions'-Array noch 'file_base64' oder 'raw_content' übergeben."
+        )
+
+    if not canonical_txs:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Keine Buchungssätze in den bereitgestellten Daten gefunden."
+        )
+
+    # Accounting Safeguards:
+    # Currency consistency check
+    distinct_currencies = {tx.currency for tx in canonical_txs if tx.currency}
+    if len(distinct_currencies) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Export blockiert: Gemischte Währungen erkannt ({sorted(distinct_currencies)}). Buchhaltungsexport erfordert eine einheitliche Währung."
+        )
+
+    # DATEV single fiscal year check
+    target_format = req.export_format.lower().strip()
+    if target_format == "datev":
+        distinct_years = {tx.booking_date.year for tx in canonical_txs if tx.booking_date}
+        if len(distinct_years) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Export blockiert: Buchungen über mehrere Geschäftsjahre erkannt ({sorted(distinct_years)}). DATEV-Buchungsstapel müssen genau einem Geschäftsjahr angehören."
+            )
+
+    canonical_txs.sort(key=lambda t: t.booking_date or datetime.date.min)
+
+    # 3. Authoritative Identity & License Verification (Architect G01 / F01)
     verified_auth = await resolve_verified_tenant(request, req.license_key, db)
     
     tenant_id = None
@@ -404,29 +590,39 @@ async def gpt_convert_statement(
     if verified_auth:
         tenant_id, plan_code, active_entitlement = verified_auth
         is_licensed = plan_code in ("starter", "pro", "lifetime")
+        for tx in canonical_txs:
+            tx.tenant_id = tenant_id
 
-    # 3. Quota & Free Tier Reservation (Architect G02)
+    # 4. Quota, Idempotency & Free Tier Reservation (Architect G02 / F02)
     reservation = None
-    idempotency_key = req.session_id or str(uuid.uuid4())
-    client_sess_id = req.session_id.strip() if (req.session_id and req.session_id.strip()) else "guest"
+    is_replay = False
+    payload_hash = compute_payload_hash(req)
+
+    if req.request_id and req.request_id.strip():
+        idempotency_key = f"gpt_{req.request_id.strip()}"
+    else:
+        # Separate operation per statement content (F02)
+        sess_part = req.session_id.strip() if req.session_id else "op"
+        idempotency_key = f"gpt_{sess_part}_{payload_hash[:20]}"
 
     if is_licensed and tenant_id:
-        # A. Authenticated Paid Tenant -> Use Core Quota Service (Two-Phase Commit Ledger)
-        # Starter plan enforces 20 files/month; Pro/Lifetime enforces concurrency control
+        # A. Authenticated Paid Tenant -> Core Quota Service
         try:
             reservation = await check_and_reserve_quota(
                 db=db,
                 tenant_id=tenant_id,
                 file_count=1,
-                idempotency_key=idempotency_key
+                idempotency_key=idempotency_key,
+                request_hash=payload_hash
             )
+            is_replay = (reservation.status == "COMMITTED")
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Quota reservation error for tenant {tenant_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal quota service error.")
     else:
-        # B. Anonymous Guest / Unauthenticated Demo Mode -> Thread-Safe Atomic Reservation
+        # B. Anonymous Guest Demo Mode
         anon_key = f"used_sess_{client_sess_id}"
         with _anon_quota_lock:
             current_used = gpt_free_tier_tracker.get(anon_key, 0)
@@ -467,111 +663,10 @@ async def gpt_convert_statement(
                     ],
                     upgrade_info=STRIPE_LINKS
                 )
-            # Atomically reserve unit
             gpt_free_tier_tracker.set(anon_key, current_used + 1)
 
-    # 4. Transaction Ingestion & Validation (Architect G05)
-    canonical_txs: List[CanonicalTransaction] = []
-    bank_name = req.bank_name or "Bank Statement"
-
+    # 5. Exporter Execution
     try:
-        # Branch A: Structured transactions list extracted by ChatGPT
-        if req.transactions and len(req.transactions) > 0:
-            for idx, item in enumerate(req.transactions):
-                # Strict date parsing: Raises HTTP 422 if invalid; NO fallback to today() (G05)
-                booking_dt = parse_strict_date(item.booking_date, "booking_date", idx)
-                value_dt = parse_strict_date(item.value_date, "value_date", idx) if item.value_date else booking_dt
-                curr = normalize_currency(item.currency)
-                amount_cents = parse_amount_to_cents(item.amount)
-
-                tx = CanonicalTransaction(
-                    transaction_id=str(uuid.uuid4()),
-                    tenant_id=tenant_id or f"anon_{client_sess_id}",
-                    client_entity_id="chatgpt-session",
-                    account_id="",
-                    bank_name=bank_name,
-                    source_file_id=req.filename or "chatgpt_input.pdf",
-                    source_row_page=str(idx + 1),
-                    booking_date=booking_dt,
-                    value_date=value_dt,
-                    amount_cents=amount_cents,
-                    currency=curr,
-                    description=(item.description or "").strip(),
-                    reference=(item.reference or "").strip(),
-                    contra_account=item.contra_account
-                )
-                canonical_txs.append(tx)
-
-        # Branch B: Base64-encoded PDF or CSV document provided
-        elif req.file_base64 and len(req.file_base64.strip()) > 0:
-            try:
-                file_bytes = base64.b64decode(req.file_base64.strip(), validate=True)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Ungültiger base64-Inhalt in 'file_base64': {str(e)}"
-                )
-
-            if len(file_bytes) > settings.MAX_FILE_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"Dateigröße ({len(file_bytes)} Bytes) überschreitet das Limit von {settings.MAX_FILE_SIZE_BYTES} Bytes."
-                )
-
-            # Supervised child-process execution (C07 compliance, OOM guard 512 MiB, 30s timeout)
-            parsed_txs, _ = await parser_supervisor.parse_file(
-                content=file_bytes,
-                filename=req.filename or "statement.pdf",
-                tenant_id=tenant_id or f"anon_{client_sess_id}",
-                timeout=float(settings.PARSER_TIMEOUT_SECONDS)
-            )
-            canonical_txs = parsed_txs
-
-        # Branch C: Raw CSV or plaintext content provided
-        elif req.raw_content and len(req.raw_content.strip()) > 0:
-            raw_bytes = req.raw_content.encode("utf-8")
-            parsed_txs, _ = await parser_supervisor.parse_file(
-                content=raw_bytes,
-                filename=req.filename or "statement.csv",
-                tenant_id=tenant_id or f"anon_{client_sess_id}",
-                timeout=float(settings.PARSER_TIMEOUT_SECONDS)
-            )
-            canonical_txs = parsed_txs
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Weder 'transactions'-Array noch 'file_base64' oder 'raw_content' übergeben."
-            )
-
-        if not canonical_txs:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Keine Buchungssätze in den bereitgestellten Daten gefunden."
-            )
-
-        # 5. Financial & Accounting Safeguard Invariants (Architect G05)
-        # A. Currency consistency check: Mixed currencies cannot be merged into single sum
-        distinct_currencies = {tx.currency for tx in canonical_txs if tx.currency}
-        if len(distinct_currencies) > 1:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Export blockiert: Gemischte Währungen erkannt ({sorted(distinct_currencies)}). Buchhaltungsexport erfordert eine einheitliche Währung."
-            )
-
-        # B. DATEV EXTF Single Fiscal Year Invariant
-        target_format = req.export_format.lower().strip()
-        if target_format == "datev":
-            distinct_years = {tx.booking_date.year for tx in canonical_txs if tx.booking_date}
-            if len(distinct_years) > 1:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Export blockiert: Buchungen über mehrere Geschäftsjahre erkannt ({sorted(distinct_years)}). DATEV-Buchungsstapel müssen genau einem Geschäftsjahr angehören."
-                )
-
-        # Sort transactions chronologically
-        canonical_txs.sort(key=lambda t: t.booking_date or datetime.date.min)
-
-        # 6. Exporter Selection and File Generation
         now = datetime.datetime.now()
         sanitized_bank = re.sub(r'[^a-zA-Z0-9_-]', '_', bank_name).strip('_') or "Bank"
 
@@ -590,16 +685,16 @@ async def gpt_convert_statement(
             out_filename = f"DATEV_EXTF_{sanitized_bank}_{now.strftime('%Y%m%d_%H%M%S')}.csv"
             media_type = "text/csv"
 
-        # 7. Commit Quota if licensed reservation exists (Architect G02)
-        if reservation:
+        # Commit quota only if newly reserved (not a replay)
+        if reservation and not is_replay:
             await commit_quota(db, reservation, successful_count=1)
 
     except HTTPException:
-        if reservation:
+        if reservation and reservation.status == "RESERVED":
             await release_quota(db, reservation)
         raise
     except Exception as exc:
-        if reservation:
+        if reservation and reservation.status == "RESERVED":
             await release_quota(db, reservation)
         logger.error(f"Unexpected conversion failure: {exc}", exc_info=True)
         raise HTTPException(
@@ -607,7 +702,7 @@ async def gpt_convert_statement(
             detail=f"Interner Verarbeitungsfehler: {str(exc)}"
         )
 
-    # 8. Store in Zero-Retention Volatile RAM Cache (30 min TTL)
+    # 6. Ephemeral RAM Cache (30 min TTL)
     download_id = f"s2m_gpt_{uuid.uuid4().hex}"
     gpt_download_cache.set(
         key=download_id,
@@ -620,19 +715,17 @@ async def gpt_convert_statement(
         ttl_seconds=1800
     )
 
-    # 9. Public Download URL & Bounded Base64 Payload (Architect G06)
     proto = request.headers.get("x-forwarded-proto", "https")
     host = request.headers.get("host", "api.statement2muster.com")
     base_url = f"{proto}://{host}"
     download_url = f"{base_url}/v1/gpt/download/{download_id}"
 
-    # Only include inline base64 if small batch (< 100 rows and < 20 KB),
-    # otherwise omit to strictly respect OpenAI's 100k character response budget (G06)
+    # Bounded Base64 payload (omitted on large batches or when > 20 KB)
     file_b64 = None
     if len(canonical_txs) <= 100 and len(csv_bytes) <= 20000:
         file_b64 = base64.b64encode(csv_bytes).decode("ascii")
 
-    # 10. Financial Summary Calculation
+    # 7. Financial Summary Calculation
     total_debit_cents = sum(tx.amount_cents for tx in canonical_txs if tx.amount_cents < 0)
     total_credit_cents = sum(tx.amount_cents for tx in canonical_txs if tx.amount_cents > 0)
     net_cents = sum(tx.amount_cents for tx in canonical_txs)
@@ -641,25 +734,50 @@ async def gpt_convert_statement(
     min_date = min(dates).isoformat() if dates else None
     max_date = max(dates).isoformat() if dates else None
 
-    # First 5 lines for chat preview
+    # First 5 lines preview, bounded to 1000 characters
     preview_text = ""
     try:
         decoded = csv_bytes.decode("windows-1252", errors="replace")
         preview_lines = decoded.splitlines()[:5]
         preview_text = "\n".join(preview_lines)
+        if len(preview_text) > 1000:
+            preview_text = preview_text[:997] + "..."
     except Exception:
         preview_text = "(Preview generation unavailable)"
 
-    # Free tier status calculation
-    if is_licensed:
-        ft_status = FreeTierStatus(
-            is_unlimited=plan_code in ("pro", "lifetime"),
-            plan=plan_code,
-            conversions_used=0,
-            remaining_free_conversions=9999,
-            max_free_conversions=MAX_FREE_CONVERSIONS,
-            limit_reached=False
-        )
+    # 8. Free Tier / Starter Real Quota Calculation (F02)
+    if is_licensed and active_entitlement:
+        if plan_code == "starter":
+            period_start = active_entitlement.current_period_start or (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30))
+            if period_start.tzinfo is None:
+                period_start = period_start.replace(tzinfo=datetime.timezone.utc)
+            sum_query = select(func.sum(UsageReservation.units)).where(
+                and_(
+                    UsageReservation.tenant_id == tenant_id,
+                    UsageReservation.status == "COMMITTED",
+                    UsageReservation.created_at >= period_start
+                )
+            )
+            used_units = (await db.execute(sum_query)).scalar() or 0
+            starter_max = 20
+            remaining = max(0, starter_max - used_units)
+            ft_status = FreeTierStatus(
+                is_unlimited=False,
+                plan="starter",
+                conversions_used=used_units,
+                remaining_free_conversions=remaining,
+                max_free_conversions=starter_max,
+                limit_reached=(remaining <= 0)
+            )
+        else:
+            ft_status = FreeTierStatus(
+                is_unlimited=True,
+                plan=plan_code,
+                conversions_used=0,
+                remaining_free_conversions=9999,
+                max_free_conversions=9999,
+                limit_reached=False
+            )
     else:
         current_used = gpt_free_tier_tracker.get(f"used_sess_{client_sess_id}", 1)
         remaining = max(0, MAX_FREE_CONVERSIONS - current_used)
@@ -672,10 +790,10 @@ async def gpt_convert_statement(
             limit_reached=False
         )
 
-    # Privacy disclosures adhering strictly to Architect G03
+    # 9. Privacy disclosures adhering strictly to Architect G03 / F05
     notes = [
-        "Zero Durable Storage auf unserem Server: Die Datei wird ausschließlich im flüchtigen RAM vorgehalten und nach 30 Minuten unwiderruflich gelöscht.",
-        "Hinweis: Daten und Chatverläufe in ChatGPT unterliegen den Datenschutzeinstellungen Ihres OpenAI-Kontos.",
+        "Server-Zwischenspeicher (RAM-only): Der Download-Link und die temporären Exportdaten im flüchtigen Arbeitsspeicher verfallen nach 30 Minuten (TTL 1800s) und werden aus dem Server-Cache freigegeben.",
+        "Datenschutzhinweis: Im Chatverlauf von ChatGPT angezeigte Auszüge, Tabellen und generierte Inhalte verbleiben gemäß den Datenschutzeinstellungen Ihres OpenAI-Kontos.",
         f"Export kodiert in Windows-1252 mit CRLF-Zeilenenden für native {target_format.upper()}-Kompatibilität.",
         f"Buchungskonto: {req.default_bank_account or ('1200 (SKR03)' if target_format == 'datev' else '2800')}"
     ]
@@ -688,7 +806,7 @@ async def gpt_convert_statement(
             f"Noch {ft_status.remaining_free_conversions} Test-Konvertierung(en) für diese Session verfügbar."
         )
 
-    return GptConvertResponse(
+    resp_obj = GptConvertResponse(
         status="success",
         message=f"Erfolgreich {len(canonical_txs)} Buchungssätze in {target_format.upper()} konvertiert.",
         export_format=target_format,
@@ -712,6 +830,17 @@ async def gpt_convert_statement(
         upgrade_info=STRIPE_LINKS
     )
 
+    # Strict JSON size bounding under 50,000 chars (Architect F03)
+    resp_json = resp_obj.model_dump_json()
+    if len(resp_json) > 50000:
+        resp_obj.file_base64 = None
+        resp_json = resp_obj.model_dump_json()
+        if len(resp_json) > 50000:
+            resp_obj.preview_csv = resp_obj.preview_csv[:300] + "\n...(abgeschnitten)"
+            resp_json = resp_obj.model_dump_json()
+
+    return Response(content=resp_json, media_type="application/json")
+
 
 @router.get("/v1/gpt/download/{download_id}")
 @router.get("/api/v1/gpt/download/{download_id}")
@@ -726,7 +855,7 @@ async def gpt_download_file(download_id: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
                 "Download-Link ist abgelaufen oder existiert nicht. "
-                "Gemäß unserer Zero-Durable-Retention Datenschutzrichtlinie werden Dateien nach 30 Minuten vollständig aus dem Speicher gelöscht. "
+                "Temporäre Exportdaten im flüchtigen RAM-Zwischenspeicher verfallen nach 30 Minuten. "
                 "Bitte führen Sie die Konvertierung in ChatGPT erneut durch."
             )
         )

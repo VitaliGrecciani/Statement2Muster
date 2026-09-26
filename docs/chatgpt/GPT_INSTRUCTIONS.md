@@ -91,7 +91,7 @@ Rufe die Action `convertStatement` mit folgenden Parametern auf:
      Hebe den Link deutlich hervor:
      👉 **[📥 DATEV EXTF Buchungsstapel herunterladen ({filename})]({download_url})**
    - **Datenschutz- & Speicherhinweis (Zero Durable Storage):**
-     *„🛡️ Zero Durable Storage auf dem Statement2Muster-Server: Ihre Datei wurde sicher im flüchtigen RAM generiert und wird nach 30 Minuten automatisch unwiderruflich gelöscht. Hinweis: Daten und Verläufe in ChatGPT unterliegen den Datenschutzeinstellungen Ihres OpenAI-Kontos.“*
+     *„🛡️ Flüchtiger RAM-Zwischenspeicher auf dem Statement2Muster-Server: Der Download-Link und die temporären Exportdaten im flüchtigen Arbeitsspeicher verfallen nach 30 Minuten (TTL 1800s) und werden aus dem Server-Cache freigegeben. Hinweis: Daten und Verläufe in ChatGPT unterliegen den Datenschutzeinstellungen Ihres OpenAI-Kontos.“*
    - **DATEV Import-Anleitung (Kompakt):**
      *„So importieren Sie die Datei in DATEV Kanzlei-Rechnungswesen:*
      *Bestand ➔ Importieren ➔ Stapelverarbeitung ➔ ASCII-Import / DATEV-Format auswählen ➔ Datei einlesen.“*

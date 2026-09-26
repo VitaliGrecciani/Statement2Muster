@@ -6,11 +6,22 @@ import datetime
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.core.config import settings
-from app.core.security import create_access_token
-from app.db.session import async_session_maker
+from app.core.security import create_access_token, revoke_token, _revoked_tokens
+from app.db.session import async_session_maker, init_db
 from sqlalchemy import select
 from app.db.models import Tenant, Entitlement, UsageReservation
 from app.api.endpoints.gpt_action import gpt_download_cache, gpt_free_tier_tracker
+
+
+@pytest.fixture(autouse=True, scope="function")
+def reset_caches():
+    gpt_download_cache.clear()
+    gpt_free_tier_tracker.clear()
+    _revoked_tokens.clear()
+    yield
+    gpt_download_cache.clear()
+    gpt_free_tier_tracker.clear()
+    _revoked_tokens.clear()
 
 
 @pytest.mark.asyncio
@@ -141,7 +152,7 @@ async def test_gpt_download_not_found():
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         resp = await client.get("/v1/gpt/download/non_existent_token_12345")
         assert resp.status_code == 404
-        assert "Zero-Durable-Retention" in resp.json()["detail"] or "Datenschutzrichtlinie" in resp.json()["detail"]
+        assert "RAM-Zwischenspeicher" in resp.json()["detail"] or "abgelaufen" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -424,3 +435,161 @@ async def test_gpt_auth_bearer_token_unified_quota():
             reservations = res.scalars().all()
             assert len(reservations) >= 1
             assert any(r.status == "COMMITTED" for r in reservations)
+
+
+@pytest.mark.asyncio
+async def test_gpt_revoked_token_in_body_rejected_401():
+    """F01: Verify that a revoked token in license_key returns 401, not 200."""
+    transport = ASGITransport(app=app)
+    test_uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_revoked_{test_uid}"
+    email = f"revoked_{test_uid}@test.de"
+    
+    async with async_session_maker() as db:
+        tenant = Tenant(id=tenant_id, email=email, name="Revoked User")
+        db.add(tenant)
+        await db.commit()
+
+    token = create_access_token(user_id=email, tenant_id=tenant_id)
+    revoke_token(token)
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Pass revoked token via header
+        resp_hdr = await client.post("/v1/gpt/convert", 
+            json={"session_id": "test-revoked-hdr", "transactions": [{"booking_date": "2026-03-01", "amount": -10, "description": "T"}]},
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert resp_hdr.status_code == 401
+
+        # Pass revoked token via license_key body
+        resp_body = await client.post("/v1/gpt/convert", 
+            json={"session_id": "test-revoked-body", "license_key": token, "transactions": [{"booking_date": "2026-03-01", "amount": -10, "description": "T"}]}
+        )
+        assert resp_body.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_gpt_different_inputs_same_session_separate_reservations():
+    """F02: Different inputs in the same session create separate committed reservations."""
+    transport = ASGITransport(app=app)
+    test_uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_multi_{test_uid}"
+    email = f"multi_{test_uid}@test.de"
+    
+    now = datetime.datetime.now(datetime.timezone.utc)
+    async with async_session_maker() as db:
+        tenant = Tenant(id=tenant_id, email=email, name="Multi User")
+        db.add(tenant)
+        ent = Entitlement(
+            tenant_id=tenant.id,
+            plan_code="starter",
+            status="active",
+            source_type="subscription",
+            source_id=f"sub_multi_{test_uid}",
+            valid_until=now + datetime.timedelta(days=30),
+            current_period_start=now - datetime.timedelta(days=1)
+        )
+        db.add(ent)
+        await db.commit()
+
+    token = create_access_token(user_id=email, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        session_id = f"shared-sess-{test_uid}"
+        for i in [10, 20, 30]:
+            resp = await client.post("/v1/gpt/convert", json={
+                "session_id": session_id,
+                "transactions": [{"booking_date": "2026-03-10", "amount": -i, "description": f"Tx {i}"}]
+            }, headers=headers)
+            assert resp.status_code == 200
+
+        async with async_session_maker() as db:
+            query = select(UsageReservation).where(
+                UsageReservation.tenant_id == tenant_id,
+                UsageReservation.status == "COMMITTED"
+            )
+            res = await db.execute(query)
+            rows = res.scalars().all()
+            assert len(rows) == 3
+            # Each should have a distinct request_hash
+            hashes = {r.request_hash for r in rows}
+            assert len(hashes) == 3
+
+
+@pytest.mark.asyncio
+async def test_gpt_invalid_retry_does_not_mutate_prior_committed_ledger():
+    """F02: An invalid request following successful ones does not release prior reservations."""
+    transport = ASGITransport(app=app)
+    test_uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_retry_{test_uid}"
+    email = f"retry_{test_uid}@test.de"
+    
+    now = datetime.datetime.now(datetime.timezone.utc)
+    async with async_session_maker() as db:
+        tenant = Tenant(id=tenant_id, email=email, name="Retry User")
+        db.add(tenant)
+        ent = Entitlement(
+            tenant_id=tenant.id,
+            plan_code="starter",
+            status="active",
+            source_type="subscription",
+            source_id=f"sub_retry_{test_uid}",
+            valid_until=now + datetime.timedelta(days=30),
+            current_period_start=now - datetime.timedelta(days=1)
+        )
+        db.add(ent)
+        await db.commit()
+
+    token = create_access_token(user_id=email, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        session_id = f"retry-sess-{test_uid}"
+        # Successful request
+        resp1 = await client.post("/v1/gpt/convert", json={
+            "session_id": session_id,
+            "transactions": [{"booking_date": "2026-03-10", "amount": -15, "description": "Good"}]
+        }, headers=headers)
+        assert resp1.status_code == 200
+
+        # Invalid request in same session
+        resp2 = await client.post("/v1/gpt/convert", json={
+            "session_id": session_id,
+            "transactions": [{"booking_date": "bad-date", "amount": -15, "description": "Bad"}]
+        }, headers=headers)
+        assert resp2.status_code == 422
+
+        # Check ledger: first reservation must remain COMMITTED
+        async with async_session_maker() as db:
+            query = select(UsageReservation).where(UsageReservation.tenant_id == tenant_id)
+            res = await db.execute(query)
+            rows = res.scalars().all()
+            assert len(rows) == 1
+            assert rows[0].status == "COMMITTED"
+
+
+@pytest.mark.asyncio
+async def test_gpt_ambiguous_date_rejected():
+    """F04: Ambiguous date format (with slashes) must be rejected with 422."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        resp = await client.post("/v1/gpt/convert", json={
+            "session_id": "test-ambiguous-date",
+            "transactions": [{"booking_date": "03/04/2026", "amount": -10, "description": "Coffee"}]
+        })
+        assert resp.status_code == 422
+        assert "Mehrdeutiges" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_gpt_oversized_account_rejected():
+    """F03: Oversized/invalid default_bank_account is rejected with 422."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        resp = await client.post("/v1/gpt/convert", json={
+            "session_id": "test-bad-account",
+            "default_bank_account": "1" * 40000,
+            "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Coffee"}]
+        })
+        assert resp.status_code == 422
