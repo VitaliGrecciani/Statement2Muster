@@ -125,12 +125,11 @@ function showLoupeToast(msg) {
   }, 2200);
 }
 
-const isFullTab = window.innerWidth > 600;
+const isFullTab = window.innerWidth > 600 || window.location.search.includes('mode=tab');
 
 // Setup full tab responsive mode
 if (isFullTab) {
   document.body.classList.add('full-tab');
-  if (btnOpenTab) btnOpenTab.style.display = 'none';
   if (btnExpandPreview) btnExpandPreview.style.display = 'none';
 }
 
@@ -158,14 +157,60 @@ tabHistory.addEventListener('click', () => {
   renderHistoryView();
 });
 
-// Open app in new tab
+// Open app in new tab / toggle sidepanel
 if (btnOpenTab) {
-  btnOpenTab.addEventListener('click', () => {
-    const targetUrl = currentCsvText 
-      ? chrome.runtime.getURL('sidepanel.html?view=preview')
-      : chrome.runtime.getURL('sidepanel.html');
-    chrome.tabs.create({ url: targetUrl });
-  });
+  if (isFullTab) {
+    // In full-screen tab: convert button to "Dock to Sidepanel"
+    btnOpenTab.title = 'In Seitenleiste andocken (Sidepanel)';
+    btnOpenTab.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="18" height="18" x="3" y="3" rx="2"/>
+        <path d="M15 3v18"/>
+        <path d="m8 9 3 3-3 3"/>
+      </svg>
+    `;
+    btnOpenTab.addEventListener('click', async () => {
+      const stateToSave = {
+        lastConvertedCsv: currentCsvText || '',
+        lastConvertedFilename: currentCsvFilename || 'Muster.csv',
+        lastAccountsFound: currentAccountsFound || [],
+        lastDuplicatesCount: currentDuplicatesCount || 0
+      };
+      chrome.storage.local.set(stateToSave, async () => {
+        try {
+          const currentWindow = await chrome.windows.getCurrent();
+          if (chrome.sidePanel && chrome.sidePanel.open) {
+            await chrome.sidePanel.open({ windowId: currentWindow.id });
+          }
+        } catch (e) {
+          console.warn('Could not open sidepanel automatically:', e);
+        }
+        window.close();
+      });
+    });
+  } else {
+    // In sidepanel: expand to full tab and close sidepanel to avoid duplicate window!
+    btnOpenTab.addEventListener('click', () => {
+      const stateToSave = {
+        lastConvertedCsv: currentCsvText || '',
+        lastConvertedFilename: currentCsvFilename || 'Muster.csv',
+        lastAccountsFound: currentAccountsFound || [],
+        lastDuplicatesCount: currentDuplicatesCount || 0
+      };
+      chrome.storage.local.set(stateToSave, () => {
+        const targetUrl = currentCsvText 
+          ? chrome.runtime.getURL('sidepanel.html?view=preview&mode=tab')
+          : chrome.runtime.getURL('sidepanel.html?mode=tab');
+        chrome.tabs.create({ url: targetUrl }, () => {
+          try {
+            window.close();
+          } catch (e) {
+            console.warn('Could not close sidepanel window:', e);
+          }
+        });
+      });
+    });
+  }
 }
 
 // Expand Preview Table into Full Tab
@@ -178,7 +223,11 @@ if (btnExpandPreview) {
         lastAccountsFound: currentAccountsFound,
         lastDuplicatesCount: currentDuplicatesCount
       }, () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html?view=preview') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html?view=preview&mode=tab') }, () => {
+          try {
+            window.close();
+          } catch (e) {}
+        });
       });
     }
   });
