@@ -1,10 +1,10 @@
 {
   "target_url": "https://api.statement2muster.com",
-  "timestamp": "2026-09-26T11:38:42.126060+00:00",
+  "timestamp": "2026-09-26T11:55:14.319555+00:00",
   "build_commit": "271d9ed3e6b90968bc1a9bb56ce8c7522e397603",
   "audit_head_commit": "8533cd3d08257078015372eaee2214d172314258",
   "version": "1.0.15",
-  "container_id": "8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511",
+  "container_id": "5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b",
   "image_id": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
   "tests": {
     "healthz": {
@@ -20,21 +20,61 @@
     "openapi": {
       "http": 200,
       "has_gpt_convert": true,
-      "has_gpt_download": true
+      "has_gpt_download": true,
+      "title": "Statement2Muster DACH",
+      "version": "1.0.15"
     },
-    "conversion_and_download": {
-      "convert_http": 200,
-      "download_http": 200,
+    "jwt_expiration_policy_r54_3": {
+      "token_lifetime_seconds": 600,
+      "expected_lifetime_seconds": 600,
+      "expired_token_http": 401,
+      "expired_token_detail": "Token expired. Please re-authenticate."
+    },
+    "csv_download_and_field_audit_r54_2": {
+      "http": 200,
       "content_type": "text/csv; charset=windows-1252",
       "zero_retention_header": "enforced-in-memory-only",
+      "line_endings": "CRLF",
+      "encoding": "windows-1252",
+      "file_sha256": "cc0861fc934c562a953acb0ea9c728d504a628ec33e11f81ee3232553ae70357",
       "line_count": 4,
-      "file_sha256": "05a8d7cb17c50ee60cfe3d5196a8802d9d5feb8e397bfd0e1fb3595e132b98e8",
-      "net_balance": 3210.5
+      "row1_verified": {
+        "amount": "189,50",
+        "sh": "H (Lastschrift/Abgang Bank 1200)",
+        "account": "1200",
+        "date": "1503",
+        "ref": "INV-2026-991",
+        "text": "AWS Cloud Services EMEA"
+      },
+      "row2_verified": {
+        "amount": "3400,00",
+        "sh": "S (Gutschrift/Zugang Bank 1200)",
+        "account": "1200",
+        "date": "1803",
+        "ref": "RE-8821",
+        "text": "Kundenhonorar Softwareaudit"
+      },
+      "summary_balance": {
+        "total_debit": -189.5,
+        "total_credit": 3400.0,
+        "net_balance": 3210.5
+      }
     },
     "idempotent_replay": {
       "http": 200,
       "byte_identical": true,
       "download_id_identical": true
+    },
+    "error_and_recovery_r54_2": {
+      "initial_error_http": 422,
+      "recovery_http": 200,
+      "recovery_status": "success"
+    },
+    "file_eviction_and_410_replay_r54_2": {
+      "initial_convert_http": 200,
+      "evicted_download_http": 404,
+      "replay_after_eviction_http": 410,
+      "replay_detail": "Das Ergebnis f\u00fcr diesen Vorgang ist im fl\u00fcchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). Das Kontingent wurde f\u00fcr diesen Vorgang bereits verbucht. Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
     },
     "tenant_isolation_r52_1": {
       "other_tenant_http": 429,
@@ -76,9 +116,11 @@
       "transaction_count": 150
     },
     "ledger_verification": [
-      "g07_live_a_64d2892e|gpt_op_live_64d2892e|1|COMMITTED",
-      "g07_live_b_64d2892e|pre_spent_quota|20|COMMITTED",
-      "g07_live_c_64d2892e|gpt_sess_large_64d2892e_995b08e732e6ff96_f0c9f7f1|1|COMMITTED"
+      "g07_live_a_6e544c30|gpt_op_live_6e544c30|1|COMMITTED",
+      "g07_live_b_6e544c30|pre_spent_quota|20|COMMITTED",
+      "g07_live_c_6e544c30|gpt_op_recov_6e544c30|1|COMMITTED",
+      "g07_live_c_6e544c30|gpt_sess_large_6e544c30_995b08e732e6ff96_af3b2b98|1|COMMITTED",
+      "g07_live_exp_6e544c30|gpt_op_exp_6e544c30|1|COMMITTED"
     ]
   }
 }

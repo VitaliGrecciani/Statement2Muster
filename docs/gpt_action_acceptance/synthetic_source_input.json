@@ -1,0 +1,24 @@
+{
+  "session_id": "sess_live_6e544c30",
+  "request_id": "op_live_6e544c30",
+  "bank_name": "American Express Business",
+  "export_format": "datev",
+  "default_bank_account": "1200",
+  "transactions": [
+    {
+      "booking_date": "2026-03-15",
+      "value_date": "2026-03-16",
+      "amount": -189.5,
+      "currency": "EUR",
+      "description": "AWS Cloud Services EMEA",
+      "reference": "INV-2026-991"
+    },
+    {
+      "booking_date": "2026-03-18",
+      "amount": 3400.0,
+      "currency": "EUR",
+      "description": "Kundenhonorar Softwareaudit",
+      "reference": "RE-8821"
+    }
+  ]
+}

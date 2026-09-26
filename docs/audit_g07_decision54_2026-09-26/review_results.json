@@ -1,0 +1,213 @@
+{
+  "scope": "Independent read-only artifact, Git blob and public HTTPS review; no live conversions or Builder execution",
+  "time_utc": "2026-09-26T11:46:41.797333+00:00",
+  "head": "805076985ba10413c1a0565ae5c9cd9d35757f6d",
+  "source": {
+    "hash_normalization": "CRLF to LF",
+    "repo_count": 33,
+    "container_count": 33,
+    "manifest_equal": true,
+    "commits": {
+      "271d9ed3e6b90968bc1a9bb56ce8c7522e397603": {
+        "python_files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      },
+      "8533cd3d08257078015372eaee2214d172314258": {
+        "python_files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      },
+      "805076985ba10413c1a0565ae5c9cd9d35757f6d": {
+        "python_files": 33,
+        "matches": 33,
+        "missing": [],
+        "extra": [],
+        "mismatches": []
+      }
+    }
+  },
+  "backend_unchanged_since_decision53": true,
+  "inspect": {
+    "container_id": "8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511",
+    "image_id": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
+    "image_name": "statement2muster-api:1.0.15",
+    "state": "running",
+    "health": "healthy",
+    "jwt_expiry_minutes": "43200",
+    "max_file_size_bytes": "31457280",
+    "version": "1.0.15",
+    "user": "10001:10001",
+    "memory": 536870912,
+    "nano_cpus": 1000000000,
+    "read_only_rootfs": true,
+    "health_interval_ns": 15000000000
+  },
+  "inspect_matches_comparison": true,
+  "runner": {
+    "exists": true,
+    "tracked": false,
+    "sha256": "a14728ee5edf6e15ad7501a0cad9efe77d49895f6c4d73037e9059e6fdd7e4d3",
+    "imports": [
+      "datetime",
+      "hashlib",
+      "httpx",
+      "json",
+      "jwt",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "uuid"
+    ],
+    "functions": [
+      {
+        "name": "make_jwt",
+        "line": 136
+      }
+    ],
+    "calls": [
+      {
+        "function": "subprocess.check_output",
+        "line": 44
+      },
+      {
+        "function": "inspect_data.get('State', {}).get('Health', {}).get",
+        "line": 50
+      },
+      {
+        "function": "subprocess.run",
+        "line": 87
+      },
+      {
+        "function": "subprocess.run",
+        "line": 128
+      },
+      {
+        "function": "subprocess.run",
+        "line": 190
+      },
+      {
+        "function": "subprocess.run",
+        "line": 391
+      },
+      {
+        "function": "repo_manifest.get",
+        "line": 101
+      },
+      {
+        "function": "container_manifest.get",
+        "line": 102
+      },
+      {
+        "function": "client.get",
+        "line": 216
+      },
+      {
+        "function": "client.get",
+        "line": 225
+      },
+      {
+        "function": "client.post",
+        "line": 262
+      },
+      {
+        "function": "client.get",
+        "line": 274
+      },
+      {
+        "function": "client.post",
+        "line": 297
+      },
+      {
+        "function": "client.post",
+        "line": 309
+      },
+      {
+        "function": "client.post",
+        "line": 342
+      },
+      {
+        "function": "client.post",
+        "line": 362
+      },
+      {
+        "function": "inspect_data.get('State', {}).get",
+        "line": 50
+      },
+      {
+        "function": "py_get_key.encode",
+        "line": 130
+      },
+      {
+        "function": "r_dl.headers.get",
+        "line": 278
+      },
+      {
+        "function": "r_dl.headers.get",
+        "line": 288
+      },
+      {
+        "function": "r_dl.headers.get",
+        "line": 289
+      },
+      {
+        "function": "client.post",
+        "line": 328
+      },
+      {
+        "function": "inspect_data.get",
+        "line": 50
+      },
+      {
+        "function": "r_anon.json().get",
+        "line": 329
+      }
+    ],
+    "assert_count": 34
+  },
+  "artifact_files": [
+    "G07_LIVE_ACCEPTANCE_REPORT.md",
+    "container_source_manifest.json",
+    "docker_inspect_1015_sanitized.json",
+    "g07_live_acceptance_results.json",
+    "repo_source_manifest.json",
+    "source_comparison.json"
+  ],
+  "https": {
+    "/healthz": {
+      "http": 200,
+      "url": "https://api.statement2muster.com/healthz",
+      "tls": "Default certificate and hostname verification enabled",
+      "body_sha256": "7e79f603e8702c99f224f1b844c59fc6b6bd4ce07067eefae61c335b412d617c",
+      "body": {
+        "status": "healthy",
+        "service": "statement2muster-api",
+        "version": "1.0.15",
+        "database": "connected",
+        "zero_retention": "enforced"
+      }
+    },
+    "/openapi.json": {
+      "http": 200,
+      "url": "https://api.statement2muster.com/openapi.json",
+      "tls": "Default certificate and hostname verification enabled",
+      "body_sha256": "50243be1ef3710097deb84730a92dbdb3b796ede41f35ae0f4fb437f17369973",
+      "openapi_version": "3.1.0",
+      "info": {
+        "title": "Statement2Muster DACH",
+        "version": "1.0.15"
+      },
+      "gpt_paths": [
+        "/api/v1/gpt/convert",
+        "/v1/gpt/convert",
+        "/api/v1/gpt/download/{download_id}",
+        "/v1/gpt/download/{download_id}"
+      ]
+    }
+  }
+}

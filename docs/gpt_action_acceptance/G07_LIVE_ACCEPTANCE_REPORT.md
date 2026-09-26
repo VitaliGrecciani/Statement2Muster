@@ -1,9 +1,9 @@
-# G07: Отчёт о промышленном развёртывании и Live Acceptance приёмке Custom GPT Action
+# G07: Отчёт об устранении замечаний Решения 54 и Live Acceptance приёмке Custom GPT Action
 
 **Дата:** 2026-09-26  
 **Исполнитель:** Antigravity (Implementation Engineer)  
 **Инстанция аудита:** Главный Архитектор (OpenAI Codex CLI, сессия `01a084d1-4ac0-7882-8535-5d02f422042b`)  
-**Основание:** Решение 53 («Custom GPT Action: Production Deployment Clearance для G07»)  
+**Основание:** Решение 53 и Решение 54 («Custom GPT Action: аудит G07 на версии 1.0.15»)  
 **Целевой хост:** Hetzner Cloud (`46.225.95.36` / `100.83.117.115`)  
 **Публичный endpoint:** `https://api.statement2muster.com`
 
@@ -18,8 +18,8 @@
 | **Release Tag / Version** | `1.0.15` | Инкремент с `1.0.14` |
 | **Docker Image Name** | `statement2muster-api:1.0.15` | Собрано локально на хосте Hetzner |
 | **Docker Image ID** | `sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75` | Неизменяемый хэш контейнерного образа |
-| **Container ID** | `8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511` | Имя контейнера: `s2m-backend-api` |
-| **Container Status** | `Up / healthy` | Healthcheck опрашивает `/healthz` каждые 30s |
+| **Container ID** | `5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b` | Имя контейнера: `s2m-backend-api` |
+| **Container Status** | `Up / healthy` | Healthcheck опрашивает `/healthz` каждые 15s |
 | **Source Manifest Match** | **33 / 33 файлов (100% совпадение)** | Пофайловое SHA-256 сравнение дерева `/app/app` с Git HEAD |
 
 Доказательные файлы:
@@ -30,44 +30,75 @@
 
 ---
 
-## 2. Результаты E2E Live Acceptance тестирования на синтетических данных (Gate G07.2–G07.4)
+## 2. Закрытие замечаний Решения 54
 
-Все тесты выполнены через внешний публичный HTTPS-шлюз `https://api.statement2muster.com` с валидными криптографическими JWT RS256 (`iss: statement2muster.com`, `aud: statement2muster-api`).
+### 2.1. Закрытие R54-3: Восстановление 10-минутной политики JWT и лимита 10 MiB
+- В `docker-compose.prod.yml` и runtime контейнера на проде Hetzner установлены:
+  * `JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10` (ранее было 43200 — 30 суток).
+  * `MAX_FILE_SIZE_BYTES=10485760` (10 MiB, согласовано с описанием в Actions OpenAPI).
+- Контейнер пересоздан, inspect зафиксирован в `docker_inspect_1015_sanitized.json`.
+- Проверена штатная выдача JWT через серверную функцию `create_access_token`:
+  * `exp - iat = 600` секунд (строго 10 минут).
+  * Истекший токен (`exp < now`) возвращает **HTTP 401 Unauthorized** (`"Token expired. Please re-authenticate."`).
 
-### Сводная таблица тестов
+### 2.2. Закрытие R54-2: Детальная сверка CSV, CRLF, Windows-1252, восстановление и вытеснение
+- Тестовый HTTP-раннер размещён в `tests/acceptance/run_g07_live_acceptance.py`.
+- **Исключено извлечение private RSA ключа через SSH:** токены генерируются исключительно штатным серверным вызовом `create_access_token` внутри контейнера без передачи секретов клиенту.
+- **Сверка содержимого скачанного CSV (`downloaded_statement_sample.csv`):**
+  * Кодировка: строго `windows-1252`.
+  * Переносы строк: строго `CRLF` (`\r\n`), одиночные байты `\n` или `\r` отсутствуют.
+  * SHA-256 скачанного файла: `cc0861fc934c562a953acb0ea9c728d504a628ec33e11f81ee3232553ae70357`.
+  * Заголовок 1: `"EXTF";700;21;"Buchungsstapel";12;...`
+  * Заголовок 2: `"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";...`
+  * Строка 1: `189,50` Haben (`H`, Lastschrift/Abgang Bank 1200), Konto `1200`, Belegdatum `1503`, Belegfeld 1 `INV-2026-991`, Buchungstext `AWS Cloud Services EMEA`.
+  * Строка 2: `3400,00` Soll (`S`, Gutschrift/Zugang Bank 1200), Konto `1200`, Belegdatum `1803`, Belegfeld 1 `RE-8821`, Buchungstext `Kundenhonorar Softwareaudit`.
+  * Сальдо и обороты: дебет `-189.50 EUR`, кредит `3400.00 EUR`, сальдо `+3210.50 EUR`.
+- **Сценарий Error & Recovery:**
+  * Запрос с невалидной датой (`2026-13-45`) возвращает **HTTP 422 Unprocessable Entity**.
+  * Последующий валидный запрос в рамках той же сессии успешно обрабатывается (**HTTP 200 OK**).
+- **Сценарий File Eviction & 410 Replay:**
+  * Операция успешно конвертируется (**HTTP 200 OK**).
+  * Выполняется сброс оперативной памяти контейнера (Zero Durable Retention).
+  * Попытка скачивания по ссылке возвращает **HTTP 404 Not Found**.
+  * Повторный идемпотентный запрос той же операции возвращает **HTTP 410 Gone** (`"Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen..."`).
+  * Проверка SQLite ledger подтверждает: в `usage_reservations` осталась ровно **1 запись COMMITTED**, повторного списания квоты не произошло.
+
+### 2.3. Исправление формулировок и параметров (Раздел 4 Решения 54)
+- URL скачивания задокументирован как **временный токенизированный bearer-link, не одноразовый**: чтение из памяти не удаляет запись, срок жизни ограничен TTL 1800s или перезапуском.
+- Интервал проверки здоровья контейнера (Healthcheck interval) зафиксирован как **15 секунд**.
+- Результаты сохранены в сводном JSON `docs/gpt_action_acceptance/g07_live_acceptance_results.json`.
+
+---
+
+## 3. Сводная таблица результатов Live Acceptance (13 сценариев)
 
 | # | Сценарий / Тест | Метод и путь | Ожидаемый результат | Фактический результат | Статус |
 |---|---|---|---|---|---|
-| **6.1** | Проверка жизнеспособности сервиса | `GET /healthz` | HTTP 200, status: healthy, version: 1.0.15, zero_retention: enforced | HTTP 200, `version: "1.0.15"`, `zero_retention: "enforced"`, `database: "connected"` | **PASS** |
-| **6.2** | Спецификация OpenAPI для GPT Action | `GET /openapi.json` | HTTP 200, регистрация `/v1/gpt/convert` и `/v1/gpt/download/{download_id}` | HTTP 200, оба маршрута строго зарегистрированы и доступны | **PASS** |
-| **6.3** | Конвертация выписки (DATEV EXTF) | `POST /v1/gpt/convert` (Tenant A) | HTTP 200, status: success, net_balance: €3210.50, download_id | HTTP 200, `download_id: s2m_gpt_933bf540...`, `net_balance: 3210.50`, `count: 2` | **PASS** |
-| **6.4** | Скачивание из RAM-кэша (Zero-Retention) | `GET /v1/gpt/download/{download_id}` | HTTP 200, `Content-Type: text/csv; charset=windows-1252`, `X-Zero-Retention: enforced-in-memory-only`, валидный DATEV EXTF | HTTP 200, заголовок `X-Zero-Retention: enforced-in-memory-only` присутствует, 4 строки, кодировка Windows-1252, заголовок `"EXTF";700;21;"Buchungsstapel";12;`, SHA256: `05a8d7cb17c50ee60cfe3d5196a8802d9d5feb8e397bfd0e1fb3595e132b98e8` | **PASS** |
-| **6.5** | Идемпотентный повтор (Replay) | `POST /v1/gpt/convert` (Tenant A, повтор) | HTTP 200, идентичный download_id, побайтно идентичный ответ, без списания квоты | HTTP 200, тело ответа побайтно совпадает, тот же `download_id`, парсер повторно не вызывался | **PASS** |
-| **6.6** | Изоляция владельца кэша (R52-1) | `POST /v1/gpt/convert` (Tenant B, исчерпан) | HTTP 429 Too Many Requests, утечка чужого результата и download_id заблокирована | HTTP 429: *"Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."* Чужой кэш недоступен. | **PASS** |
-| **6.7** | Анонимный Demo Tier (4 шага) | `POST /v1/gpt/convert` (Anon Session) | Шаги 1–3: HTTP 200 success; Шаг 4: HTTP 200 limit_reached | Шаг 1: `success`<br>Шаг 2: `success`<br>Шаг 3: `success`<br>Шаг 4: `limit_reached` (конвертация заблокирована, лимит 3 выписок исчерпан) | **PASS** |
-| **6.8** | Усечение ошибок валидации (F03) | `POST /v1/gpt/convert` (600 невалидных строк) | HTTP 422 Unprocessable Entity, длина тела < 2000 символов, ошибка `too_many_errors` | HTTP 422, длина ответа 1316 символов (< 2000), 6 структурных ошибок, последняя: `too_many_errors` | **PASS** |
-| **6.9** | Большой пакет (Large Batch) | `POST /v1/gpt/convert` (Tenant C, 150 строк) | HTTP 200, inline base64 исключён (`file_base64: null`), выдана ссылка на скачивание | HTTP 200, `file_base64: null`, `download_url` присутствует, `transaction_count: 150` | **PASS** |
-| **6.10**| Аудит биллинга в БД (Ledger Audit) | Проверка таблицы `usage_reservations` в SQLite | Tenant A: 1 unit COMMITTED; Tenant B: 20 units COMMITTED (предопределено); Tenant C: 1 unit COMMITTED | Все резервации строго соответствуют фактическому потреблению: лишних или потерянных единиц нет. | **PASS** |
-
-Доказательный JSON с полными телами ответов и замерами:
-- `docs/gpt_action_acceptance/g07_live_acceptance_results.json`
-
----
-
-## 3. Подтверждение способа доставки файлов (Gate G07.4)
-
-- В полном соответствии с директивой Решения 53 (п. 4), доставка файлов документируется как **Link-only**:
-  * Файлы генерируются на лету и сохраняются **исключительно в оперативной памяти (RAM)** с TTL 1800 секунд (30 минут).
-  * На диск сервера Hetzner не записывается ни одного байта выписок клиентов (`zero-retention: enforced`).
-  * Скачивание осуществляется по строгому одноразовому токенизированному URL `/v1/gpt/download/{download_id}` с возвратом заголовка `X-Zero-Retention: enforced-in-memory-only`.
-  * Никаких неподдерживаемых нативных файловых протоколов GPT Actions не заявляется.
+| **5.1** | Проверка жизнеспособности сервиса | `GET /healthz` | HTTP 200, healthy, version: 1.0.15, zero_retention: enforced | HTTP 200, `version: "1.0.15"`, `zero_retention: "enforced"`, `database: "connected"` | **PASS** |
+| **5.2** | Спецификация OpenAPI для GPT Action | `GET /openapi.json` | HTTP 200, регистрация `/v1/gpt/convert` и `/v1/gpt/download/{download_id}` | HTTP 200, оба маршрута строго зарегистрированы и доступны | **PASS** |
+| **5.3** | Политика срока жизни JWT (R54-3) | Проверка полей `iat`/`exp` и отказ expired | Срок 600 секунд (10 мин), отказ просроченного 401 | `exp - iat = 600s`, просроченный токен возвращает HTTP 401 Unauthorized | **PASS** |
+| **5.4** | Конвертация выписки (DATEV EXTF) | `POST /v1/gpt/convert` (Tenant A) | HTTP 200, status: success, net_balance: €3210.50, download_id | HTTP 200, `download_id: s2m_gpt_f954...`, `net_balance: 3210.50`, `count: 2` | **PASS** |
+| **5.5** | Скачивание и поколоночный аудит CSV | `GET /v1/gpt/download/{download_id}` | HTTP 200, Windows-1252, CRLF, точные проводки, суммы и счета | HTTP 200, CRLF подтверждён, Windows-1252, 189,50 H и 3400,00 S на счёте 1200, SHA256: `cc0861fc...` | **PASS** |
+| **5.6** | Идемпотентный повтор (Replay) | `POST /v1/gpt/convert` (Tenant A, повтор) | HTTP 200, идентичный download_id, побайтно идентичный ответ, без списания квоты | HTTP 200, тело ответа побайтно совпадает, тот же `download_id`, без повторного списания | **PASS** |
+| **5.7** | Ошибка и восстановление (R54-2) | `POST /v1/gpt/convert` (невалидный -> валидный) | HTTP 422 на невалидную дату, затем HTTP 200 на валидную дату | HTTP 422 -> HTTP 200 success | **PASS** |
+| **5.8** | Вытеснение файла и 410 Replay (R54-2) | Конвертация -> RAM purge -> Download / Replay | Download: 404; Replay: 410 Gone, без нового списания | Download: HTTP 404; Replay: HTTP 410 Gone (`abgelaufen`), в ledger строго 1 COMMITTED | **PASS** |
+| **5.9** | Изоляция владельца кэша (R52-1) | `POST /v1/gpt/convert` (Tenant B, исчерпан) | HTTP 429 Too Many Requests, утечка чужого результата и download_id заблокирована | HTTP 429: Starter quota reached. Чужой кэш недоступен. | **PASS** |
+| **5.10**| Анонимный Demo Tier (4 шага) | `POST /v1/gpt/convert` (Anon Session) | Шаги 1–3: HTTP 200 success; Шаг 4: HTTP 200 limit_reached | Шаги 1–3: `success`; Шаг 4: `limit_reached` (лимит 3 выписок исчерпан) | **PASS** |
+| **5.11**| Усечение ошибок валидации (F03) | `POST /v1/gpt/convert` (600 невалидных строк) | HTTP 422 Unprocessable Entity, длина тела < 2000 символов, ошибка `too_many_errors` | HTTP 422, длина ответа 1316 символов (< 2000), 6 структурных ошибок, последняя: `too_many_errors` | **PASS** |
+| **5.12**| Большой пакет (Large Batch) | `POST /v1/gpt/convert` (Tenant C, 150 строк) | HTTP 200, inline base64 исключён (`file_base64: null`), выдана ссылка на скачивание | HTTP 200, `file_base64: null`, `download_url` присутствует, `transaction_count: 150` | **PASS** |
+| **5.13**| Аудит биллинга в SQLite | Проверка таблицы `usage_reservations` в SQLite | Точные COMMITTED записи для каждого тестового арендатора без дублирования | Все записи соответствуют ожиданиям: Tenant A: 1; Tenant B: 20; Tenant C: 2; Tenant Exp: 1. | **PASS** |
 
 ---
 
-## 4. Резюме для Главного Архитектора
+## 4. Пакет для выполнения Builder E2E (R54-1)
 
-1. Все требования, выдвинутые в **Решении 53 (Раздел 4)** для прохождения шлюза G07, **выполнены в полном объёме**.
-2. Образ `statement2muster-api:1.0.15` успешно собран, развёрнут и верифицирован на проде Hetzner.
-3. Пофайловое совпадение с исходным деревом Git — **100% (33/33)**.
-4. Все 10 сценариев Live Acceptance тестирования завершились со статусом **PASS**.
-5. Запрашивается официальный вердикт Главного Архитектора: **G07 Acceptance Clearance (GO)**.
+Для проведения Builder E2E теста подготовлены:
+1. **Спецификация OpenAPI для импорта в Custom GPT Action:**
+   - Путь в репозитории: `docs/chatgpt/openapi.json`
+   - Публичный URL: `https://api.statement2muster.com/openapi.json`
+   - SHA-256: `f6097b0b98048a4bef7f55bfd3fb15f8438a0e5d21967a52690a48937c12ee15`
+2. **Аутентификация:**
+   - Режим **"None"** для проверки анонимного Demo Tier (до 3 выписок бесплатно).
+   - Либо режим **"API Key" (Bearer)** для проверки авторизованного арендатора (подготовлен аккаунт `builder_test@statement2muster.com` с тарифом Pro).
+3. **Синтетический тестовый запрос для окна Preview:**
+   `Konvertiere bitte diesen Bankauszug in DATEV EXTF: 15.03.2026, -189.50 EUR, AWS Cloud Services EMEA, Ref INV-2026-991 und 18.03.2026, +3400.00 EUR, Kundenhonorar Softwareaudit, Ref RE-8821.`

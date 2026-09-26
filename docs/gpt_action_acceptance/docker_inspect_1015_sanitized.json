@@ -1,6 +1,6 @@
 {
-  "Id": "8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511",
-  "Created": "2026-09-26T06:18:51.828789706Z",
+  "Id": "5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b",
+  "Created": "2026-09-26T11:48:37.253786517Z",
   "Path": "uvicorn",
   "Args": [
     "app.main:app",
@@ -16,42 +16,42 @@
     "Restarting": false,
     "OOMKilled": false,
     "Dead": false,
-    "Pid": 391644,
+    "Pid": 1711807,
     "ExitCode": 0,
     "Error": "",
-    "StartedAt": "2026-09-26T06:18:54.057018042Z",
-    "FinishedAt": "0001-01-01T00:00:00Z",
+    "StartedAt": "2026-09-26T11:54:50.364750696Z",
+    "FinishedAt": "2026-09-26T11:54:50.252634082Z",
     "Health": {
       "Status": "healthy",
       "FailingStreak": 0,
       "Log": [
         {
-          "Start": "2026-09-26T11:37:36.151636273Z",
-          "End": "2026-09-26T11:37:36.375953027Z",
+          "Start": "2026-09-26T11:53:48.258074829Z",
+          "End": "2026-09-26T11:53:48.515114485Z",
           "ExitCode": 0,
           "Output": ""
         },
         {
-          "Start": "2026-09-26T11:37:51.376721404Z",
-          "End": "2026-09-26T11:37:51.610913493Z",
+          "Start": "2026-09-26T11:54:03.516571311Z",
+          "End": "2026-09-26T11:54:03.753868645Z",
           "ExitCode": 0,
           "Output": ""
         },
         {
-          "Start": "2026-09-26T11:38:06.61238092Z",
-          "End": "2026-09-26T11:38:06.877929912Z",
+          "Start": "2026-09-26T11:54:22.478093144Z",
+          "End": "2026-09-26T11:54:22.702043533Z",
           "ExitCode": 0,
           "Output": ""
         },
         {
-          "Start": "2026-09-26T11:38:21.879302416Z",
-          "End": "2026-09-26T11:38:22.11520419Z",
+          "Start": "2026-09-26T11:54:37.703456415Z",
+          "End": "2026-09-26T11:54:37.957031532Z",
           "ExitCode": 0,
           "Output": ""
         },
         {
-          "Start": "2026-09-26T11:38:37.116581913Z",
-          "End": "2026-09-26T11:38:37.374300788Z",
+          "Start": "2026-09-26T11:54:55.501435413Z",
+          "End": "2026-09-26T11:54:55.75196787Z",
           "ExitCode": 0,
           "Output": ""
         }
@@ -59,10 +59,10 @@
     }
   },
   "Image": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
-  "ResolvConfPath": "/var/lib/docker/containers/8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511/resolv.conf",
-  "HostnamePath": "/var/lib/docker/containers/8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511/hostname",
-  "HostsPath": "/var/lib/docker/containers/8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511/hosts",
-  "LogPath": "/var/lib/docker/containers/8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511/8abaec76a4a74644d4e51ab5c4acf8171820e78fcf210e2f41a8edccc25b1511-json.log",
+  "ResolvConfPath": "/var/lib/docker/containers/5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b/hostname",
+  "HostsPath": "/var/lib/docker/containers/5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b/hosts",
+  "LogPath": "/var/lib/docker/containers/5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b/5cb4872ffdf07ddecbe77cf117c17ef5f340a35e80d8b7b8298ba003673ad81b-json.log",
   "Name": "/s2m-backend-api",
   "RestartCount": 0,
   "Driver": "overlayfs",
@@ -200,7 +200,7 @@
     }
   ],
   "Config": {
-    "Hostname": "8abaec76a4a7",
+    "Hostname": "5cb4872ffdf0",
     "Domainname": "",
     "User": "10001:10001",
     "AttachStdin": false,
@@ -213,26 +213,26 @@
     "OpenStdin": false,
     "StdinOnce": false,
     "Env": [
-      "PARSER_WORKER_CONCURRENCY=2",
-      "SMTP_PORT=587",
-      "PARSER_MAX_QUEUE_DEPTH=4",
-      "SMTP_PASSWORD=[REDACTED_SECRET]",
-      "JWT_PRIVATE_KEY_PEM=[REDACTED_SECRET]",
-      "SMTP_USER=resend",
-      "PARSER_TIMEOUT_SECONDS=30",
-      "SMTP_FROM=Statement2Muster <no-reply@statement2muster.com>",
-      "PROJECT_NAME=Statement2Muster DACH",
-      "ENVIRONMENT=production",
       "VERSION=1.0.15",
-      "STRIPE_WEBHOOK_SECRET=[REDACTED_SECRET]",
-      "MAX_FILE_SIZE_BYTES=31457280",
-      "SMTP_HOST=smtp.resend.com",
-      "PARSER_PROCESS_ISOLATION=true",
-      "STRIPE_SECRET_KEY=[REDACTED_SECRET]",
+      "PARSER_WORKER_CONCURRENCY=2",
+      "MAX_FILE_SIZE_BYTES=10485760",
+      "JWT_PRIVATE_KEY_PEM=[REDACTED_SECRET]",
+      "SMTP_PORT=587",
       "EMAIL_BACKEND=smtp",
-      "JWT_PUBLIC_KEY_PEM=[REDACTED_SECRET]",
+      "SMTP_PASSWORD=[REDACTED_SECRET]",
       "SQLITE_DB_PATH=/app/data/statement2muster_prod.db",
-      "JWT_ACCESS_TOKEN_EXPIRE_MINUTES=43200",
+      "PARSER_TIMEOUT_SECONDS=30",
+      "PARSER_MAX_QUEUE_DEPTH=4",
+      "PARSER_PROCESS_ISOLATION=true",
+      "SMTP_USER=resend",
+      "ENVIRONMENT=production",
+      "STRIPE_SECRET_KEY=[REDACTED_SECRET]",
+      "JWT_PUBLIC_KEY_PEM=[REDACTED_SECRET]",
+      "PROJECT_NAME=Statement2Muster DACH",
+      "JWT_ACCESS_TOKEN_EXPIRE_MINUTES=10",
+      "SMTP_FROM=Statement2Muster <no-reply@statement2muster.com>",
+      "STRIPE_WEBHOOK_SECRET=[REDACTED_SECRET]",
+      "SMTP_HOST=smtp.resend.com",
       "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
       "LANG=C.UTF-8",
       "GPG_KEY=[REDACTED_SECRET]",
@@ -266,7 +266,7 @@
     "WorkingDir": "/app",
     "Entrypoint": null,
     "Labels": {
-      "com.docker.compose.config-hash": "a13be37945c79e5f2dc6e91532cfee79eea5499f600627eb977b5abf8a032fd1",
+      "com.docker.compose.config-hash": "a3c4e32bf0af81444861a7983e21e5af030401298b31965165bb3fc1a52139af",
       "com.docker.compose.container-number": "1",
       "com.docker.compose.depends_on": "",
       "com.docker.compose.image": "sha256:cbdd33f0cfdb6c70d2b4e3d024b8399183c6e937f550193d1d695f3c20178b75",
@@ -280,8 +280,8 @@
     }
   },
   "NetworkSettings": {
-    "SandboxID": "43821e53872a4b9564dc10a3fd7d52e3501f54ce6c2fd28d722a011015d9f554",
-    "SandboxKey": "/var/run/docker/netns/43821e53872a",
+    "SandboxID": "1e0beed18b4ed69bf815805435ddcaebd58528714fced679f982bfc4c86670e2",
+    "SandboxKey": "/var/run/docker/netns/1e0beed18b4e",
     "Ports": {
       "8000/tcp": [
         {
@@ -301,10 +301,10 @@
         "DriverOpts": null,
         "GwPriority": 0,
         "NetworkID": "c6fc5a151d50786fb2d124edeeb2ae1384927cfe8faed57e52b4a0893f876ed7",
-        "EndpointID": "774451f04389db6764ba9a133a4ee8742d291dc57b80ccf3bed1e65c0bc63496",
+        "EndpointID": "76a7470768dd799c56a0fd6170d9e028296e45b063c59ac7b9b8f6fba2b93292",
         "Gateway": "172.20.0.1",
         "IPAddress": "172.20.0.2",
-        "MacAddress": "ae:61:8d:22:61:62",
+        "MacAddress": "ae:23:e8:18:19:f7",
         "IPPrefixLen": 16,
         "IPv6Gateway": "",
         "GlobalIPv6Address": "",
@@ -312,7 +312,7 @@
         "DNSNames": [
           "s2m-backend-api",
           "api",
-          "8abaec76a4a7"
+          "5cb4872ffdf0"
         ]
       }
     }
