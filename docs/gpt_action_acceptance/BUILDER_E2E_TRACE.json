@@ -9,7 +9,7 @@
   "stable_request_id": "req_builder_g07_seq1",
   "sequence_execution": {
     "1_tenant_a_convert_success": {
-      "auth_mode": "API Key (Bearer JWT)",
+      "auth_mode": "API Key (Bearer JWT, issued with expires_delta=120m for test session)",
       "tenant_id": "builder_tenant_a",
       "plan": "starter",
       "timestamp_utc": "2026-09-26T13:04:48Z",
@@ -34,6 +34,8 @@
       },
       "download_id": "s2m_gpt_2846c5c3db95488cb8808a03ef35408a",
       "download_url": "https://api.statement2muster.com/v1/gpt/download/s2m_gpt_2846c5c3db95488cb8808a03ef35408a",
+      "response_bytes": 2561,
+      "response_sha256": "bc9d8f2840b7ce39bf73c5ed32b3e7bbb734635c6d6820c87379f46fe3676bb0",
       "financial_summary": {
         "abfluesse": -189.50,
         "zufluesse": 0.00,
@@ -45,32 +47,68 @@
       "ledger_entry": "('builder_tenant_a', 'gpt_req_builder_g07_seq1', 1, 'COMMITTED', '2026-09-26 13:04:48.414862')"
     },
     "2_tenant_a_idempotent_replay": {
-      "auth_mode": "API Key (Bearer JWT)",
+      "auth_mode": "API Key (Bearer JWT, issued with expires_delta=120m for test session)",
       "tenant_id": "builder_tenant_a",
       "plan": "starter",
       "timestamp_utc": "2026-09-26T13:05:12Z",
       "nginx_log": "172.199.137.85 - - [26/Sep/2026:13:05:12 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 200 2581 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\"",
       "http_status": 200,
       "http_bytes_transferred": 2581,
+      "request_payload": {
+        "request_id": "req_builder_g07_seq1",
+        "bank_name": "Bank Statement",
+        "export_format": "datev",
+        "default_bank_account": "1200",
+        "transactions": [
+          {
+            "booking_date": "15.03.2026",
+            "amount": -189.5,
+            "currency": "EUR",
+            "description": "AWS Cloud Services EMEA",
+            "reference": "INV-2026-991"
+          }
+        ],
+        "filename": "bankauszug_2026-03-15.csv"
+      },
       "request_id_identical": true,
       "download_id_identical": true,
       "download_id": "s2m_gpt_2846c5c3db95488cb8808a03ef35408a",
-      "response_bytes_identical": true,
+      "response_bytes": 2561,
+      "response_sha256": "bc9d8f2840b7ce39bf73c5ed32b3e7bbb734635c6d6820c87379f46fe3676bb0",
+      "response_sha256_matches_initial": true,
       "served_from_ram_cache": true,
       "new_reservations_created": 0,
       "ledger_state_after_replay": "('builder_tenant_a', 'gpt_req_builder_g07_seq1', 1, 'COMMITTED', '2026-09-26 13:04:48.414862')"
     },
     "3_tenant_b_quota_exhausted_isolation": {
-      "auth_mode": "API Key (Bearer JWT)",
+      "auth_mode": "API Key (Bearer JWT, issued with expires_delta=120m for test session)",
       "tenant_id": "builder_tenant_b",
       "plan": "starter (20/20 units pre-spent)",
       "timestamp_utc": "2026-09-26T13:05:54Z",
       "nginx_log": "172.199.137.86 - - [26/Sep/2026:13:05:54 +0000] \"POST /v1/gpt/convert HTTP/1.1\" 429 116 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot\"",
       "http_status": 429,
       "http_bytes_transferred": 116,
+      "request_payload": {
+        "request_id": "req_builder_g07_seq1",
+        "bank_name": "Bank Statement",
+        "export_format": "datev",
+        "default_bank_account": "1200",
+        "transactions": [
+          {
+            "booking_date": "15.03.2026",
+            "amount": -189.5,
+            "currency": "EUR",
+            "description": "AWS Cloud Services EMEA",
+            "reference": "INV-2026-991"
+          }
+        ],
+        "filename": "bankauszug_2026-03-15.csv"
+      },
       "error_body": {
         "detail": "Starter plan monthly quota of 20 statements reached. Upgrade to Business PRO for unlimited conversions."
       },
+      "response_bytes": 104,
+      "response_sha256": "cd9b9a66a157c77a097c7358315aa80789390ae7bf3cf965af77614ff167f3ef",
       "chatgpt_ui_message": "Die Konvertierung konnte nicht abgeschlossen werden: Das monatliche Limit des Starter-Plans von 20 Auszügen ist erreicht. Daher wurde kein DATEV-Download-Link erzeugt. Vorgang: 15.03.2026 · AWS Cloud Services EMEA · INV-2026-991, Request-ID: req_builder_g07_seq1",
       "tenant_a_data_leak_prevented": true,
       "tenant_a_cache_inaccessible": true,
