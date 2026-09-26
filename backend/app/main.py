@@ -52,21 +52,51 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+MAX_VALIDATION_ERRORS = 5
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    raw_errors = exc.errors()
+    total_errors = len(raw_errors)
     errors = []
-    for err in exc.errors():
+    for err in raw_errors[:MAX_VALIDATION_ERRORS]:
         err_copy = dict(err)
         if "input" in err_copy:
             val = err_copy["input"]
-            if isinstance(val, (str, bytes)) and len(val) > 100:
-                err_copy["input"] = str(val)[:100] + "... [truncated]"
+            if isinstance(val, (str, bytes)):
+                val_str = str(val)
+                if len(val_str) > 50:
+                    err_copy["input"] = val_str[:47] + "..."
             elif isinstance(val, (list, dict)):
                 err_copy["input"] = "[Complex object truncated]"
         errors.append(err_copy)
-    return JSONResponse(
+
+    if total_errors > MAX_VALIDATION_ERRORS:
+        errors.append({
+            "loc": ["body"],
+            "msg": f"{total_errors - MAX_VALIDATION_ERRORS} weitere Validierungsfehler wurden abgeschnitten (Gesamtanzahl: {total_errors}).",
+            "type": "too_many_errors"
+        })
+
+    resp_data = {"detail": errors}
+    encoded_json = json.dumps(resp_data, ensure_ascii=False)
+    # Architect F03: Hard platform limit check (OpenAI action limit is 100k, we keep under 8k chars)
+    if len(encoded_json) > 8000:
+        resp_data = {
+            "detail": [
+                {
+                    "loc": ["body"],
+                    "msg": f"Anfrage enthält {total_errors} Validierungsfehler. Details wurden zur Einhaltung des Größenlimits gekürzt.",
+                    "type": "too_many_errors"
+                }
+            ]
+        }
+        encoded_json = json.dumps(resp_data, ensure_ascii=False)
+
+    return Response(
+        content=encoded_json,
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": errors}
+        media_type="application/json"
     )
 
 # 1. Early ASGI Auth & Budget Middleware (Zero Retention & DoS protection)

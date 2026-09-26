@@ -1,4 +1,5 @@
 import pytest
+import json
 import uuid
 import base64
 import asyncio
@@ -593,3 +594,117 @@ async def test_gpt_oversized_account_rejected():
             "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Coffee"}]
         })
         assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_gpt_distinct_accounts_same_request_id_conflict():
+    """F02 (Decision 51): Distinct accounts under same request_id produce different hashes and 409 Conflict."""
+    transport = ASGITransport(app=app)
+    test_uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_hash_{test_uid}"
+    email = f"hash_{test_uid}@test.de"
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    async with async_session_maker() as db:
+        db.add(Tenant(id=tenant_id, email=email))
+        db.add(Entitlement(
+            tenant_id=tenant_id, plan_code="starter", status="active",
+            source_type="subscription", source_id=f"sub_hash_{test_uid}",
+            current_period_start=now - datetime.timedelta(days=1),
+            valid_until=now + datetime.timedelta(days=30)
+        ))
+        await db.commit()
+
+    token = create_access_token(user_id=email, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        p1 = {
+            "session_id": f"sess_{test_uid}", "request_id": f"req_{test_uid}",
+            "default_bank_account": "1200", "bank_name": "a",
+            "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Synthetic"}]
+        }
+        p2 = {
+            "session_id": f"sess_{test_uid}", "request_id": f"req_{test_uid}",
+            "default_bank_account": "120", "bank_name": "0a",
+            "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Synthetic"}]
+        }
+        r1 = await client.post("/v1/gpt/convert", json=p1, headers=headers)
+        assert r1.status_code == 200
+
+        r2 = await client.post("/v1/gpt/convert", json=p2, headers=headers)
+        assert r2.status_code == 409
+        assert "Idempotency key reused" in r2.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_gpt_completed_replay_returns_cached_or_410():
+    """F02 (Decision 51): Completed replay returns cached response with same download_id; returns 410 on eviction."""
+    transport = ASGITransport(app=app)
+    test_uid = uuid.uuid4().hex[:8]
+    tenant_id = f"tenant_replay_{test_uid}"
+    email = f"replay_{test_uid}@test.de"
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    async with async_session_maker() as db:
+        db.add(Tenant(id=tenant_id, email=email))
+        db.add(Entitlement(
+            tenant_id=tenant_id, plan_code="starter", status="active",
+            source_type="subscription", source_id=f"sub_replay_{test_uid}",
+            current_period_start=now - datetime.timedelta(days=1),
+            valid_until=now + datetime.timedelta(days=30)
+        ))
+        await db.commit()
+
+    token = create_access_token(user_id=email, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        req_payload = {
+            "session_id": f"sess_{test_uid}", "request_id": f"req_completed_{test_uid}",
+            "transactions": [{"booking_date": "2026-03-10", "amount": -10, "description": "Synthetic"}]
+        }
+        # First call
+        r1 = await client.post("/v1/gpt/convert", json=req_payload, headers=headers)
+        assert r1.status_code == 200
+        dl_id_1 = r1.json()["download_id"]
+
+        # Second call (replay while cache is valid)
+        r2 = await client.post("/v1/gpt/convert", json=req_payload, headers=headers)
+        assert r2.status_code == 200
+        dl_id_2 = r2.json()["download_id"]
+        assert dl_id_1 == dl_id_2
+
+        # Simulate cache eviction
+        gpt_download_cache.clear()
+
+        # Third call after eviction -> 410 Gone per Zero Durable Retention
+        r3 = await client.post("/v1/gpt/convert", json=req_payload, headers=headers)
+        assert r3.status_code == 410
+        assert "abgelaufen" in r3.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_gpt_many_validation_errors_truncated_under_platform_limit():
+    """F03 (Decision 51): 600 validation errors are bounded in count and body size under OpenAI platform limit."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        invalid_payload = {
+            "session_id": "test-many-errors",
+            "transactions": [{"booking_date": "2026-03-10", "amount": "x", "description": "Synthetic"}] * 600
+        }
+        raw_json = json.dumps(invalid_payload, ensure_ascii=False)
+        assert len(raw_json) > 40000
+
+        resp = await client.post(
+            "/v1/gpt/convert",
+            content=raw_json.encode("utf-8"),
+            headers={"content-type": "application/json"}
+        )
+        assert resp.status_code == 422
+        # Response body must be strictly under 8,000 characters (platform limit 100k)
+        assert len(resp.text) < 2000
+        errors = resp.json()["detail"]
+        assert len(errors) <= 6
+        assert errors[-1]["type"] == "too_many_errors"
+

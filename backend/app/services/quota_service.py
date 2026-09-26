@@ -68,6 +68,10 @@ async def check_and_reserve_quota(
             detail=f"Batch size {file_count} exceeds maximum allowed of {settings.MAX_FILES_PER_BATCH} files"
         )
 
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    pending_cutoff = now_utc - datetime.timedelta(minutes=5)
+    pending_cutoff_val = pending_cutoff.replace(tzinfo=None) if pending_cutoff.tzinfo else pending_cutoff
+
     # 1. Idempotency check
     query = select(UsageReservation).where(
         and_(
@@ -84,8 +88,25 @@ async def check_and_reserve_quota(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Idempotency key reused with different request payload"
             )
-        # Existing reservation returned for identical idempotent replay
-        return existing_res
+
+        # State machine handling (Architect F02 / Decision 51):
+        if existing_res.status == "COMMITTED":
+            # Existing COMMITTED reservation returned for replay handling by caller
+            return existing_res
+
+        if existing_res.status == "RESERVED":
+            res_created = existing_res.created_at
+            if res_created and res_created.tzinfo is None:
+                res_created = res_created.replace(tzinfo=datetime.timezone.utc)
+            if res_created and res_created >= pending_cutoff:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="An operation with this idempotency key is currently in progress. Please retry shortly."
+                )
+            # Expired in-flight reservation: fall through to re-evaluate quota and re-reserve
+
+        # For RELEASED (or expired RESERVED):
+        # Do NOT bypass quota! Fall through to Step 2 to evaluate quota before allowing retry.
 
     # 2. Entitlement evaluation
     tenant_res = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
@@ -98,8 +119,6 @@ async def check_and_reserve_quota(
 
     ent = await get_or_create_trial_entitlement(db, tenant_id)
     plan = ent.plan_code.lower()
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    pending_cutoff = now_utc - datetime.timedelta(minutes=5)
 
     if plan == "trial":
         # Sum both COMMITTED units and active unexpired RESERVED units to prevent concurrency bypass
@@ -190,7 +209,15 @@ async def check_and_reserve_quota(
             detail="Concurrent quota reservation conflict. Please retry."
         )
 
-    # 4. Create RESERVED record
+    # 4. Create or re-activate RESERVED record
+    if existing_res:
+        existing_res.status = "RESERVED"
+        existing_res.units = file_count
+        existing_res.request_hash = request_hash
+        existing_res.created_at = now_utc.replace(tzinfo=None)
+        await db.flush()
+        return existing_res
+
     reservation = UsageReservation(
         tenant_id=tenant_id,
         idempotency_key=idempotency_key,

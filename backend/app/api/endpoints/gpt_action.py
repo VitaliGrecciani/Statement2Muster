@@ -271,34 +271,36 @@ class GptConvertRequest(BaseModel):
 
 
 def compute_payload_hash(req: GptConvertRequest) -> str:
-    """Computes deterministic SHA-256 hash of the conversion payload and export settings."""
-    hasher = hashlib.sha256()
-    hasher.update(req.export_format.encode("utf-8"))
-    if req.default_bank_account:
-        hasher.update(req.default_bank_account.strip().encode("utf-8"))
-    if req.bank_name:
-        hasher.update(req.bank_name.strip().encode("utf-8"))
-    
+    """
+    Computes deterministic SHA-256 hash of the canonical conversion payload and export settings (Architect F02).
+    Uses a structured dictionary with named keys and json.dumps(sort_keys=True) to eliminate
+    parameter boundary ambiguities and distinguish all relevant fields.
+    """
+    tx_repr = None
     if req.transactions:
         tx_repr = []
         for t in req.transactions:
             tx_repr.append({
-                "d": t.booking_date.strip() if t.booking_date else "",
-                "a": t.amount,
-                "c": (t.currency or "EUR").upper(),
-                "t": t.description.strip() if t.description else "",
-                "r": t.reference.strip() if t.reference else "",
-                "k": t.contra_account.strip() if t.contra_account else ""
+                "booking_date": (t.booking_date or "").strip(),
+                "value_date": (t.value_date or "").strip() if t.value_date else None,
+                "amount": t.amount,
+                "currency": (t.currency or "EUR").strip().upper(),
+                "description": (t.description or "").strip(),
+                "reference": (t.reference or "").strip() if t.reference else None,
+                "contra_account": (t.contra_account or "").strip() if t.contra_account else None
             })
-        hasher.update(json.dumps(tx_repr, sort_keys=True).encode("utf-8"))
-    elif req.raw_content:
-        hasher.update(req.raw_content.encode("utf-8"))
-    elif req.file_base64:
-        hasher.update(req.file_base64.encode("utf-8"))
-    else:
-        hasher.update(b"empty")
 
-    return hasher.hexdigest()
+    canonical_data = {
+        "export_format": (req.export_format or "datev").strip().lower(),
+        "default_bank_account": (req.default_bank_account or "").strip(),
+        "bank_name": (req.bank_name or "").strip(),
+        "filename": (req.filename or "").strip(),
+        "transactions": tx_repr,
+        "raw_content": req.raw_content,
+        "file_base64": req.file_base64,
+    }
+    encoded = json.dumps(canonical_data, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class FinancialSummary(BaseModel):
@@ -595,15 +597,24 @@ async def gpt_convert_statement(
 
     # 4. Quota, Idempotency & Free Tier Reservation (Architect G02 / F02)
     reservation = None
-    is_replay = False
     payload_hash = compute_payload_hash(req)
 
-    if req.request_id and req.request_id.strip():
+    has_client_request_id = bool(req.request_id and req.request_id.strip())
+    if has_client_request_id:
         idempotency_key = f"gpt_{req.request_id.strip()}"
+        # Check RAM-only replay cache first (Architect F02 / Decision 51 section 4.1)
+        cached_op = gpt_download_cache.get(f"op_{idempotency_key}")
+        if cached_op:
+            if cached_op.get("payload_hash") != payload_hash:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Idempotency key reused with different request payload"
+                )
+            return Response(content=cached_op["response_json"], media_type="application/json")
     else:
-        # Separate operation per statement content (F02)
+        # Separate unique operation per conversion call (F02)
         sess_part = req.session_id.strip() if req.session_id else "op"
-        idempotency_key = f"gpt_{sess_part}_{payload_hash[:20]}"
+        idempotency_key = f"gpt_{sess_part}_{payload_hash[:16]}_{uuid.uuid4().hex[:8]}"
 
     if is_licensed and tenant_id:
         # A. Authenticated Paid Tenant -> Core Quota Service
@@ -615,7 +626,16 @@ async def gpt_convert_statement(
                 idempotency_key=idempotency_key,
                 request_hash=payload_hash
             )
-            is_replay = (reservation.status == "COMMITTED")
+            if reservation.status == "COMMITTED":
+                # Result expired from volatile RAM cache (Architect F02 / Decision 51 section 4.1)
+                raise HTTPException(
+                    status_code=status.HTTP_410_GONE,
+                    detail=(
+                        "Das Ergebnis für diesen Vorgang ist im flüchtigen RAM-Zwischenspeicher abgelaufen (TTL 30 Minuten). "
+                        "Das Kontingent wurde für diesen Vorgang bereits verbucht. "
+                        "Bitte starten Sie eine neue Konvertierung mit einer neuen request_id."
+                    )
+                )
         except HTTPException:
             raise
         except Exception as e:
@@ -685,8 +705,8 @@ async def gpt_convert_statement(
             out_filename = f"DATEV_EXTF_{sanitized_bank}_{now.strftime('%Y%m%d_%H%M%S')}.csv"
             media_type = "text/csv"
 
-        # Commit quota only if newly reserved (not a replay)
-        if reservation and not is_replay:
+        # Commit quota only if newly reserved (status == RESERVED)
+        if reservation and reservation.status == "RESERVED":
             await commit_quota(db, reservation, successful_count=1)
 
     except HTTPException:
@@ -830,14 +850,30 @@ async def gpt_convert_statement(
         upgrade_info=STRIPE_LINKS
     )
 
-    # Strict JSON size bounding under 50,000 chars (Architect F03)
+    # Strict JSON size bounding under 40,000 chars (Architect F03)
     resp_json = resp_obj.model_dump_json()
-    if len(resp_json) > 50000:
+    if len(resp_json) > 40000:
         resp_obj.file_base64 = None
         resp_json = resp_obj.model_dump_json()
-        if len(resp_json) > 50000:
+        if len(resp_json) > 40000:
             resp_obj.preview_csv = resp_obj.preview_csv[:300] + "\n...(abgeschnitten)"
             resp_json = resp_obj.model_dump_json()
+            if len(resp_json) > 40000:
+                resp_obj.preview_csv = "(Vorschau wegen Größenbegrenzung gekürzt)"
+                resp_obj.notes = resp_obj.notes[:2]
+                resp_json = resp_obj.model_dump_json()
+
+    if has_client_request_id:
+        # Cache operation response for idempotent replay (Architect F02 / Decision 51)
+        gpt_download_cache.set(
+            key=f"op_{idempotency_key}",
+            value={
+                "payload_hash": payload_hash,
+                "response_json": resp_json,
+                "download_id": download_id
+            },
+            ttl_seconds=1800
+        )
 
     return Response(content=resp_json, media_type="application/json")
 
