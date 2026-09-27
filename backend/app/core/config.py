@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD", None)
     SMTP_FROM: str = os.getenv("SMTP_FROM", "no-reply@statement2muster.com")
     
+    # Web OAuth provider settings. Secrets are supplied only through server environment.
+    PUBLIC_WEB_ORIGIN: str = "https://www.statement2muster.com"
+    PUBLIC_API_ORIGIN: str = "https://api.statement2muster.com"
+    OAUTH_SESSION_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    LINKEDIN_CLIENT_ID: Optional[str] = None
+    LINKEDIN_CLIENT_SECRET: Optional[str] = None
+    FACEBOOK_CLIENT_ID: Optional[str] = None
+    FACEBOOK_CLIENT_SECRET: Optional[str] = None
+
     # Stripe Billing Secrets
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "sk_test_mock")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_mock")
