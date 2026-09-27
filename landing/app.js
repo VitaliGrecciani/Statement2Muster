@@ -352,6 +352,7 @@ const authSubmit = document.getElementById('auth-submit');
 const authStatus = document.getElementById('auth-status');
 let authStage = 'email';
 let oauthPopup = null;
+let pendingSocialToken = null;
 
 function setAuthStatus(message, error = false) {
   if (!authStatus) return;
@@ -365,7 +366,17 @@ function showAuthModal() {
   authEmail?.focus();
 }
 
-function setSignedIn(token) {
+async function setSignedIn(token) {
+  if (pendingSocialToken) {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/oauth/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pending_token: pendingSocialToken })
+    });
+    if (!response.ok) throw new Error('Das soziale Profil konnte nicht verknüpft werden. Bitte beginnen Sie die Anmeldung erneut.');
+    pendingSocialToken = null;
+    authEmail.readOnly = false;
+  }
   sessionStorage.setItem('s2m_access_token', token);
   if (btnOpenLogin) btnOpenLogin.textContent = 'Abmelden';
   if (authModal) authModal.classList.add('hidden');
@@ -434,7 +445,7 @@ magicLinkForm?.addEventListener('submit', async event => {
       if (!response.ok) throw new Error(response.status === 429 ? 'Zu viele Versuche. Bitte später erneut versuchen.' : 'Der Code ist ungültig oder abgelaufen.');
       const result = await response.json();
       if (!result.access_token) throw new Error('Die Anmeldung konnte nicht abgeschlossen werden.');
-      setSignedIn(result.access_token);
+      await setSignedIn(result.access_token);
       authCode.value = '';
       authCode.required = false;
       authCodeGroup.classList.add('hidden');
@@ -458,12 +469,23 @@ document.getElementById('btn-google-login')?.addEventListener('click', () => sta
 document.getElementById('btn-linkedin-login')?.addEventListener('click', () => startSocialLogin('linkedin'));
 document.getElementById('btn-facebook-login')?.addEventListener('click', () => startSocialLogin('facebook'));
 
-window.addEventListener('message', event => {
+window.addEventListener('message', async event => {
   if (event.origin !== new URL(apiBaseUrl).origin || event.source !== oauthPopup) return;
   const data = event.data;
   if (!data || data.type !== 'statement2muster:oauth') return;
-  if (data.access_token) setSignedIn(data.access_token);
-  else setAuthStatus(data.error || 'Die Anmeldung konnte nicht abgeschlossen werden.', true);
+  try {
+    if (data.access_token) await setSignedIn(data.access_token);
+    else if (data.pending_token && data.email) {
+      pendingSocialToken = data.pending_token;
+      authEmail.value = data.email;
+      authEmail.readOnly = true;
+      authStage = 'email';
+      authCodeGroup.classList.add('hidden');
+      authSubmit.textContent = 'Code per E-Mail senden';
+      showAuthModal();
+      setAuthStatus('Bestätigen Sie einmalig Ihre E-Mail-Adresse, um das Profil zu verknüpfen.');
+    } else setAuthStatus(data.error || 'Die Anmeldung konnte nicht abgeschlossen werden.', true);
+  } catch (error) { setAuthStatus(error.message, true); }
   oauthPopup = null;
 });
 
