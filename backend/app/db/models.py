@@ -145,3 +145,15 @@ class PendingSocialLink(Base):
     email = Column(String(255), nullable=False)
     expires_at = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+class KanzleiInvite(Base):
+    """Single-use invitation bound to an email address."""
+    __tablename__ = "kanzlei_invites"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    code_hash = Column(String(64), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    redeemed_at = Column(DateTime, nullable=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
