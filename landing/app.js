@@ -2,7 +2,7 @@
 // Statement2Muster Landing Page Interactive Logic
 // ==========================================================================
 
-const apiBaseUrl = 'http://127.0.0.1:8000';
+const apiBaseUrl = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:8000' : 'https://api.statement2muster.com';
 
 // Sample demo data for instant 1-click preview
 const SAMPLE_TRANSACTIONS = [
@@ -98,12 +98,25 @@ async function processUploadedFiles(files) {
   }
 
   try {
+    const token = sessionStorage.getItem('s2m_access_token');
+    if (!token) {
+      showAuthModal();
+      showDemoStatus('Bitte melden Sie sich an, bevor Sie einen Auszug hochladen.');
+      return;
+    }
     const response = await fetch(`${apiBaseUrl}/api/v1/convert`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
       body: formData
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('s2m_access_token');
+        if (btnOpenLogin) btnOpenLogin.textContent = 'Anmelden';
+        showAuthModal();
+        throw new Error('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+      }
       throw new Error(`Fehler beim Konvertieren: ${response.statusText}`);
     }
 
@@ -140,7 +153,7 @@ async function processUploadedFiles(files) {
     console.error('Konvertierungsfehler:', err);
     currentDemoCsvText = '';
     if (demoResult) demoResult.classList.add('hidden');
-    showDemoStatus('Fehler: Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
+    showDemoStatus(err.message || 'Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
     setTimeout(() => {
       hideDemoStatus();
     }, 4000);
@@ -332,67 +345,173 @@ document.querySelectorAll('.faq-question').forEach(btn => {
 });
 
 // ==========================================================================
-// 5. Auth Modal (Login / Signup)
+// 5. Account sign-in
 // ==========================================================================
 
 const authModal = document.getElementById('auth-modal');
 const btnOpenLogin = document.getElementById('btn-open-login');
 const btnCloseModal = document.getElementById('btn-close-modal');
 const magicLinkForm = document.getElementById('magic-link-form');
-const btnGoogleLogin = document.getElementById('btn-google-login');
+const authEmail = document.getElementById('auth-email');
+const authCode = document.getElementById('auth-code');
+const authCodeGroup = document.getElementById('auth-code-group');
+const authSubmit = document.getElementById('auth-submit');
+const authStatus = document.getElementById('auth-status');
+let authStage = 'email';
+let oauthPopup = null;
+let pendingSocialToken = null;
 
-if (btnOpenLogin) {
-  btnOpenLogin.addEventListener('click', () => {
-    authModal.classList.remove('hidden');
-  });
+function setAuthStatus(message, error = false) {
+  if (!authStatus) return;
+  authStatus.textContent = message;
+  authStatus.style.color = error ? '#fca5a5' : '';
 }
 
+function showAuthModal() {
+  if (!authModal) return;
+  authModal.classList.remove('hidden');
+  authEmail?.focus();
+}
+
+async function setSignedIn(token) {
+  if (pendingSocialToken) {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/oauth/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pending_token: pendingSocialToken })
+    });
+    if (!response.ok) throw new Error('Das soziale Profil konnte nicht verknüpft werden. Bitte beginnen Sie die Anmeldung erneut.');
+    pendingSocialToken = null;
+    authEmail.readOnly = false;
+  }
+  sessionStorage.setItem('s2m_access_token', token);
+  if (btnOpenLogin) btnOpenLogin.textContent = 'Abmelden';
+  if (authModal) authModal.classList.add('hidden');
+  setAuthStatus('');
+}
+
+async function signOut() {
+  const token = sessionStorage.getItem('s2m_access_token');
+  sessionStorage.removeItem('s2m_access_token');
+  if (btnOpenLogin) btnOpenLogin.textContent = 'Anmelden';
+  if (token) {
+    try {
+      await fetch(`${apiBaseUrl}/api/v1/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (_) { /* The local session has already been cleared. */ }
+  }
+}
+
+if (sessionStorage.getItem('s2m_access_token') && btnOpenLogin) {
+  btnOpenLogin.textContent = 'Abmelden';
+}
+
+btnOpenLogin?.addEventListener('click', () => {
+  if (sessionStorage.getItem('s2m_access_token')) signOut();
+  else showAuthModal();
+});
+
 document.querySelectorAll('.btn-open-checkout, .btn-open-auth-trigger').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const plan = btn.getAttribute('data-plan') || 'standard';
-    authModal.classList.remove('hidden');
+  btn.addEventListener('click', event => {
+    event.preventDefault();
+    showAuthModal();
   });
 });
 
-if (btnCloseModal) {
-  btnCloseModal.addEventListener('click', () => {
-    authModal.classList.add('hidden');
-  });
+btnCloseModal?.addEventListener('click', () => authModal?.classList.add('hidden'));
+
+magicLinkForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const email = authEmail.value.trim().toLowerCase();
+  if (!email) return;
+  authSubmit.disabled = true;
+  setAuthStatus('Bitte warten…');
+
+  try {
+    if (authStage === 'email') {
+      const response = await fetch(`${apiBaseUrl}/api/v1/auth/request-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!response.ok) throw new Error(response.status === 429 ? 'Zu viele Versuche. Bitte warten Sie einige Minuten.' : 'Der Code konnte nicht zugestellt werden. Bitte prüfen Sie die Adresse.');
+      authStage = 'code';
+      authCodeGroup.classList.remove('hidden');
+      authCode.required = true;
+      authSubmit.textContent = 'Code bestätigen';
+      setAuthStatus('Wir haben Ihnen einen sechsstelligen Code geschickt. Er ist 10 Minuten gültig.');
+      authCode.focus();
+    } else {
+      const response = await fetch(`${apiBaseUrl}/api/v1/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: authCode.value.trim() })
+      });
+      if (!response.ok) throw new Error(response.status === 429 ? 'Zu viele Versuche. Bitte später erneut versuchen.' : 'Der Code ist ungültig oder abgelaufen.');
+      const result = await response.json();
+      if (!result.access_token) throw new Error('Die Anmeldung konnte nicht abgeschlossen werden.');
+      await setSignedIn(result.access_token);
+      authCode.value = '';
+      authCode.required = false;
+      authCodeGroup.classList.add('hidden');
+      authSubmit.textContent = 'Code per E-Mail senden';
+      authStage = 'email';
+    }
+  } catch (error) {
+    setAuthStatus(error.message || 'Die Anmeldung ist fehlgeschlagen.', true);
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+function startSocialLogin(provider) {
+  const url = `${apiBaseUrl}/api/v1/auth/oauth/${provider}/start`;
+  oauthPopup = window.open(url, `s2m-${provider}-login`, 'popup,width=520,height=680');
+  if (!oauthPopup) setAuthStatus('Bitte erlauben Sie Pop-up-Fenster und versuchen Sie es erneut.', true);
 }
 
-const btnLinkedinLogin = document.getElementById('btn-linkedin-login');
-const btnFacebookLogin = document.getElementById('btn-facebook-login');
+document.getElementById('btn-google-login')?.addEventListener('click', () => startSocialLogin('google'));
+document.getElementById('btn-linkedin-login')?.addEventListener('click', () => startSocialLogin('linkedin'));
+document.getElementById('btn-facebook-login')?.addEventListener('click', () => startSocialLogin('facebook'));
 
-if (magicLinkForm) {
-  magicLinkForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    alert(`✓ Anmeldelink wurde an ${email} gesendet!\n\nPrüfen Sie Ihr Postfach, um sich ohne Passwort anzumelden und Ihre 3 kostenlosen Konvertierungen zu nutzen.`);
-    authModal.classList.add('hidden');
-  });
+async function showConfiguredSocialProviders() {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/oauth/providers`);
+    if (!response.ok) return;
+    const data = await response.json();
+    const available = new Set(data.providers || []);
+    if (!available.size) return;
+    for (const provider of ['google', 'linkedin', 'facebook']) {
+      const button = document.getElementById(`btn-${provider}-login`);
+      if (button) button.style.display = available.has(provider) ? '' : 'none';
+    }
+    document.getElementById('social-auth-stack').style.display = '';
+    document.getElementById('social-auth-divider').style.display = '';
+  } catch (_) { /* Email sign-in remains available if provider status cannot be fetched. */ }
 }
+showConfiguredSocialProviders();
 
-if (btnGoogleLogin) {
-  btnGoogleLogin.addEventListener('click', () => {
-    alert('✓ Erfolgreich mit Google angemeldet!\n\nIhr Account wurde aktiviert. Sie haben 3 kostenlose Konvertierungen zur Verfügung.');
-    authModal.classList.add('hidden');
-  });
-}
-
-if (btnLinkedinLogin) {
-  btnLinkedinLogin.addEventListener('click', () => {
-    alert('✓ Erfolgreich mit LinkedIn angemeldet!\n\nIhr Kanzlei- & B2B-Profil wurde verifiziert. Sie können sofort starten.');
-    authModal.classList.add('hidden');
-  });
-}
-
-if (btnFacebookLogin) {
-  btnFacebookLogin.addEventListener('click', () => {
-    alert('✓ Erfolgreich mit Facebook angemeldet!\n\nIhr Account wurde aktiviert. Sie haben 3 kostenlose Konvertierungen zur Verfügung.');
-    authModal.classList.add('hidden');
-  });
-}
+window.addEventListener('message', async event => {
+  if (event.origin !== new URL(apiBaseUrl).origin || event.source !== oauthPopup) return;
+  const data = event.data;
+  if (!data || data.type !== 'statement2muster:oauth') return;
+  try {
+    if (data.access_token) await setSignedIn(data.access_token);
+    else if (data.pending_token && data.email) {
+      pendingSocialToken = data.pending_token;
+      authEmail.value = data.email;
+      authEmail.readOnly = true;
+      authStage = 'email';
+      authCodeGroup.classList.add('hidden');
+      authSubmit.textContent = 'Code per E-Mail senden';
+      showAuthModal();
+      setAuthStatus('Bestätigen Sie einmalig Ihre E-Mail-Adresse, um das Profil zu verknüpfen.');
+    } else setAuthStatus(data.error || 'Die Anmeldung konnte nicht abgeschlossen werden.', true);
+  } catch (error) { setAuthStatus(error.message, true); }
+  oauthPopup = null;
+});
 
 // ==========================================================================
 // 6. Legal Modal (Impressum / Datenschutz / AGB / AVV)

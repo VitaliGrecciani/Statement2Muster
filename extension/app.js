@@ -288,6 +288,7 @@ async function checkBackendHealth() {
         backendOnline = true;
         serverStatusBadge.className = 'server-badge online';
         serverStatusText.textContent = 'Server Engine aktiv';
+        refreshEntitlementDisplay();
         return true;
       }
     } catch (e) {
@@ -1754,11 +1755,14 @@ function initAuthState() {
 }
 
 function applyLoggedInState(user) {
+  const plan = (user.plan || 'trial').toLowerCase();
+  const proFeatures = ['pro', 'lifetime', 'kanzlei_trial'].includes(plan);
+  const planLabel = plan === 'kanzlei_trial' ? 'Kanzleitest aktiv' : plan === 'trial' ? 'Kostenloser Zugang' : plan === 'pro' ? 'Business PRO' : plan === 'lifetime' ? 'Lifetime' : plan === 'starter' ? 'Starter' : 'Account';
   if (authBtnLabel) authBtnLabel.textContent = user.name || 'Account';
   if (btnOpenAuth) btnOpenAuth.classList.add('logged-in');
-  if (limitPulseDot) limitPulseDot.classList.add('pro');
+  if (limitPulseDot) limitPulseDot.classList.toggle('pro', proFeatures);
   if (limitMainLabel) {
-    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">⭐ PRO Aktiv (${escapeHtml(user.plan || 'PRO')})</strong>`;
+    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">${escapeHtml(planLabel)}</strong>`;
   }
 }
 
@@ -1771,6 +1775,33 @@ function applyLoggedOutState() {
     if (limitMainLabel) {
       limitMainLabel.innerHTML = `Testphase: <strong>${count} Auszüge frei</strong>`;
     }
+  });
+}
+
+let lastEntitlementCheck = 0;
+function refreshEntitlementDisplay() {
+  if (Date.now() - lastEntitlementCheck < 60000) return;
+  lastEntitlementCheck = Date.now();
+  chrome.storage.local.get(['authToken', 'userSession'], async result => {
+    if (!result.authToken || !result.userSession?.isLoggedIn) return;
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/me/entitlements`, {
+        headers: { Authorization: `Bearer ${result.authToken}` }
+      });
+      if (response.status === 401) {
+        if (limitMainLabel) limitMainLabel.textContent = 'Sitzung abgelaufen. Bitte erneut anmelden.';
+        return;
+      }
+      if (!response.ok) return;
+      const entitlement = await response.json();
+      if (entitlement.plan === 'kanzlei_trial' && limitMainLabel) {
+        const remaining = Number(entitlement.remaining_units) || 0;
+        const end = entitlement.valid_until ? new Date(entitlement.valid_until).toLocaleDateString('de-DE') : null;
+        limitMainLabel.textContent = end
+          ? `Kanzleitest: ${remaining} Auszüge frei · bis ${end}`
+          : `Kanzleitest: ${remaining} Auszüge frei · 30 Tage ab dem ersten Erfolg`;
+      }
+    } catch (_) { /* Keep the previous status while offline. */ }
   });
 }
 
@@ -1900,6 +1931,8 @@ if (btnVerifyOtp) {
         userSession: user
       }, () => {
         applyLoggedInState(user);
+        lastEntitlementCheck = 0;
+        refreshEntitlementDisplay();
         if (extAuthModal) extAuthModal.classList.add('hidden');
       });
     } catch (err) {

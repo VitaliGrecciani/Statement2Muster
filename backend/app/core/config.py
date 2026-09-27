@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD", None)
     SMTP_FROM: str = os.getenv("SMTP_FROM", "no-reply@statement2muster.com")
     
+    # Web OAuth provider settings. Secrets are supplied only through server environment.
+    PUBLIC_WEB_ORIGIN: str = "https://www.statement2muster.com"
+    PUBLIC_API_ORIGIN: str = "https://api.statement2muster.com"
+    OAUTH_SESSION_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    LINKEDIN_CLIENT_ID: Optional[str] = None
+    LINKEDIN_CLIENT_SECRET: Optional[str] = None
+    FACEBOOK_CLIENT_ID: Optional[str] = None
+    FACEBOOK_CLIENT_SECRET: Optional[str] = None
+
     # Stripe Billing Secrets
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "sk_test_mock")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_mock")
@@ -66,6 +77,9 @@ class Settings(BaseSettings):
             self.DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_env}"
         if self.ENVIRONMENT.lower() == "production" and self.EMAIL_BACKEND.lower() == "memory":
             raise ValueError("EMAIL_BACKEND cannot be 'memory' in production environment. Configure SMTP delivery.")
+        oauth_enabled = any((self.GOOGLE_CLIENT_ID, self.LINKEDIN_CLIENT_ID, self.FACEBOOK_CLIENT_ID))
+        if self.ENVIRONMENT.lower() == "production" and oauth_enabled and not self.OAUTH_SESSION_SECRET:
+            raise ValueError("OAUTH_SESSION_SECRET is required when social login is enabled in production.")
         return self
 
     def get_jwt_keys(self):

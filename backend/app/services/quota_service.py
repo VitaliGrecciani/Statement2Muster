@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from app.db.models import Entitlement, UsageReservation, Tenant
 from app.core.config import settings
 
-PLAN_PRIORITY = {"lifetime": 1, "pro": 2, "starter": 3, "trial": 4}
+PLAN_PRIORITY = {"lifetime": 1, "pro": 2, "starter": 3, "kanzlei_trial": 4, "trial": 5}
 
 async def get_or_create_trial_entitlement(db: AsyncSession, tenant_id: str) -> Entitlement:
     """Ensures each tenant has an initial trial or active entitlement, prioritizing paid plans."""
@@ -144,6 +144,26 @@ async def check_and_reserve_quota(
                 detail=f"Batch exceeds remaining Free Trial allowance ({remaining} file(s) left)."
             )
 
+    elif plan == "kanzlei_trial":
+        # Count only work performed after this invitation was redeemed.
+        invite_start = ent.created_at.replace(tzinfo=None) if ent.created_at.tzinfo else ent.created_at
+        sum_query = select(func.coalesce(func.sum(UsageReservation.units), 0)).where(
+            and_(
+                UsageReservation.tenant_id == tenant_id,
+                UsageReservation.created_at >= invite_start,
+                or_(
+                    UsageReservation.status == "COMMITTED",
+                    and_(UsageReservation.status == "RESERVED", UsageReservation.created_at >= pending_cutoff_val)
+                )
+            )
+        )
+        used = (await db.execute(sum_query)).scalar()
+        if used + file_count > 20:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Kanzleitest: {max(0, 20 - used)} Auszug/Auszüge verbleiben."
+            )
+
     elif plan == "starter":
         # 20 files per billing period:
         # Align with current subscription billing cycle (Section 3)
@@ -232,9 +252,15 @@ async def check_and_reserve_quota(
 async def commit_quota(db: AsyncSession, reservation: UsageReservation, successful_count: int):
     """Marks quota reservation as successfully committed."""
     if successful_count > 0:
+        now = datetime.datetime.now(datetime.timezone.utc)
         reservation.units = successful_count
         reservation.status = "COMMITTED"
-        reservation.committed_at = datetime.datetime.now(datetime.timezone.utc)
+        reservation.committed_at = now
+        # Start the 30-day window only after the first successful file.
+        entitlement = await get_or_create_trial_entitlement(db, reservation.tenant_id)
+        if entitlement.plan_code.lower() == "kanzlei_trial" and entitlement.current_period_start is None:
+            entitlement.current_period_start = now.replace(tzinfo=None)
+            entitlement.valid_until = (now + datetime.timedelta(days=30)).replace(tzinfo=None)
     else:
         reservation.status = "RELEASED"
     try:

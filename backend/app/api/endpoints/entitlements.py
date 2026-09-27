@@ -39,6 +39,19 @@ async def get_my_entitlements(
         used_units = (await db.execute(sum_query)).scalar()
         remaining_units = max(0, quota_limit - used_units)
 
+    elif plan == "kanzlei_trial":
+        quota_limit = 20
+        invite_start = ent.created_at.replace(tzinfo=None) if ent.created_at.tzinfo else ent.created_at
+        sum_query = select(func.coalesce(func.sum(UsageReservation.units), 0)).where(
+            and_(
+                UsageReservation.tenant_id == tenant_id,
+                UsageReservation.status == "COMMITTED",
+                UsageReservation.created_at >= invite_start
+            )
+        )
+        used_units = (await db.execute(sum_query)).scalar()
+        remaining_units = max(0, quota_limit - used_units)
+
     elif plan == "starter":
         quota_limit = 20
         if ent.current_period_start:
@@ -60,15 +73,15 @@ async def get_my_entitlements(
         used_units = (await db.execute(sum_query)).scalar()
         remaining_units = max(0, quota_limit - used_units)
 
-    elif plan in ("pro", "lifetime"):
+    elif plan in ("pro", "lifetime", "kanzlei_trial"):
         quota_limit = "unlimited"
         remaining_units = "unlimited"
 
     capabilities = {
-        "multi_upload": plan in ("pro", "lifetime"),
-        "anti_mix_guard": plan in ("pro", "lifetime"),
-        "priority_support": plan in ("pro", "lifetime"),
-        "batch_dedup": plan in ("pro", "lifetime")
+        "multi_upload": plan in ("pro", "lifetime", "kanzlei_trial"),
+        "anti_mix_guard": plan in ("pro", "lifetime", "kanzlei_trial"),
+        "priority_support": plan in ("pro", "lifetime", "kanzlei_trial"),
+        "batch_dedup": plan in ("pro", "lifetime", "kanzlei_trial")
     }
 
     return {

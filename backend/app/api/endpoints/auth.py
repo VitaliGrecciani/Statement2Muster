@@ -4,7 +4,7 @@ import datetime
 from typing import Optional
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, case, or_
 from app.db.session import get_db
@@ -18,10 +18,21 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 class RequestCodeRequest(BaseModel):
     email: EmailStr
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value):
+        return str(value).strip().lower()
+
+
 class TokenRequest(BaseModel):
     email: EmailStr
     code: Optional[str] = None # One-time code from launchWebAuthFlow / request-code
     session_id: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value):
+        return str(value).strip().lower()
 
 class TokenResponse(BaseModel):
     access_token: str
