@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Statement2Muster • Prüf- und Importassistent für Bankauszüge</title>
-  <meta name="description" content="Bank- und Kreditkartenauszüge aufbereiten, verfügbare Salden abgleichen, mögliche Dubletten erkennen und für DATEV oder BMD exportieren.">
+  <meta name="description" content="Bankauszüge für DATEV und BMD vorbereiten. Statement2Muster prüft Salden, zeigt mögliche Doppelbuchungen und meldet Probleme vor dem Export.">
   <link rel="canonical" href="https://www.statement2muster.com/">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="google-site-verification" content="google4071b0a280233f13">
@@ -13,7 +13,7 @@
   <meta property="og:locale" content="de_DE">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Statement2Muster • Prüf- und Importassistent für Bankauszüge">
-  <meta property="og:description" content="Bank- und Kreditkartenauszüge aufbereiten, verfügbare Salden abgleichen, mögliche Dubletten erkennen und für DATEV oder BMD exportieren.">
+  <meta property="og:description" content="Bankauszüge für DATEV und BMD vorbereiten. Statement2Muster prüft Salden, zeigt mögliche Doppelbuchungen und meldet Probleme vor dem Export.">
   <meta property="og:url" content="https://www.statement2muster.com/">
   <meta property="og:site_name" content="Statement2Muster DACH">
   <meta property="og:image" content="https://www.statement2muster.com/apple-touch-icon.png">
@@ -21,7 +21,7 @@
   <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Statement2Muster • Prüf- und Importassistent">
-  <meta name="twitter:description" content="Bank- und Kreditkartenauszüge aufbereiten, prüfen und für DATEV oder BMD exportieren.">
+  <meta name="twitter:description" content="Bankauszüge prüfen und für DATEV oder BMD vorbereiten.">
   <meta name="twitter:image" content="https://www.statement2muster.com/apple-touch-icon.png">
 
   <!-- Favicons -->
@@ -45,7 +45,7 @@
         "url": "https://www.statement2muster.com/",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web, Google Chrome, Microsoft Edge, Mozilla Firefox",
-        "description": "Prüf- und Importassistent für Bank- und Kreditkartenauszüge: Salden abgleichen, mögliche Dubletten erkennen und Daten für DATEV oder BMD vorbereiten.",
+        "description": "Statement2Muster bereitet Bankauszüge für DATEV und BMD vor und zeigt Saldenabweichungen und mögliche Doppelbuchungen.",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -67,7 +67,7 @@
             "name": "Wie sicher sind meine Bank- und Kreditkartendaten?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Ihre Daten sind maximal geschützt: Wir nutzen ein striktes In-Memory-Verfahren. Das bedeutet, dass Ihre Auszugsdateien ausschließlich flüchtig im Arbeitsspeicher unserer ISO-27001-zertifizierten Server in Frankfurt am Main verarbeitet und sofort nach der Generierung der CSV-Datei restlos gelöscht werden."
+              "text": "Auszugsdateien werden während der Verarbeitung im Arbeitsspeicher unseres Servers in Frankfurt gehalten. Sie werden nicht dauerhaft als Datei oder in einer Datenbank gespeichert."
             }
           },
           {
@@ -75,7 +75,7 @@
             "name": "Wie bereitet Statement2Muster den Import in DATEV und BMD vor?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Die erzeugten CSV-Dateien orientieren sich am Format für DATEV und BMD (Belegdatum, Buchungstext, Betrag mit Komma, Währung EUR, Belegnummer) und sind in Windows-1252 codiert, sodass alle deutschen Umlaute (ä, ö, ü, ß) einwandfrei eingelesen werden."
+              "text": "Statement2Muster erstellt CSV-Dateien für DATEV und BMD mit Buchungsdatum, Text und Betrag. Prüfen Sie die Datei vor dem Import, besonders Kontenzuordnung und Buchungstexte."
             }
           },
           {
@@ -83,7 +83,7 @@
             "name": "Was ist der Anti-Mix Guard?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Wenn Sie versehentlich mehrere PDF-Dateien hochladen, die zu unterschiedlichen Firmen oder verschiedenen Kreditkartenkonten gehören, erkennt unser Algorithmus dies sofort. Er warnt Sie und bietet Ihnen an, getrennte DATEV-Dateien pro Firma mit nur einem Klick herunterzuladen."
+              "text": "Werden Auszüge verschiedener Konten zusammen hochgeladen, zeigt Statement2Muster einen Hinweis. Ein gemeinsamer DATEV- oder BMD-Export wird dann gestoppt."
             }
           },
           {
@@ -91,7 +91,7 @@
             "name": "Wie funktioniert die Kündigung?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Sie können Ihr Abonnement jederzeit mit einem einzigen Klick im Kundenportal zum Ende des jeweiligen Abrechnungszeitraums kündigen. Es gibt keine versteckten Fristen oder Mindestlaufzeiten über den gewählten Zeitraum hinaus."
+              "text": "Sie können Ihr Abo im Kundenportal kündigen. Es endet zum Ablauf des bereits bezahlten Zeitraums."
             }
           }
         ]
@@ -151,11 +151,11 @@
       </div>
 
       <h1 class="hero-title">
-        Bank- und Kreditkartenauszüge <span class="gradient-text">aufbereiten, prüfen</span> und für die Buchhaltung exportieren.
+        <span class="gradient-text">Bankauszüge prüfen</span>, bevor sie in die Buchhaltung gehen.
       </h1>
 
       <p class="hero-subtitle">
-        <strong>Statement2Muster — Ihr Prüf- und Importassistent.</strong> Bereiten Sie Amex-, Wise- und unterstützte Bankauszüge strukturiert auf. Gleichen Sie verfügbare Anfangs- und Endsalden ab, erkennen Sie mögliche Dubletten und prüfen Sie Hinweise vor dem Export für DATEV oder BMD.
+        Laden Sie einen Auszug von Amex, Wise oder einer anderen unterstützten Bank hoch. Statement2Muster zeigt mögliche Doppelbuchungen und gleicht Anfangs- und Endsaldo ab, falls beide angegeben sind. Bei Saldenabweichungen oder fehlerhaften Dateien wird der Export für DATEV oder BMD gestoppt.
       </p>
 
       <!-- Browser Store CTA Badges -->
@@ -208,7 +208,7 @@
       <div class="safety-disclaimer-banner glass-card">
         <div class="safety-disclaimer-icon">🛡️</div>
         <div class="safety-disclaimer-text">
-          <strong>Sicherheits-Garantie:</strong> Statement2Muster unterstützt die Prüfung und Aufbereitung von Bank- und Kreditkartenauszügen für die Buchhaltung. Auszüge werden flüchtig im Arbeitsspeicher (In-Memory) verarbeitet und niemals dauerhaft gespeichert. <strong>Wir verbinden uns nicht mit Bankkonten, fragen niemals nach Passwörtern oder PINs</strong> und führen keine Finanztransaktionen durch.
+          <strong>Datenschutz bei der Verarbeitung:</strong> Statement2Muster verarbeitet hochgeladene Bank- und Kreditkartenauszüge für den Buchhaltungsexport. Auszüge werden flüchtig im Arbeitsspeicher (In-Memory) verarbeitet und niemals dauerhaft gespeichert. <strong>Wir verbinden uns nicht mit Bankkonten, fragen niemals nach Passwörtern oder PINs</strong> und führen keine Finanztransaktionen durch.
         </div>
       </div>
 
@@ -217,8 +217,8 @@
         <div class="demo-card glass-card">
           <div class="demo-header">
             <div class="demo-header-title">
-              <span class="demo-badge">Auszüge prüfen & exportieren</span>
-              <h3>Testen Sie die Aufbereitung Ihrer Auszüge (3 kostenlose Versuche)</h3>
+              <span class="demo-badge">Beispiel ansehen</span>
+              <h3>Testen Sie einen Auszug. Drei Versuche sind kostenlos.</h3>
             </div>
             <div class="demo-sample-cta">
               <button id="btn-load-sample" class="btn-sample">
@@ -254,7 +254,7 @@
           <div id="demo-result" class="demo-result hidden">
             <div class="demo-result-bar">
               <div class="result-stats">
-                <span class="badge-success">✓ Konvertierung erfolgreich</span>
+                <span class="badge-success">✓ Exportdatei erstellt</span>
                 <span class="result-count"><strong id="demo-count">25</strong> Buchungen</span>
                 <span class="result-sum">Summe: <strong id="demo-sum">-7.476,21 €</strong></span>
               </div>
@@ -292,8 +292,8 @@
   <!-- Supported Systems Ecosystem -->
   <section class="ecosystem-section">
     <div class="section-header-center">
-      <p class="section-tag">Kompatibilität & Ökosystem</p>
-      <h2>Nahtlose Integration in Ihre bestehende Buchhaltungs-Software</h2>
+      <p class="section-tag">Exportformate</p>
+      <h2>Für Ihre Buchhaltungssoftware</h2>
     </div>
     <div class="logo-grid">
       <div class="logo-pill"><span>DATEV</span></div>
@@ -310,7 +310,7 @@
   <section id="features" class="features-section">
     <div class="section-header-center">
       <p class="section-tag">Warum Statement2Muster?</p>
-      <h2>Auszüge vorbereiten, Prüfergebnis verstehen, Daten exportieren</h2>
+      <h2>Was vor dem Export geprüft wird</h2>
     </div>
 
     <div class="features-grid">
@@ -320,8 +320,8 @@
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
         </div>
-        <h3>Auszüge für einen Zeitraum vorbereiten</h3>
-        <p>Laden Sie 12 Monatsauszüge oder Quartalsbelege auf einmal hoch. Das System führt alle Buchungen chronologisch in eine saubere Datei zusammen.</p>
+        <h3>Mehrere Monate in einem Durchgang</h3>
+        <p>Laden Sie bis zu 12 Monatsauszüge hoch. Die Buchungen werden nach Datum sortiert und für den Export zusammengeführt.</p>
       </div>
 
       <div class="feature-card glass-card">
@@ -330,8 +330,8 @@
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
         </div>
-        <h3>Gemischte Konten erkennen</h3>
-        <p>Warnt, wenn ein Stapel Auszüge aus verschiedenen Konten enthält. So können Sie die Zuordnung prüfen, bevor Sie Buchungen exportieren.</p>
+        <h3>Auszüge verschiedener Konten</h3>
+        <p>Enthält ein Stapel mehrere Konten, erscheint ein Hinweis. Für den Buchhaltungsexport müssen die Buchungen einem Konto zugeordnet sein.</p>
       </div>
 
       <div class="feature-card glass-card">
@@ -340,8 +340,8 @@
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
-        <h3>Mögliche Dubletten finden</h3>
-        <p>Vergleicht Datum, Betrag, Text und Währung und weist auf mögliche doppelte Buchungen hin. Die betreffenden Vorgänge bleiben für Ihre Prüfung erhalten.</p>
+        <h3>Mögliche Doppelbuchungen</h3>
+        <p>Gleiche Buchungen können in zwei Monatsauszügen vorkommen. Statement2Muster zählt solche Treffer; die Buchungen bleiben zur Kontrolle erhalten.</p>
       </div>
 
       <div class="feature-card glass-card">
@@ -351,8 +351,8 @@
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
         </div>
-        <h3>Verfügbare Salden abgleichen</h3>
-        <p>Wenn Anfangs- und Endsaldo vorliegen, prüft Statement2Muster, ob Anfangssaldo plus Kontobewegungen dem Endsaldo entspricht. Das Ergebnis zeigt: ausgeglichen, Abweichung oder mangels Salden nicht prüfbar.</p>
+        <h3>Stimmen die Salden?</h3>
+        <p>Sind Anfangs- und Endsaldo vorhanden, rechnet Statement2Muster nach: Anfangssaldo plus Buchungen gleich Endsaldo? Das Ergebnis lautet „stimmt“, „Abweichung“ oder „nicht prüfbar“.</p>
       </div>
 
       <div class="feature-card glass-card">
@@ -363,8 +363,8 @@
             <line x1="12" y1="17" x2="12" y2="21"></line>
           </svg>
         </div>
-        <h3>Browser Sidepanel (Chrome, Edge & Firefox)</h3>
-        <p>Direkt aus der Seitenleiste während der Mandantenprüfung arbeiten oder die komfortable Vollbild-Web-App nutzen.</p>
+        <h3>Im Browser verfügbar</h3>
+        <p>Öffnen Sie Statement2Muster im Browser oder in der Seitenleiste von Chrome, Edge und Firefox.</p>
         <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
           <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener" style="font-size: 11.5px; font-weight: 700; color: #ff9d66; text-decoration: none;">➔ Chrome & Edge Store</a>
           <span style="color: rgba(255,255,255,0.2);">•</span>
@@ -379,8 +379,8 @@
             <polyline points="22 4 12 14.01 9 11.01"></polyline>
           </svg>
         </div>
-        <h3>Probleme vor dem Export erkennen</h3>
-        <p>Nicht lesbare Dateien, fehlende Daten, gemischte Konten oder Währungen und festgestellte Saldenabweichungen können den Buchhaltungsexport stoppen. Prüfen Sie die Hinweise und erstellen Sie anschließend die Datei für DATEV oder BMD.</p>
+        <h3>Export erst nach der Prüfung</h3>
+        <p>Bei nicht lesbaren Dateien, fehlenden Daten, mehreren Konten oder Währungen sowie Saldenabweichungen wird der Export gestoppt. Im Prüfergebnis steht, was korrigiert werden muss.</p>
       </div>
     </div>
   </section>
@@ -389,9 +389,9 @@
   <section id="calculator" class="calculator-section">
     <div class="calc-container glass-card">
       <div class="calc-left">
-        <p class="section-tag">Wirtschaftlichkeit</p>
-        <h2>Wie viel Arbeitszeit und Kosten sparen Sie?</h2>
-        <p class="calc-desc">Die manuelle Aufbereitung und Korrektur von Kreditkarten-Auszügen kostet Steuerkanzleien und Unternehmen im Schnitt <strong>15–20 Minuten pro Auszug</strong>.</p>
+        <p class="section-tag">Zeitaufwand</p>
+        <h2>Was kostet die Vorbereitung von Auszügen?</h2>
+        <p class="calc-desc">Beispielrechnung mit <strong>19,5 Minuten manueller Arbeit pro Auszug</strong>. Tragen Sie ein, wie viele Auszüge Sie monatlich bearbeiten.</p>
         
         <div class="slider-group">
           <div class="slider-label-row">
@@ -406,15 +406,15 @@
         <div class="roi-metric-box">
           <div class="metric-item">
             <span class="metric-num" id="hours-saved">6,5 Std.</span>
-            <span class="metric-label">Eingesparte Arbeitszeit / Monat</span>
+            <span class="metric-label">Rechnerische Arbeitszeit pro Monat</span>
           </div>
           <div class="metric-divider"></div>
           <div class="metric-item">
             <span class="metric-num text-gradient" id="money-saved">520 €</span>
-            <span class="metric-label">Geschätzte Ersparnis / Monat (bei 80€/Std.)</span>
+            <span class="metric-label">Rechnerischer Wert bei 80 € pro Stunde</span>
           </div>
         </div>
-        <p class="roi-footnote">Berechnungsgrundlage: Durchschnittlicher Stundensatz für Buchhaltung / Steuerfachangestellte im DACH-Raum.</p>
+        <p class="roi-footnote">Rechenbeispiel mit 19,5 Minuten und 80 € pro Stunde. Ihr tatsächlicher Zeitaufwand kann abweichen.</p>
       </div>
     </div>
   </section>
@@ -422,25 +422,25 @@
   <!-- Security & Compliance Hub -->
   <section id="security" class="security-section">
     <div class="section-header-center">
-      <p class="section-tag">100% DSGVO & Datenschutz</p>
-      <h2>Höchste europäische Sicherheitsstandards für sensible Finanzdaten</h2>
+      <p class="section-tag">Datenschutz</p>
+      <h2>So werden Ihre Auszüge verarbeitet</h2>
     </div>
 
     <div class="security-grid">
       <div class="sec-card glass-card">
         <div class="sec-icon">🛡️</div>
-        <h4>Flüchtige In-Memory-Verarbeitung</h4>
+        <h4>Verarbeitung im Arbeitsspeicher</h4>
         <p>Ihre Auszugs-Dateien werden <strong>weder auf Festplatten noch in Datenbanken gespeichert</strong>. Nach der Generierung der DATEV-CSV wird der Arbeitsspeicher sofort freigegeben.</p>
       </div>
       <div class="sec-card glass-card">
         <div class="sec-icon">🇩🇪</div>
         <h4>Serverstandort Deutschland (Hetzner)</h4>
-        <p>Unsere Server stehen im ISO-27001-zertifizierten Rechenzentrum in Frankfurt am Main. Es findet kein Datentransfer in Drittländer statt.</p>
+        <p>Die Verarbeitung läuft auf Servern von Hetzner in Frankfurt am Main. Weitere Angaben zur Datenverarbeitung stehen in der Datenschutzerklärung.</p>
       </div>
       <div class="sec-card glass-card">
         <div class="sec-icon">🇦🇹</div>
-        <h4>Österreichische & Deutsche Rechtskonformität</h4>
-        <p>Entspricht allen Vorgaben der EU-DSGVO, des österreichischen ECG/MedienG und des deutschen DDG. AVV-Vertrag nach Art. 28 DSGVO auf Knopfdruck abrufbar.</p>
+        <h4>Datenschutzunterlagen</h4>
+        <p>Informationen zur Datenverarbeitung finden Sie in der Datenschutzerklärung. Der AVV-Vertrag nach Art. 28 DSGVO steht ebenfalls bereit.</p>
       </div>
     </div>
   </section>
@@ -448,8 +448,8 @@
   <!-- Pricing Plans -->
   <section id="pricing" class="pricing-section">
     <div class="section-header-center">
-      <p class="section-tag">Transparente Preise</p>
-      <h2>Faire Tarife für jede Unternehmensgröße</h2>
+      <p class="section-tag">Preise</p>
+      <h2>Wählen Sie den passenden Tarif</h2>
     </div>
 
     <div class="pricing-grid">
@@ -486,7 +486,7 @@
         </div>
         <ul class="price-features">
           <li>✓ <strong>Bis zu 20 Auszüge pro Monat</strong></li>
-          <li>✓ Alle Banken & Kreditkarten</li>
+          <li>✓ Unterstützte Banken & Kreditkarten</li>
           <li>✓ DATEV- & BMD-Export</li>
           <li>✓ E-Mail-Support</li>
         </ul>
@@ -528,9 +528,9 @@
         </div>
         <ul class="price-features">
           <li>✓ <strong>Lebenslanger Zugriff & Updates</strong></li>
-          <li>✓ <strong>Alle zukünftigen Banken inklusive</strong></li>
+          <li>✓ <strong>Neue unterstützte Formate inklusive</strong></li>
           <li>✓ Multi-Upload & Anti-Mix Guard</li>
-          <li>✓ Volle DATEV- & BMD-Kompatibilität</li>
+          <li>✓ DATEV- & BMD-Export</li>
           <li>✓ Keine wiederkehrenden Gebühren</li>
         </ul>
         <a id="btn-link-lifetime" href="https://buy.stripe.com/14A00j6jrfzX2v0bOLebu05" target="_blank" rel="noopener noreferrer" class="btn-price-free" style="background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(168,85,247,0.2) 100%); border-color: rgba(168,85,247,0.4);">Lifetime sichern</a>
@@ -547,8 +547,8 @@
   <!-- FAQ Accordion -->
   <section id="faq" class="faq-section">
     <div class="section-header-center">
-      <p class="section-tag">Häufig gestellte Fragen</p>
-      <h2>Alles, was Sie über Statement2Muster wissen müssen</h2>
+      <p class="section-tag">Fragen und Antworten</p>
+      <h2>Häufige Fragen</h2>
     </div>
 
     <div class="faq-accordion">
@@ -558,17 +558,17 @@
           <span class="faq-arrow">+</span>
         </button>
         <div class="faq-answer">
-          <p>Ihre Daten sind maximal geschützt: Wir nutzen ein striktes In-Memory-Verfahren. Das bedeutet, dass Ihre Auszugsdateien ausschließlich flüchtig im Arbeitsspeicher unserer ISO-27001-zertifizierten Server in Frankfurt am Main verarbeitet und sofort nach der Generierung der CSV-Datei restlos gelöscht werden.</p>
+          <p>Auszugsdateien werden während der Verarbeitung im Arbeitsspeicher unseres Servers in Frankfurt gehalten. Sie werden nicht dauerhaft als Datei oder in einer Datenbank gespeichert.</p>
         </div>
       </div>
 
       <div class="faq-item glass-card">
         <button class="faq-question">
-          <span>Funktioniert der Import in DATEV und BMD ohne Fehler?</span>
+          <span>Wie bereitet Statement2Muster den Import in DATEV und BMD vor?</span>
           <span class="faq-arrow">+</span>
         </button>
         <div class="faq-answer">
-          <p>Ja! Die erzeugten CSV-Dateien entsprechen exakt dem von DATEV und BMD geforderten Format (Belegdatum, Buchungstext, Betrag mit Komma, Währung EUR, Belegnummer) und sind in Windows-1252 codiert, sodass alle deutschen Umlaute (ä, ö, ü, ß) einwandfrei eingelesen werden.</p>
+          <p>Statement2Muster erstellt CSV-Dateien für DATEV und BMD mit Buchungsdatum, Text und Betrag. Prüfen Sie die Datei vor dem Import, besonders Kontenzuordnung und Buchungstexte.</p>
         </div>
       </div>
 
@@ -578,7 +578,7 @@
           <span class="faq-arrow">+</span>
         </button>
         <div class="faq-answer">
-          <p>Wenn Sie versehentlich mehrere PDF-Dateien hochladen, die zu unterschiedlichen Firmen oder verschiedenen Kreditkartenkonten gehören, erkennt unser Algorithmus dies sofort. Er warnt Sie und bietet Ihnen an, getrennte DATEV-Dateien pro Firma mit nur einem Klick herunterzuladen.</p>
+          <p>Werden Auszüge verschiedener Konten zusammen hochgeladen, zeigt Statement2Muster einen Hinweis. Ein gemeinsamer DATEV- oder BMD-Export wird dann gestoppt.</p>
         </div>
       </div>
 
@@ -588,7 +588,7 @@
           <span class="faq-arrow">+</span>
         </button>
         <div class="faq-answer">
-          <p>Sie können Ihr Abonnement jederzeit mit einem einzigen Klick im Kundenportal zum Ende des jeweiligen Abrechnungszeitraums kündigen. Es gibt keine versteckten Fristen oder Mindestlaufzeiten über den gewählten Zeitraum hinaus.</p>
+          <p>Sie können Ihr Abo im Kundenportal kündigen. Es endet zum Ablauf des bereits bezahlten Zeitraums.</p>
         </div>
       </div>
     </div>
@@ -600,7 +600,7 @@
       <button id="btn-close-modal" class="btn-close-modal" aria-label="Schließen">✕</button>
       <div class="modal-header">
         <h3>Willkommen bei Statement<span class="brand-accent">2</span>Muster</h3>
-        <p>Melden Sie sich an, um Ihre Auszüge zu verwalten und unbegrenzt zu konvertieren.</p>
+        <p>Melden Sie sich an, um Auszüge zu prüfen und Exporte zu verwalten.</p>
       </div>
 
       <div class="modal-body">
@@ -677,7 +677,7 @@
             <span class="brand-title" style="font-size: 19px;">Statement<span class="brand-accent">2</span>Muster</span>
             <span class="badge-tag">DACH</span>
           </div>
-          <p>Prüf- und Importassistent für Bank- und Kreditkartenauszüge im DACH-Raum.</p>
+          <p>Bankauszüge prüfen und für DATEV oder BMD vorbereiten.</p>
         </div>
 
         <div class="footer-links-col">
@@ -690,7 +690,7 @@
 
         <div class="footer-links-col">
           <h4>Produkt</h4>
-          <a href="#demo">Auszüge prüfen & exportieren</a>
+          <a href="#demo">Auszug testen</a>
           <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener">Chrome & Edge Extension</a>
           <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener">Firefox Add-on</a>
           <a href="#features">Funktionen</a>
