@@ -1671,22 +1671,23 @@ body {
 .footer-wrapper {
   background: rgba(10, 8, 7, 0.85);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 60px 20px 30px;
-  margin-top: 100px;
+  padding: 48px 24px 24px;
+  margin-top: 56px;
   position: relative;
   z-index: 10;
 }
 
 .footer-container {
-  max-width: 1140px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
 .footer-top {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 40px;
-  margin-bottom: 40px;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(170px, 0.9fr) minmax(250px, 1.2fr);
+  gap: clamp(22px, 3vw, 56px);
+  align-items: start;
+  margin-bottom: 36px;
 }
 
 .footer-brand h3 {
@@ -1699,8 +1700,9 @@ body {
 .footer-brand p {
   font-size: 13px;
   color: var(--text-muted);
-  max-width: 380px;
+  max-width: 290px;
   margin-top: 6px;
+  line-height: 1.5;
 }
 
 .footer-links-col {
@@ -1720,6 +1722,7 @@ body {
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
+  line-height: 1.45;
 }
 
 .footer-links-col a:hover {
@@ -1730,11 +1733,12 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px 28px;
   font-size: 12px;
+  line-height: 1.5;
   color: var(--text-sub);
 }
 
@@ -1748,11 +1752,15 @@ body {
 }
 
 /* Responsive adjustments */
+@media (max-width: 1100px) {
+  .footer-top { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 40px; }
+}
+
 @media (max-width: 860px) {
   .nav-links { display: none; }
   .hero-title { font-size: 32px; }
   .calc-container { grid-template-columns: 1fr; }
-  .footer-top { grid-template-columns: 1fr; gap: 24px; }
+  .footer-top { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
 }
 
 /* Compliance Safety Disclaimer Banner */
@@ -1787,6 +1795,9 @@ body {
 }
 
 @media (max-width: 640px) {
+  .footer-wrapper { padding: 36px 20px 24px; }
+  .footer-top { grid-template-columns: 1fr; gap: 28px; margin-bottom: 32px; }
+  .footer-bottom { flex-direction: column; }
   .safety-disclaimer-banner {
     flex-direction: column;
     align-items: flex-start;
