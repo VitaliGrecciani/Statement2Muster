@@ -125,3 +125,23 @@ class AuthRateLimit(Base):
     window_start = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=utcnow, nullable=False)
 
+
+
+class SocialIdentity(Base):
+    """Provider subject bound to a locally verified tenant."""
+    __tablename__ = "social_identities"
+    provider = Column(String(32), primary_key=True)
+    subject = Column(String(255), primary_key=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), index=True, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
+class PendingSocialLink(Base):
+    """Short-lived first-login challenge; email OTP is required before linking."""
+    __tablename__ = "pending_social_links"
+    token_hash = Column(String(64), primary_key=True)
+    provider = Column(String(32), nullable=False)
+    subject = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
