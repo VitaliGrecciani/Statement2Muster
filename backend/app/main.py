@@ -22,6 +22,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -35,7 +36,7 @@ from app.exporters.datev import export_to_datev_csv
 from app.exporters.bmd import export_to_bmd_csv
 from app.exporters.muster_csv import export_to_muster_csv
 from app.services.parser_process_supervisor import parser_supervisor
-from app.api.endpoints import auth, billing, entitlements, gpt, gpt_action, plugin_and_mcp
+from app.api.endpoints import auth, billing, entitlements, gpt, gpt_action, plugin_and_mcp, social_auth
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("statement2muster")
@@ -102,6 +103,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # 1. Early ASGI Auth & Budget Middleware (Zero Retention & DoS protection)
 app.add_middleware(EarlyAuthAndBudgetMiddleware)
 
+# Short-lived signed state cookie for browser OAuth authorization code flows.
+from app.core.security import _PRIV_KEY
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.OAUTH_SESSION_SECRET or hashlib.sha256(_PRIV_KEY).hexdigest(),
+    same_site="lax",
+    https_only=settings.ENVIRONMENT.lower() == "production",
+    max_age=600,
+)
+
 # 2. CORS Middleware
 app.add_middleware(
     CORSMiddleware,
@@ -122,6 +133,7 @@ app.add_middleware(
 
 # 3. Mount Routers
 app.include_router(auth.router)
+app.include_router(social_auth.router)
 app.include_router(billing.router)
 app.include_router(entitlements.router)
 app.include_router(gpt.router)
