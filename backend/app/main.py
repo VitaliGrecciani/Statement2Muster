@@ -36,7 +36,7 @@ from app.exporters.datev import export_to_datev_csv
 from app.exporters.bmd import export_to_bmd_csv
 from app.exporters.muster_csv import export_to_muster_csv
 from app.services.parser_process_supervisor import parser_supervisor
-from app.api.endpoints import auth, billing, entitlements, gpt, gpt_action, plugin_and_mcp, social_auth
+from app.api.endpoints import auth, billing, entitlements, gpt, gpt_action, plugin_and_mcp, social_auth, kanzlei_invites
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("statement2muster")
@@ -134,6 +134,7 @@ app.add_middleware(
 # 3. Mount Routers
 app.include_router(auth.router)
 app.include_router(social_auth.router)
+app.include_router(kanzlei_invites.router)
 app.include_router(billing.router)
 app.include_router(entitlements.router)
 app.include_router(gpt.router)
