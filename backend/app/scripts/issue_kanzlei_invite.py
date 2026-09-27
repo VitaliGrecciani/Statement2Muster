@@ -1,6 +1,7 @@
 """Issue a single-use accounting firm invitation from the backend host.
 
-Run from backend/: python issue_kanzlei_invite.py name@kanzlei.de
+Run in the backend container:
+python -m app.scripts.issue_kanzlei_invite name@kanzlei.de
 Copy the displayed code into the invitation email. It is never stored in clear text.
 """
 import argparse

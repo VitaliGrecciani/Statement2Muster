@@ -101,7 +101,8 @@ async function processUploadedFiles(files) {
     const token = sessionStorage.getItem('s2m_access_token');
     if (!token) {
       showAuthModal();
-      throw new Error('Bitte melden Sie sich an, bevor Sie einen Auszug hochladen.');
+      showDemoStatus('Bitte melden Sie sich an, bevor Sie einen Auszug hochladen.');
+      return;
     }
     const response = await fetch(`${apiBaseUrl}/api/v1/convert`, {
       method: 'POST',
@@ -110,6 +111,12 @@ async function processUploadedFiles(files) {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('s2m_access_token');
+        if (btnOpenLogin) btnOpenLogin.textContent = 'Anmelden';
+        showAuthModal();
+        throw new Error('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+      }
       throw new Error(`Fehler beim Konvertieren: ${response.statusText}`);
     }
 
@@ -146,7 +153,7 @@ async function processUploadedFiles(files) {
     console.error('Konvertierungsfehler:', err);
     currentDemoCsvText = '';
     if (demoResult) demoResult.classList.add('hidden');
-    showDemoStatus('Fehler: Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
+    showDemoStatus(err.message || 'Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
     setTimeout(() => {
       hideDemoStatus();
     }, 4000);
@@ -468,6 +475,23 @@ function startSocialLogin(provider) {
 document.getElementById('btn-google-login')?.addEventListener('click', () => startSocialLogin('google'));
 document.getElementById('btn-linkedin-login')?.addEventListener('click', () => startSocialLogin('linkedin'));
 document.getElementById('btn-facebook-login')?.addEventListener('click', () => startSocialLogin('facebook'));
+
+async function showConfiguredSocialProviders() {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/oauth/providers`);
+    if (!response.ok) return;
+    const data = await response.json();
+    const available = new Set(data.providers || []);
+    if (!available.size) return;
+    for (const provider of ['google', 'linkedin', 'facebook']) {
+      const button = document.getElementById(`btn-${provider}-login`);
+      if (button) button.style.display = available.has(provider) ? '' : 'none';
+    }
+    document.getElementById('social-auth-stack').style.display = '';
+    document.getElementById('social-auth-divider').style.display = '';
+  } catch (_) { /* Email sign-in remains available if provider status cannot be fetched. */ }
+}
+showConfiguredSocialProviders();
 
 window.addEventListener('message', async event => {
   if (event.origin !== new URL(apiBaseUrl).origin || event.source !== oauthPopup) return;

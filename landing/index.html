@@ -603,12 +603,12 @@
         <p>Wählen Sie einen Anmeldeweg. Für den E-Mail-Zugang erhalten Sie einen einmaligen Code.</p>
       </div>
       <div class="modal-body">
-        <div class="social-auth-stack">
+        <div class="social-auth-stack" id="social-auth-stack" style="display:none">
           <button type="button" id="btn-google-login" class="btn-social-auth">Mit Google anmelden</button>
           <button type="button" id="btn-linkedin-login" class="btn-social-auth">Mit LinkedIn anmelden</button>
           <button type="button" id="btn-facebook-login" class="btn-social-auth">Mit Facebook anmelden</button>
         </div>
-        <div class="auth-divider"><span>oder mit E-Mail</span></div>
+        <div class="auth-divider" id="social-auth-divider" style="display:none"><span>oder mit E-Mail</span></div>
         <form id="magic-link-form" class="auth-form">
           <div class="input-group">
             <label for="auth-email">E-Mail-Adresse</label>

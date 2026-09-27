@@ -64,6 +64,11 @@ async def init_db():
                 if "last_invoice_event_created_at" not in columns:
                     sync_conn.execute(text("ALTER TABLE entitlements ADD COLUMN last_invoice_event_created_at INTEGER DEFAULT 0"))
 
+            if "pending_social_links" in inspector.get_table_names():
+                columns = [col["name"] for col in inspector.get_columns("pending_social_links")]
+                if "consumed_at" not in columns:
+                    sync_conn.execute(text("ALTER TABLE pending_social_links ADD COLUMN consumed_at DATETIME"))
+
         await conn.run_sync(migrate)
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

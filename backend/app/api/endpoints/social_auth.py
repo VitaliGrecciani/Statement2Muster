@@ -10,7 +10,7 @@ from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -63,6 +63,12 @@ def _popup_result(payload: dict[str, Any]) -> HTMLResponse:
         "window.close();</script></body></html>"
     )
     return HTMLResponse(html, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+
+
+@router.get("/providers")
+async def available_providers():
+    """The page displays only providers with credentials configured on the server."""
+    return {"providers": [name for name in ("google", "linkedin", "facebook") if oauth.create_client(name) is not None]}
 
 
 @router.get("/{provider}/start")
@@ -144,6 +150,8 @@ async def link_social_identity(
     now = datetime.datetime.now(datetime.timezone.utc)
     if pending is None:
         raise HTTPException(status_code=404, detail="Verknüpfung nicht gefunden.")
+    if pending.consumed_at is not None:
+        raise HTTPException(status_code=409, detail="Diese Verknüpfung wurde bereits verwendet.")
     expires = pending.expires_at.replace(tzinfo=datetime.timezone.utc) if pending.expires_at.tzinfo is None else pending.expires_at
     if expires <= now:
         await db.delete(pending)
@@ -157,6 +165,13 @@ async def link_social_identity(
     ))).scalars().first()
     if existing and existing.tenant_id != tenant.id:
         raise HTTPException(status_code=409, detail="Dieses Profil ist bereits mit einem anderen Konto verbunden.")
+    claimed = await db.execute(
+        update(PendingSocialLink)
+        .where(PendingSocialLink.token_hash == token_hash, PendingSocialLink.consumed_at.is_(None))
+        .values(consumed_at=now.replace(tzinfo=None))
+    )
+    if claimed.rowcount != 1:
+        raise HTTPException(status_code=409, detail="Diese Verknüpfung wurde bereits verwendet.")
     if existing is None:
         db.add(SocialIdentity(provider=pending.provider, subject=pending.subject, tenant_id=tenant.id))
     await db.delete(pending)

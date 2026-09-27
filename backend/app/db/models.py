@@ -144,6 +144,7 @@ class PendingSocialLink(Base):
     subject = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     expires_at = Column(DateTime, nullable=False, index=True)
+    consumed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
 
