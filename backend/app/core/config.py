@@ -77,6 +77,9 @@ class Settings(BaseSettings):
             self.DATABASE_URL = f"sqlite+aiosqlite:///{sqlite_env}"
         if self.ENVIRONMENT.lower() == "production" and self.EMAIL_BACKEND.lower() == "memory":
             raise ValueError("EMAIL_BACKEND cannot be 'memory' in production environment. Configure SMTP delivery.")
+        oauth_enabled = any((self.GOOGLE_CLIENT_ID, self.LINKEDIN_CLIENT_ID, self.FACEBOOK_CLIENT_ID))
+        if self.ENVIRONMENT.lower() == "production" and oauth_enabled and not self.OAUTH_SESSION_SECRET:
+            raise ValueError("OAUTH_SESSION_SECRET is required when social login is enabled in production.")
         return self
 
     def get_jwt_keys(self):
