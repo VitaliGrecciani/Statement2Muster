@@ -59,6 +59,15 @@
     .step h3 { margin-bottom:8px; font-size:20px; letter-spacing:-.025em; }
     .step p { margin-bottom:0; color:var(--muted); font-size:15px; }
     .fine { max-width:780px; margin:24px 0 0; color:var(--muted); font-size:14px; }
+    .activate { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:54px; align-items:start; }
+    .activate-form { padding:28px; background:var(--white); border:1px solid var(--line); border-radius:15px; box-shadow:0 16px 35px rgba(39,43,36,.05); }
+    .field { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; font-size:14px; font-weight:700; }
+    .field input { width:100%; min-height:48px; padding:10px 13px; border:1px solid #bbc4b9; border-radius:8px; background:#fff; color:var(--ink); font:inherit; font-weight:450; }
+    .field input:focus { border-color:var(--accent); outline:2px solid #f9cfbc; }
+    .field[hidden], [hidden] { display:none !important; }
+    .form-status { min-height:25px; margin:13px 0 0; color:var(--muted); font-size:14px; }
+    .activate-form button { border:0; cursor:pointer; font:inherit; }
+    .activate-form button:disabled { cursor:wait; opacity:.65; }
     .closing { padding:72px 0 83px; text-align:center; }
     .closing h2 { max-width:650px; margin:0 auto 16px; font-size:clamp(31px,3vw,42px); line-height:1.14; letter-spacing:-.045em; }
     .closing p { max-width:660px; margin:0 auto 25px; color:var(--muted); }
@@ -66,7 +75,7 @@
     .footer-inner { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px 24px; padding:25px 0; color:var(--muted); font-size:13px; }
     .footer-links { display:flex; flex-wrap:wrap; gap:16px; }
     .footer-links a { text-underline-offset:3px; }
-    @media (max-width:850px) { .hero-grid { grid-template-columns:1fr; gap:43px; } .offer { max-width:560px; } .hero { padding:62px 0; } }
+    @media (max-width:850px) { .hero-grid,.activate { grid-template-columns:1fr; gap:43px; } .offer { max-width:560px; } .hero { padding:62px 0; } }
     @media (max-width:680px) { .wrap { width:min(100% - 30px,1120px); } .topbar-inner { min-height:67px; } .brand { font-size:16px; } .brand img { width:33px; height:33px; } .top-link { font-size:12px; } .features,.steps { grid-template-columns:1fr; } section.content { padding:58px 0; } .closing { padding:58px 0 66px; } .offer { padding:24px; } }
     @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
   </style>
@@ -86,7 +95,7 @@
           <h1>Prüfen Sie Ihre Auszüge im eigenen Arbeitsablauf.</h1>
           <p class="lead">Testen Sie Statement2Muster mit den Formaten, die Ihre Kanzlei tatsächlich erhält. Sehen Sie Hinweise vor dem Export, prüfen Sie Salden, wenn Anfangs- und Endsaldo vorliegen, und bereiten Sie Buchungen für DATEV oder BMD vor.</p>
           <div class="actions">
-            <a class="button" href="mailto:kontakt@statement2muster.com?subject=Kanzleitest%20Statement2Muster">Testzugang anfragen</a>
+            <a class="button" href="#aktivieren">Einladung aktivieren</a>
             <a class="text-link" href="#ablauf">So läuft der Test ab</a>
           </div>
           <p class="micro">Für eingeladene Kanzleien. Keine Kreditkarte und keine automatische Verlängerung.</p>
@@ -125,17 +134,40 @@
           <h2>So beginnen Sie den Kanzleitest.</h2>
         </div>
         <div class="steps">
-          <div class="step"><small>Schritt 1</small><h3>Zugang anfordern</h3><p>Antworten Sie auf Ihre Einladung oder schreiben Sie uns von Ihrer geschäftlichen E-Mail-Adresse.</p></div>
+          <div class="step"><small>Schritt 1</small><h3>Einladung aktivieren</h3><p>Geben Sie den Einladungscode und die eingeladene E-Mail-Adresse ein. Danach bestätigen Sie den Code aus Ihrer E-Mail.</p></div>
           <div class="step"><small>Schritt 2</small><h3>Erweiterung öffnen</h3><p>Installieren Sie die Erweiterung für <a href="https://chromewebstore.google.com/detail/nfnmkejcoefalpgpebiebakopdgkiapo" target="_blank" rel="noopener">Chrome und Edge</a> oder das <a href="https://addons.mozilla.org/ru/firefox/addon/statement2master-dach/" target="_blank" rel="noopener">Firefox Add-on</a> und melden Sie sich mit derselben E-Mail-Adresse an.</p></div>
           <div class="step"><small>Schritt 3</small><h3>Eigene Fälle prüfen</h3><p>Beginnen Sie mit einem unterstützten Auszug. Bei Fragen zu einem Format oder Prüfergebnis helfen wir Ihnen per E-Mail.</p></div>
         </div>
         <p class="fine">Es zählen nur erfolgreich verarbeitete Auszüge. Nicht lesbare oder fehlgeschlagene Uploads verbrauchen kein Kontingent. Nach 30 Tagen oder 20 Auszügen endet der Kanzleitest. Eine Zahlung erfolgt nur, wenn Sie anschließend selbst einen Tarif buchen.</p>
       </div>
     </section>
+    <section class="content" id="aktivieren">
+      <div class="wrap activate">
+        <div class="section-header">
+          <p class="eyebrow">Ihr Zugang</p>
+          <h2>Einladung aktivieren</h2>
+          <p>Verwenden Sie die E-Mail-Adresse, an die Ihre Kanzlei die Einladung erhalten hat. Nach der Bestätigung können Sie sich mit derselben Adresse in der Erweiterung anmelden.</p>
+          <p class="fine">Noch keine Einladung erhalten? Schreiben Sie an <a href="mailto:kontakt@statement2muster.com">kontakt@statement2muster.com</a>.</p>
+        </div>
+        <form id="invite-form" class="activate-form">
+          <label class="field" for="invite-email">E-Mail-Adresse der Einladung
+            <input id="invite-email" type="email" autocomplete="email" required>
+          </label>
+          <label class="field" for="invite-code">Einladungscode
+            <input id="invite-code" type="text" autocomplete="off" spellcheck="false" required>
+          </label>
+          <label class="field" for="invite-otp" id="invite-otp-field" hidden>Bestätigungscode aus Ihrer E-Mail
+            <input id="invite-otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6">
+          </label>
+          <button class="button" type="submit" id="invite-submit">Code per E-Mail senden</button>
+          <p id="invite-status" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
     <section class="closing wrap">
       <h2>Passt Statement2Muster zu Ihrer Kanzlei?</h2>
       <p>Probieren Sie den Ablauf mit Ihren unterstützten Auszügen aus. Informationen zur Verarbeitung finden Sie in der Datenschutzerklärung und im AVV.</p>
-      <a class="button" href="mailto:kontakt@statement2muster.com?subject=Kanzleitest%20Statement2Muster">Testzugang anfragen</a>
+      <a class="button" href="#aktivieren">Einladung aktivieren</a>
     </section>
   </main>
   <footer>
@@ -146,6 +178,72 @@
       </nav>
     </div>
   </footer>
+  <script>
+    (() => {
+      const api = ['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:8000' : 'https://api.statement2muster.com';
+      const form = document.getElementById('invite-form');
+      const email = document.getElementById('invite-email');
+      const code = document.getElementById('invite-code');
+      const otp = document.getElementById('invite-otp');
+      const otpField = document.getElementById('invite-otp-field');
+      const button = document.getElementById('invite-submit');
+      const status = document.getElementById('invite-status');
+      let stage = 'email';
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const address = email.value.trim().toLowerCase();
+        const invitation = code.value.trim();
+        button.disabled = true;
+        status.style.color = '';
+        status.textContent = 'Bitte warten…';
+        try {
+          if (stage === 'email') {
+            const response = await fetch(`${api}/api/v1/auth/request-code`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: address })
+            });
+            if (!response.ok) throw new Error('Der Bestätigungscode konnte nicht gesendet werden. Bitte prüfen Sie die Adresse.');
+            email.readOnly = true;
+            code.readOnly = true;
+            otpField.hidden = false;
+            otp.required = true;
+            button.textContent = 'Einladung bestätigen';
+            stage = 'confirm';
+            status.textContent = 'Der sechsstellige Code wurde an Ihre E-Mail-Adresse gesendet.';
+            otp.focus();
+            return;
+          }
+          const verified = await fetch(`${api}/api/v1/auth/token`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: address, code: otp.value.trim() })
+          });
+          if (!verified.ok) throw new Error('Der Bestätigungscode ist ungültig oder abgelaufen.');
+          const session = await verified.json();
+          const redeemed = await fetch(`${api}/api/v1/kanzlei/redeem`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ invite_code: invitation })
+          });
+          if (!redeemed.ok) {
+            const details = await redeemed.json().catch(() => ({}));
+            throw new Error(typeof details.detail === 'string' ? details.detail : 'Die Einladung konnte nicht aktiviert werden.');
+          }
+          stage = 'done';
+          form.reset();
+          email.readOnly = true;
+          code.readOnly = true;
+          otpField.hidden = true;
+          button.hidden = true;
+          status.style.color = '#266344';
+          status.textContent = 'Ihr Kanzleitest ist aktiviert. Melden Sie sich jetzt in der Erweiterung mit derselben E-Mail-Adresse an.';
+        } catch (error) {
+          status.style.color = '#a3360c';
+          status.textContent = error.message || 'Die Aktivierung ist fehlgeschlagen.';
+        } finally { button.disabled = false; }
+      });
+    })();
+  </script>
 </body>
 </html>
 
