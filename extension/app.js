@@ -1754,11 +1754,14 @@ function initAuthState() {
 }
 
 function applyLoggedInState(user) {
+  const plan = (user.plan || 'trial').toLowerCase();
+  const proFeatures = ['pro', 'lifetime', 'kanzlei_trial'].includes(plan);
+  const planLabel = plan === 'kanzlei_trial' ? 'Kanzleitest aktiv' : plan === 'trial' ? 'Kostenloser Zugang' : plan === 'pro' ? 'Business PRO' : plan === 'lifetime' ? 'Lifetime' : plan === 'starter' ? 'Starter' : 'Account';
   if (authBtnLabel) authBtnLabel.textContent = user.name || 'Account';
   if (btnOpenAuth) btnOpenAuth.classList.add('logged-in');
-  if (limitPulseDot) limitPulseDot.classList.add('pro');
+  if (limitPulseDot) limitPulseDot.classList.toggle('pro', proFeatures);
   if (limitMainLabel) {
-    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">⭐ PRO Aktiv (${escapeHtml(user.plan || 'PRO')})</strong>`;
+    limitMainLabel.innerHTML = `Status: <strong style="color:#046a4e;">${escapeHtml(planLabel)}</strong>`;
   }
 }
 
