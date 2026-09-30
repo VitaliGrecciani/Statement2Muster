@@ -31,7 +31,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=2">
   <link rel="shortcut icon" href="favicon.ico?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=2.3">
+  <link rel="stylesheet" href="styles.css?v=3.0">
 
   <!-- Schema.org JSON-LD -->
   <script type="application/ld+json">
@@ -93,19 +93,17 @@
   </script>
 </head>
 <body>
-  <div class="ambient-glow glow-top-left"></div>
-  <div class="ambient-glow glow-bottom-right"></div>
 
   <!-- Navigation -->
   <header class="navbar-wrapper">
     <nav class="navbar glass-card">
       <div class="nav-brand">
+        <img src="logo_s2m.svg" alt="" width="32" height="32" class="brand-logo">
         <a href="/" style="text-decoration:none; color:inherit;" class="brand-text">
           <div class="brand-title-row">
             <span class="brand-title">Statement<span class="brand-accent">2</span>Muster</span>
             <span class="badge-tag">DACH</span>
           </div>
-          <span class="brand-subtitle">DATEV & BMD Auszugskonverter</span>
         </a>
       </div>
 
@@ -174,9 +172,9 @@
       </div>
 
       <div class="hero-trust-badges">
-        <div class="trust-item"><span class="trust-icon">💳</span><span>Amex Business Gold & Platinum</span></div>
-        <div class="trust-item"><span class="trust-icon">🇩🇪</span><span>DATEV Unternehmen online</span></div>
-        <div class="trust-item"><span class="trust-icon">🔒</span><span>100% In-Memory (DSGVO)</span></div>
+        <div class="trust-item"><span class="trust-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3 10h18M7 15h4"/></svg></span><span>Amex Business Gold & Platinum</span></div>
+        <div class="trust-item"><span class="trust-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="1.5"/><path d="M4 9h16M4 14.5h16M10 3.5v17"/></svg></span><span>DATEV Unternehmen online</span></div>
+        <div class="trust-item"><span class="trust-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></span><span>100% In-Memory (DSGVO)</span></div>
       </div>
 
       <!-- Live Converter Box -->
@@ -265,7 +263,7 @@
 
     <!-- Step by Step -->
     <div class="glass-card" style="margin-top: 40px; padding: 32px;">
-      <h3 style="font-size: 22px; color: #fff; margin-bottom: 16px;">In 4 Schritten von der Amex PDF zu DATEV:</h3>
+      <h3 style="margin-bottom: 16px;">In 4 Schritten von der Amex PDF zu DATEV:</h3>
       <ol style="color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
         <li><strong>Abrechnung herunterladen:</strong> Exportieren Sie Ihre monatliche PDF- oder CSV-Abrechnung aus dem American Express Online-Kartenkonto.</li>
         <li><strong>In Statement2Muster ablegen:</strong> Ziehen Sie die Datei einfach per Drag & Drop in das obige Feld oder öffnen Sie unsere Browser-Erweiterung.</li>
@@ -286,7 +284,7 @@
       <div class="faq-item glass-card">
         <button class="faq-question">
           <span>Werden Kartennummern oder sensible Daten gespeichert?</span>
-          <span class="faq-arrow">+</span>
+          <span class="faq-arrow" aria-hidden="true"></span>
         </button>
         <div class="faq-answer">
           <p>Nein. Statement2Muster verarbeitet Ihre Auszüge flüchtig im Arbeitsspeicher (In-Memory). Es werden weder Kreditkartennummern noch Beträge dauerhaft auf Servern gespeichert.</p>
@@ -296,7 +294,7 @@
       <div class="faq-item glass-card">
         <button class="faq-question">
           <span>Funktioniert das auch mit privaten Amex-Karten?</span>
-          <span class="faq-arrow">+</span>
+          <span class="faq-arrow" aria-hidden="true"></span>
         </button>
         <div class="faq-answer">
           <p>Ja, sowohl geschäftliche (Corporate, Business Gold/Platinum) als auch private American Express Kreditkartenabrechnungen werden vollumfänglich unterstützt.</p>
@@ -320,9 +318,9 @@
 
         <div class="footer-links-col">
           <h4>Lösungen & Banken</h4>
-          <a href="/amex-datev" style="color:#ff9d66;">American Express ➔ DATEV</a>
-          <a href="/wise-datev">Wise Multiwährung ➔ DATEV</a>
-          <a href="/paypal-datev">PayPal Auszüge ➔ DATEV</a>
+          <a href="/amex-datev" aria-current="page">American Express → DATEV</a>
+          <a href="/wise-datev">Wise Multiwährung → DATEV</a>
+          <a href="/paypal-datev">PayPal Auszüge → DATEV</a>
           <a href="/bmd-konverter">BMD NTCS & RZL (Österreich)</a>
         </div>
 
@@ -351,6 +349,6 @@
     </div>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
