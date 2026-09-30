@@ -44,6 +44,12 @@ let currentDemoCsvText = '';
 // Drag & Drop
 if (landingDropzone) {
   landingDropzone.addEventListener('click', () => landingFileInput.click());
+  landingDropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      landingFileInput.click();
+    }
+  });
 
   ['dragenter', 'dragover'].forEach(name => {
     landingDropzone.addEventListener(name, (e) => {
@@ -175,36 +181,33 @@ function renderDemoTable(items) {
   if (!demoTableBody) return;
   demoTableBody.innerHTML = '';
 
-  let sum = 0;
+  let sumCents = 0;
 
   items.forEach(item => {
-    sum += item.numericVal || 0;
+    sumCents += Math.round((item.numericVal || 0) * 100);
     const isCredit = item.isCredit;
-    const color = isCredit ? 'color: #046a4e;' : 'color: #000000;';
-    const displayAmount = isCredit ? `+${item.amountStr} €` : `${item.amountStr} €`;
+    const amountClass = isCredit ? 'td-amount-demo is-credit' : 'td-amount-demo';
+    // amountStr may already carry a sign ("+2450,00" / "-74,10"): print exactly one
+    const unsigned = String(item.amountStr).replace(/^[+-−]/, '');
+    const displayAmount = `${isCredit ? '+' : '−'}${unsigned} €`;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="td-date-demo">${item.date}</td>
       <td class="td-text-demo">${escapeHtml(item.text)}</td>
-      <td class="td-amount-demo" style="${color}">${displayAmount}</td>
+      <td class="${amountClass}">${displayAmount}</td>
     `;
 
     // Floating Popover Loupe
     tr.addEventListener('mouseenter', (e) => {
       if (!landingPopover) return;
       landingPopover.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #d5c3ba; padding-bottom:5px; margin-bottom:6px;">
-          <span style="font-size:11px; font-weight:800; color:#a84222; background:rgba(168,66,34,0.1); padding:2px 6px; border-radius:4px;">📅 ${item.date}</span>
-          <span style="font-size:13px; font-weight:900; ${color}">${displayAmount}</span>
+        <div class="s2m-pop__head">
+          <span class="s2m-num s2m-muted">${item.date}</span>
+          <span class="${amountClass}">${displayAmount}</span>
         </div>
-        <div style="font-size:12px; font-weight:750; color:#000; line-height:1.4;">
-          ${escapeHtml(item.text)}
-        </div>
-        <div style="display:flex; justify-content:space-between; font-size:10px; color:#5c4a44; margin-top:6px; padding-top:4px; border-top:1px dashed #d5c3ba;">
-          <span>DATEV Format</span>
-          <span>Währung: EUR</span>
-        </div>
+        <div class="s2m-pop__text">${escapeHtml(item.text)}</div>
+        <div class="s2m-pop__foot"><span>DATEV-Format</span><span>Währung: EUR</span></div>
       `;
       landingPopover.classList.remove('hidden');
       landingPopover.classList.add('visible');
@@ -223,7 +226,11 @@ function renderDemoTable(items) {
   });
 
   if (demoCount) demoCount.textContent = items.length;
-  if (demoSum) demoSum.textContent = sum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  if (demoSum) {
+    const sum = sumCents / 100;
+    const sign = sum > 0 ? '+' : sum < 0 ? '−' : '';
+    demoSum.textContent = sign + Math.abs(sum).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
   if (demoResult) demoResult.classList.remove('hidden');
 }
 
@@ -364,7 +371,7 @@ let pendingSocialToken = null;
 function setAuthStatus(message, error = false) {
   if (!authStatus) return;
   authStatus.textContent = message;
-  authStatus.style.color = error ? '#fca5a5' : '';
+  authStatus.classList.toggle('is-error', Boolean(error));
 }
 
 function showAuthModal() {
@@ -466,7 +473,16 @@ magicLinkForm?.addEventListener('submit', async event => {
   }
 });
 
+// Google and LinkedIn are always offered; Facebook only when the server has credentials for it.
+// Until a provider is configured on the server, its button explains that instead of opening a broken popup.
+const SOCIAL_PROVIDER_NAMES = { google: 'Google', linkedin: 'LinkedIn', facebook: 'Facebook' };
+let configuredSocialProviders = null; // null = not known yet
+
 function startSocialLogin(provider) {
+  if (configuredSocialProviders && !configuredSocialProviders.has(provider)) {
+    setAuthStatus(`Die Anmeldung mit ${SOCIAL_PROVIDER_NAMES[provider]} ist in Kürze verfügbar. Bitte nutzen Sie bis dahin den E-Mail-Code.`);
+    return;
+  }
   const url = `${apiBaseUrl}/api/v1/auth/oauth/${provider}/start`;
   oauthPopup = window.open(url, `s2m-${provider}-login`, 'popup,width=520,height=680');
   if (!oauthPopup) setAuthStatus('Bitte erlauben Sie Pop-up-Fenster und versuchen Sie es erneut.', true);
@@ -476,20 +492,22 @@ document.getElementById('btn-google-login')?.addEventListener('click', () => sta
 document.getElementById('btn-linkedin-login')?.addEventListener('click', () => startSocialLogin('linkedin'));
 document.getElementById('btn-facebook-login')?.addEventListener('click', () => startSocialLogin('facebook'));
 
+function renderSocialButtons() {
+  const facebook = document.getElementById('btn-facebook-login');
+  if (facebook) facebook.style.display = configuredSocialProviders?.has('facebook') ? '' : 'none';
+  document.getElementById('social-auth-stack')?.style.setProperty('display', '');
+  document.getElementById('social-auth-divider')?.style.setProperty('display', '');
+}
+
 async function showConfiguredSocialProviders() {
+  renderSocialButtons();
   try {
     const response = await fetch(`${apiBaseUrl}/api/v1/auth/oauth/providers`);
     if (!response.ok) return;
     const data = await response.json();
-    const available = new Set(data.providers || []);
-    if (!available.size) return;
-    for (const provider of ['google', 'linkedin', 'facebook']) {
-      const button = document.getElementById(`btn-${provider}-login`);
-      if (button) button.style.display = available.has(provider) ? '' : 'none';
-    }
-    document.getElementById('social-auth-stack').style.display = '';
-    document.getElementById('social-auth-divider').style.display = '';
-  } catch (_) { /* Email sign-in remains available if provider status cannot be fetched. */ }
+    configuredSocialProviders = new Set(data.providers || []);
+    renderSocialButtons();
+  } catch (_) { /* Provider status unknown: buttons stay; the server answers if a provider is missing. */ }
 }
 showConfiguredSocialProviders();
 
@@ -599,9 +617,9 @@ const LEGAL_TEXTS = {
 
   widerruf: `
     <h2>Widerrufsbelehrung & Refund Policy</h2>
-    <div style="background: rgba(249,115,22,0.08); border: 1px solid var(--primary-border); border-radius: var(--radius-md); padding: 14px 18px; margin: 16px 0;">
-      <strong>🛡️ 14-Tage Geld-zurück-Garantie:</strong>
-      <p style="margin: 4px 0 0; font-size: 13.5px; color: #f5f5f4;">Sollte ein unterstütztes Dateiformat technisch nicht wie versprochen in das DATEV/BMD-Muster konvertiert werden können, erstatten wir innerhalb von 14 Tagen 100% des Kaufpreises zurück.</p>
+    <div class="s2m-note" style="display:block">
+      <strong>14 Tage Geld-zurück-Garantie</strong>
+      <p style="margin: 4px 0 0;">Sollte ein unterstütztes Dateiformat technisch nicht wie versprochen in das DATEV/BMD-Muster konvertiert werden können, erstatten wir innerhalb von 14 Tagen 100% des Kaufpreises zurück.</p>
     </div>
     <h3>1. Widerrufsrecht für Verbraucher</h3>
     <p>Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Um Ihr Widerrufsrecht auszuüben, senden Sie eine E-Mail an: <a href="mailto:support@statement2muster.com" style="color: var(--primary);">support@statement2muster.com</a>.</p>
@@ -644,3 +662,38 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// ==========================================================================
+// Illustration panels: cards follow the pointer (parallax), each at its own depth
+// ==========================================================================
+
+(function initPanelParallax() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  const depths = [14, 26, 20, 32];
+  document.querySelectorAll('.s2m-panel').forEach(panel => {
+    const layers = panel.querySelectorAll('.s2m-scene > .s2m-float, .s2m-scene > .s2m-chip');
+    if (!layers.length) return;
+    layers.forEach((el, i) => el.style.setProperty('--d', depths[i % depths.length]));
+    panel.classList.add('is-live');
+
+    let frame = 0;
+    panel.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const rect = panel.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width - 0.5).toFixed(3);
+      const my = ((e.clientY - rect.top) / rect.height - 0.5).toFixed(3);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        panel.style.setProperty('--mx', mx);
+        panel.style.setProperty('--my', my);
+      });
+    });
+    panel.addEventListener('pointerleave', () => {
+      cancelAnimationFrame(frame);
+      panel.style.setProperty('--mx', 0);
+      panel.style.setProperty('--my', 0);
+    });
+  });
+})();
