@@ -157,6 +157,7 @@ button, input { font: inherit; color: inherit; }
 .s2m-h3 { font-family: var(--font-serif); font-weight: 500; font-size: 24px; line-height: 32px; }
 .s2m-h1 em, .s2m-h2 em { font-style: italic; }
 .s2m-lead { font-size: 19px; line-height: 30px; color: var(--ink-muted); }
+.s2m-lead strong { color: var(--ink); font-weight: 500; }
 .s2m-muted { color: var(--ink-muted); }
 .s2m-eyebrow { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand); }
 @media (max-width: 720px) {
