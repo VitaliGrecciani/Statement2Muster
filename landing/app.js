@@ -473,7 +473,7 @@ magicLinkForm?.addEventListener('submit', async event => {
   }
 });
 
-// Google and LinkedIn are always offered; Facebook only when the server has credentials for it.
+// Google is always offered; LinkedIn and Facebook only once the server has credentials for them.
 // Until a provider is configured on the server, its button explains that instead of opening a broken popup.
 const SOCIAL_PROVIDER_NAMES = { google: 'Google', linkedin: 'LinkedIn', facebook: 'Facebook' };
 let configuredSocialProviders = null; // null = not known yet
@@ -492,9 +492,13 @@ document.getElementById('btn-google-login')?.addEventListener('click', () => sta
 document.getElementById('btn-linkedin-login')?.addEventListener('click', () => startSocialLogin('linkedin'));
 document.getElementById('btn-facebook-login')?.addEventListener('click', () => startSocialLogin('facebook'));
 
+const OPTIONAL_SOCIAL_PROVIDERS = ['linkedin', 'facebook'];
+
 function renderSocialButtons() {
-  const facebook = document.getElementById('btn-facebook-login');
-  if (facebook) facebook.style.display = configuredSocialProviders?.has('facebook') ? '' : 'none';
+  for (const provider of OPTIONAL_SOCIAL_PROVIDERS) {
+    const button = document.getElementById(`btn-${provider}-login`);
+    if (button) button.style.display = configuredSocialProviders?.has(provider) ? '' : 'none';
+  }
   document.getElementById('social-auth-stack')?.style.setProperty('display', '');
   document.getElementById('social-auth-divider')?.style.setProperty('display', '');
 }
