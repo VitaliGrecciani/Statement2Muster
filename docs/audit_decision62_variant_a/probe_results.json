@@ -1,0 +1,67 @@
+{
+  "scope": "local ASGI / synthetic fixtures / temporary SQLite; no live deployment",
+  "ui_json_without_valuta": {
+    "convert_http": 200,
+    "export_eligible": false,
+    "export_http": 422,
+    "committed_delta": 1
+  },
+  "operation_evicted_only": {
+    "replay_http": 200,
+    "same_operation_id": true,
+    "export_http": 410,
+    "parser_calls": 1
+  },
+  "both_caches_evicted": {
+    "http": 200,
+    "parser_calls": 2,
+    "new_operation_id": true
+  },
+  "export_headers": {
+    "http": 200,
+    "cache_control": null
+  },
+  "export_account_validation": {
+    "http": 200,
+    "header_columns": 8,
+    "row_columns": 9
+  },
+  "malformed_amount_text_fallback": {
+    "transactions": 1,
+    "errors": [],
+    "description": "Good Bad 02.09.2026 12,3X-",
+    "amount_cents": -1000
+  },
+  "multifile_chain": {
+    "same_day_forward": "BALANCED",
+    "same_day_reversed": "DISCREPANCY",
+    "duplicated_zero_net_statement": "BALANCED"
+  },
+  "local_export": {
+    "datev_header_fields": 35,
+    "datev_header_currency_col22": "",
+    "datev_header_col17": "EUR",
+    "datev_contra_account": "",
+    "bmd_header": [
+      "Satzart",
+      "Datum",
+      "Konto",
+      "Gegenkonto",
+      "Betrag",
+      "Waehrung",
+      "Buchungstext",
+      "Belegnummer"
+    ],
+    "bmd_contra_account": ""
+  },
+  "offline_discontinuous_chain": {
+    "aggregate": "BALANCED",
+    "export_blocks": []
+  },
+  "late_export_after_reset": {
+    "selected": "datev",
+    "filename": "BMD_Bankauszug_22.csv",
+    "downloadEnabled": true,
+    "text": "Transaction Booking Date;old-result"
+  }
+}

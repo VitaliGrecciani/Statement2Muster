@@ -1,0 +1,104 @@
+{
+  "r63_counterexamples": {
+    "cache_pair_admission": {
+      "canonical_bytes": 1893,
+      "shared_budget_bytes": 1894,
+      "convert_http": 413,
+      "operation_issued": false,
+      "canonical_present": false,
+      "export_http": null,
+      "committed_delta": 0
+    },
+    "datev_replay_bytes": {
+      "statuses": [
+        200,
+        200
+      ],
+      "equal": true,
+      "sha256": [
+        "1d4d57559e21d826597bebed5801f84691215fba1862485d25177bfbe8c64adb",
+        "1d4d57559e21d826597bebed5801f84691215fba1862485d25177bfbe8c64adb"
+      ],
+      "first_lines": [
+        "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112170158000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+        "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112170158000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\""
+      ]
+    }
+  },
+  "submitted_stall_server": {
+    "raw_fetch": {
+      "headersSeen": true,
+      "error": "AbortError: The user aborted a request.",
+      "aborted": true,
+      "elapsedMs": 512.7999999523163
+    },
+    "real_application_handler": {
+      "value": false,
+      "headersSeen": true,
+      "elapsedMs": 258.6999999284744,
+      "downloadDisabled": true,
+      "controllerCleared": true,
+      "warning": "\n        \n          \n            \n            \n            \n          \n          Export blockiert — Prüfung erforderlich\n        \n        • Zeitüberschreitung beim Export (0.25s).\n      "
+    },
+    "console_errors": []
+  },
+  "chain_12_segments": {
+    "exit": 0,
+    "stdout": "CHAIN_STARTED\n{\"seconds\": 0.00022279995027929544, \"result\": [null, null, \"Unknown\", true, [\"Saldensprung oder zeitliche L\\u00fccke im Multi-Datei-Batch (fehlender, vertauschter oder \\u00fcberlappender Auszug).\"]]}\n",
+    "stderr": ""
+  },
+  "build_checks": {
+    "extension/app.js": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "extension_firefox_build/app.js": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "extension_firefox_build/background.js": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "landing/app.js": {
+      "exit": 0,
+      "stderr": ""
+    },
+    "firefox": {
+      "chrome_dir": "C:\\Users\\zorik\\Documents\\Obsidian Vault\\10_Projects\\Statement2Muster\\extension",
+      "firefox_dir": "C:\\Users\\zorik\\Documents\\Obsidian Vault\\10_Projects\\Statement2Muster\\extension_firefox_build",
+      "shared_files": {
+        "app.js": "2e735713f3d52d0022c8edc84e9ac73b2e55f46cef31f113f1619e4894d5a925",
+        "icon.png": "7f696ec2a4ab225613460946939cb9ad7b808dd5da8d061b0cf291535eca1ffa",
+        "icon_128.png": "f588dadc5d6a4d9045bf45a64fc697a98af5c44027ad5d4c56aa8208d3dd0fe1",
+        "icon_16.png": "9745f64aa971caba777b488f71b8299dd0816512aedc5a3114fab22cbcd30dbe",
+        "icon_48.png": "18bb0dbc52e924287a33a7cf87fdded97326f62b3d20ae559bb8b6d5c9492a57",
+        "lib/pdf.min.js": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+        "lib/pdf.worker.min.js": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+        "logo.png": "3ac17e550676bd67705013544ca96e079b73360b36deb9d46dc6ec6a2ae77d01",
+        "logo.svg": "f119221a0f756b87b0c1b44c2fd96210e344f2600d1f8acb90fa0427e7db44a1",
+        "screenshot_1280x800.png": "3fa3f28cbb70743fe0e6be3bfac2d6a7438dce8cad73bd2374774fbff40be44d",
+        "sidepanel.html": "b31be55076c4b78481cf8b0a0a9278cdd98ea9b0278c7d6d5a6b6eab5ee1faf6",
+        "store_assets/logo_300x300.png": "0ccae9487cb3ecd271dfd486764ea2b3502075a18331b145f423bd9d4507bb5d",
+        "store_assets/marquee_promo_1400x560.png": "f00ebbe0722e73feb2e1b9ecf40baf4baed5a252e586f511d97fff3c679dacfc",
+        "store_assets/screenshot_1_1280x800.png": "3fa3f28cbb70743fe0e6be3bfac2d6a7438dce8cad73bd2374774fbff40be44d",
+        "store_assets/screenshot_2_1280x800.png": "129e65237719ea9b0f5afc25af98e1552b28d497bf75a864e307787ef505161e",
+        "store_assets/small_promo_440x280.png": "8ca6c40dc4e8adf2a8612b903c90140d23e9e12511fae2272bfdd7e6ca3f7773",
+        "styles.css": "d17ee6a00a2106fbbbfa8185a411ac1326b0128da6b959f3b9682726c7a34a2c"
+      },
+      "platform_overrides": {
+        "background.js": {
+          "chrome_sha256": "f7eb3cdd987273caf10da4701f87b53d6a33d55e2048d429f00b1cb0d5a462b2",
+          "firefox_sha256": "271000bcb7196facaee8370c0a8bc471ad4ebab3e8cfc84aeb35308a9468dcd2",
+          "matches_expected_transform": true
+        },
+        "manifest.json": {
+          "chrome_sha256": "484ab628dacd91cd055b8985bbdcd6c41a70d8f8e7929c29afd2c667339cf957",
+          "firefox_sha256": "2def15634d28444988cdd49f2d54b25790bbb1489480e63acc8042cb5c791c16",
+          "matches_expected_transform": true
+        }
+      },
+      "mismatches": []
+    }
+  }
+}

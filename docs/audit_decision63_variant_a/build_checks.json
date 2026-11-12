@@ -1,0 +1,24 @@
+{
+  "extension/app.js": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "extension_firefox_build/app.js": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "extension_firefox_build/background.js": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "landing/app.js": {
+    "exit": 0,
+    "stderr": ""
+  },
+  "firefox": {
+    "shared_files": 17,
+    "mismatches": [],
+    "manifest_matches_transform": true,
+    "background_matches_transform": true
+  }
+}

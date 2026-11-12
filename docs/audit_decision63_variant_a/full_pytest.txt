@@ -1,0 +1,17 @@
+........................................................................ [ 86%]
+...........                                                              [100%]
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\starlette\formparsers.py:12
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5: AuthlibDeprecationWarning: The httpx module is deprecated; please use httpx2 instead.
+    from ._compat import httpx2
+
+backend/test_browser_smoke.py::test_playwright_landing_sample_live_upload_and_download
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\playwright\_impl\_connection.py:697: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <aiosqlite.core.Connection object at 0x0000021C517E3D50>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    if "self" in frame.f_locals:
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+83 passed, 3 warnings in 59.03s

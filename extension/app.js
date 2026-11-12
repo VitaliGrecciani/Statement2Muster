@@ -3,6 +3,11 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const consentCheckbox = document.getElementById('consent');
 const convertBtn = document.getElementById('convert-btn');
+const convertBtnText = document.getElementById('convert-btn-text');
+const valutaAsBookingCheckbox = document.getElementById('valuta-as-booking');
+const previewWarningCard = document.getElementById('preview-warning-card');
+const previewWarningTitle = document.getElementById('preview-warning-title');
+const previewWarningBody = document.getElementById('preview-warning-body');
 const fileNameDisplay = document.getElementById('file-name');
 const fileSizeDisplay = document.getElementById('file-size');
 const fileInfo = document.getElementById('file-info');
@@ -51,6 +56,8 @@ let selectedFiles = [];
 let isDemoActive = false;
 let backendOnline = false;
 let currentCsvBlob = null;
+let currentExportBytes = null;
+let currentCsvMime = 'text/csv;charset=windows-1252;';
 let currentCsvFilename = 'Muster.csv';
 let currentCsvText = '';
 let currentAccountsFound = [];
@@ -59,8 +66,37 @@ let parsedTransactions = [];
 let activeAccountFilter = 'ALL';
 let apiBaseUrl = 'http://127.0.0.1:8000';
 let loupeEnabled = true;
+let currentOperationId = null;
+let currentCanonicalResult = null;
+let currentExportSource = 'offline'; // 'backend' | 'offline' | 'demo'
+let currentSelectedFormat = 'datev';
+let exportRequestSeq = 0;
+let activeOperationGen = 0;
+let activeExportGen = 0;
+let activeConvertController = null;
+let activeExportController = null;
 
-// Windows-1252 Encoding Mapping for DATEV Compatibility
+function invalidatePendingOperations(reason = 'reset') {
+  activeOperationGen++;
+  activeExportGen++;
+  exportRequestSeq++;
+  if (activeConvertController) {
+    try { activeConvertController.abort(reason); } catch (_) {}
+    activeConvertController = null;
+  }
+  if (activeExportController) {
+    try { activeExportController.abort(reason); } catch (_) {}
+    activeExportController = null;
+  }
+  currentOperationId = null;
+  currentExportBytes = null;
+  currentCsvBlob = null;
+  currentCsvText = '';
+  currentCsvFilename = '';
+  if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+}
+
+// Windows-1252 Encoding Mapping for DATEV / BMD NTCS Compatibility
 const WIN1252_LOOKUP = {
   0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87,
   0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a, 0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e,
@@ -69,8 +105,9 @@ const WIN1252_LOOKUP = {
   0x017e: 0x9e, 0x0178: 0x9f
 };
 
-function encodeWindows1252(str) {
+function encodeWindows1252Strict(str) {
   const bytes = new Uint8Array(str.length);
+  let unrepresentableCount = 0;
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i);
     if (code <= 0x7f) {
@@ -81,9 +118,69 @@ function encodeWindows1252(str) {
       bytes[i] = WIN1252_LOOKUP[code];
     } else {
       bytes[i] = 0x3f;
+      unrepresentableCount++;
     }
   }
-  return bytes;
+  return { bytes, unrepresentableCount };
+}
+
+function encodeWindows1252(str) {
+  return encodeWindows1252Strict(str).bytes;
+}
+
+function encodeUtf8WithBom(str) {
+  const body = new TextEncoder().encode(str);
+  const out = new Uint8Array(3 + body.length);
+  out[0] = 0xef; out[1] = 0xbb; out[2] = 0xbf;
+  out.set(body, 3);
+  return out;
+}
+
+function buildBlobForFormat(csvText, fmt) {
+  if (fmt === 'bmd_bankauszug') {
+    const cleanText = csvText.startsWith('\uFEFF') ? csvText.slice(1) : csvText;
+    const bytes = encodeUtf8WithBom(cleanText);
+    const mime = 'text/csv;charset=utf-8;';
+    return { bytes, blob: new Blob([bytes], { type: mime }), mime, unrepresentableCount: 0 };
+  }
+  const { bytes, unrepresentableCount } = encodeWindows1252Strict(csvText);
+  const mime = fmt === 'datev' ? 'text/plain;charset=windows-1252;' : 'text/csv;charset=windows-1252;';
+  return { bytes, blob: new Blob([bytes], { type: mime }), mime, unrepresentableCount };
+}
+
+function getSelectedFormat() {
+  const checkedPreview = document.querySelector('input[name="export-format"]:checked');
+  const checkedUpload = document.querySelector('input[name="upload-export-format"]:checked');
+  return (checkedPreview && checkedPreview.value) || (checkedUpload && checkedUpload.value) || currentSelectedFormat || 'datev';
+}
+
+function syncFormatSelection(fmt) {
+  currentSelectedFormat = fmt || 'datev';
+  document.querySelectorAll('input[name="export-format"]').forEach(r => { r.checked = (r.value === currentSelectedFormat); });
+  document.querySelectorAll('input[name="upload-export-format"]').forEach(r => { r.checked = (r.value === currentSelectedFormat); });
+  if (convertBtnText) {
+    if (currentSelectedFormat === 'bmd_bankauszug') {
+      convertBtnText.textContent = 'In BMD Bankauszug (22 Sp.) konvertieren';
+    } else if (currentSelectedFormat === 'bmd') {
+      convertBtnText.textContent = 'In BMD NTCS (8 Sp.) konvertieren';
+    } else {
+      convertBtnText.textContent = 'In DATEV (EXTF) konvertieren';
+    }
+  }
+  updateDownloadButtonText();
+}
+
+function showPreviewWarnings(messages, isBlocked = false) {
+  if (!previewWarningCard || !previewWarningBody || !previewWarningTitle) return;
+  const clean = (messages || []).filter(Boolean);
+  if (!clean.length) {
+    previewWarningCard.classList.add('hidden');
+    previewWarningBody.innerHTML = '';
+    return;
+  }
+  previewWarningTitle.textContent = isBlocked ? 'Export blockiert — Prüfung erforderlich' : 'Hinweis zur Buchungsprüfung';
+  previewWarningBody.innerHTML = clean.map(m => `<div style="margin-top:2px;">• ${escapeHtml(m)}</div>`).join('');
+  previewWarningCard.classList.remove('hidden');
 }
 
 // Realistic Demo Bank Transactions for 1-Click Reviewer Testing
@@ -173,6 +270,7 @@ if (btnOpenTab) {
       const stateToSave = {
         lastConvertedCsv: currentCsvText || '',
         lastConvertedFilename: currentCsvFilename || 'Muster.csv',
+        lastConvertedFormat: currentSelectedFormat || 'datev',
         lastAccountsFound: currentAccountsFound || [],
         lastDuplicatesCount: currentDuplicatesCount || 0
       };
@@ -209,6 +307,7 @@ if (btnOpenTab) {
       const stateToSave = {
         lastConvertedCsv: currentCsvText || '',
         lastConvertedFilename: currentCsvFilename || 'Muster.csv',
+        lastConvertedFormat: currentSelectedFormat || 'datev',
         lastAccountsFound: currentAccountsFound || [],
         lastDuplicatesCount: currentDuplicatesCount || 0
       };
@@ -235,6 +334,7 @@ if (btnExpandPreview) {
       chrome.storage.local.set({
         lastConvertedCsv: currentCsvText,
         lastConvertedFilename: currentCsvFilename,
+        lastConvertedFormat: currentSelectedFormat || 'datev',
         lastAccountsFound: currentAccountsFound,
         lastDuplicatesCount: currentDuplicatesCount
       }, () => {
@@ -251,14 +351,19 @@ if (btnExpandPreview) {
 // Check URL params on initial load
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('view') === 'preview') {
-  chrome.storage.local.get(['lastConvertedCsv', 'lastConvertedFilename', 'lastAccountsFound', 'lastDuplicatesCount'], (result) => {
+  chrome.storage.local.get(['lastConvertedCsv', 'lastConvertedFilename', 'lastConvertedFormat', 'lastAccountsFound', 'lastDuplicatesCount'], (result) => {
     if (result.lastConvertedCsv) {
+      const fmt = result.lastConvertedFormat || 'datev';
+      syncFormatSelection(fmt);
       currentCsvText = result.lastConvertedCsv;
       currentCsvFilename = result.lastConvertedFilename || 'Muster.csv';
       currentAccountsFound = result.lastAccountsFound || [];
       currentDuplicatesCount = result.lastDuplicatesCount || 0;
-      currentCsvBlob = new Blob([result.lastConvertedCsv], { type: 'text/csv;charset=windows-1252;' });
-      
+      const built = buildBlobForFormat(result.lastConvertedCsv, fmt);
+      currentExportBytes = built.bytes;
+      currentCsvMime = built.mime;
+      currentCsvBlob = built.blob;
+
       displayPreview(result.lastConvertedCsv);
       renderSafeguards(currentAccountsFound, currentDuplicatesCount);
     }
@@ -347,6 +452,7 @@ btnRemove.addEventListener('click', (e) => {
 if (btnLoadDemo) {
   btnLoadDemo.addEventListener('click', (e) => {
     e.stopPropagation();
+    invalidatePendingOperations('demo_selected');
     isDemoActive = true;
     selectedFiles = [{
       name: 'Demo_Auszug_Musterdaten.csv',
@@ -354,18 +460,19 @@ if (btnLoadDemo) {
       isDemo: true
     }];
     fileNameDisplay.textContent = '✨ Demo-Auszug (14 Musterbuchungen geladen)';
-    fileSizeDisplay.textContent = 'Bereit zur DATEV-Konvertierung';
+    fileSizeDisplay.textContent = 'Bereit zur Konvertierung';
     fileInfo.classList.remove('hidden');
     dropZone.classList.add('hidden');
     hideStatus();
     checkState();
-    showLoupeToast('✨ <strong>Musterdaten geladen!</strong> Klicken Sie jetzt auf <em>In DATEV Muster konvertieren</em>.');
+    showLoupeToast('✨ <strong>Musterdaten geladen!</strong> Wählen Sie Ihr Zielformat und starten Sie die Konvertierung.');
   });
 }
 
 consentCheckbox.addEventListener('change', checkState);
 
 function handleFiles(files) {
+  invalidatePendingOperations('new_files');
   isDemoActive = false;
   const validExts = ['.csv', '.pdf'];
   const validFiles = files.filter(f => validExts.includes(f.name.substring(f.name.lastIndexOf('.')).toLowerCase()));
@@ -393,6 +500,8 @@ function handleFiles(files) {
 }
 
 function clearFile() {
+  invalidatePendingOperations('clear');
+  currentCanonicalResult = null;
   selectedFiles = [];
   isDemoActive = false;
   fileInput.value = '';
@@ -400,6 +509,12 @@ function clearFile() {
   dropZone.classList.remove('hidden');
   hideStatus();
   checkState();
+}
+
+if (valutaAsBookingCheckbox) {
+  valutaAsBookingCheckbox.addEventListener('change', () => {
+    invalidatePendingOperations('valuta_changed');
+  });
 }
 
 function checkState() {
@@ -574,7 +689,103 @@ function parseCsvClientSide(csvText, filename = 'statement.csv') {
   };
 }
 
-// In-Browser PDF Text Extraction using Mozilla PDF.js
+// Client-side strict validation & parity helpers (Erste Bank / Visa / BMD 22-col / DATEV EXTF)
+function parseStrictDmyClient(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function isValidIbanClient(iban) {
+  const cleaned = String(iban || '').replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(cleaned)) return false;
+  if (cleaned.startsWith('AT') && cleaned.length !== 20) return false;
+  if (cleaned.startsWith('DE') && cleaned.length !== 22) return false;
+  const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);
+  let mod = 0;
+  for (let i = 0; i < rearranged.length; i++) {
+    const ch = rearranged.charCodeAt(i);
+    const digits = (ch >= 65 && ch <= 90) ? String(ch - 55) : rearranged[i];
+    for (let j = 0; j < digits.length; j++) {
+      mod = (mod * 10 + Number(digits[j])) % 97;
+    }
+  }
+  return mod === 1;
+}
+
+function parseStrictEurCentsClient(raw) {
+  if (!raw) return null;
+  const cleaned = String(raw)
+    .replace(/\u00a0/g, ' ')
+    .replace(/\u202f/g, ' ')
+    .replace(/\u2212/g, '-')
+    .replace(/EUR|€/gi, '')
+    .trim();
+  const m = cleaned.match(/^([+-]?)\s*(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s*([+-]?)$/);
+  if (!m) return null;
+  const lead = m[1], intPart = m[2], decPart = m[3], trail = m[4];
+  if (lead && trail) return null;
+  if (intPart.includes('.')) {
+    const grp = intPart.split('.');
+    if (grp[0].length < 1 || grp[0].length > 3 || grp.slice(1).some(g => g.length !== 3)) return null;
+  }
+  const cents = parseInt(intPart.replace(/\./g, ''), 10) * 100 + parseInt(decPart, 10);
+  if (lead === '-' || trail === '-') return cents === 0 ? 0 : -cents;
+  return cents;
+}
+
+function formatCentsCommaClient(cents) {
+  const n = Number(cents) || 0;
+  if (n === 0) return '0,00';
+  const sign = n < 0 ? '-' : '';
+  const absC = Math.abs(Math.round(n));
+  return `${sign}${Math.floor(absC / 100)},${String(absC % 100).padStart(2, '0')}`;
+}
+
+function formatIsoOrDmyToDmy(val) {
+  if (!val) return '';
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(val)) return val;
+  const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(val);
+}
+
+function formatDmyToIso(val) {
+  if (!val) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const m = String(val).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+function sanitizeCsvTextClient(val) {
+  let s = String(val || '').replace(/[\r\n\t]+/g, ' ').trim();
+  if (s && ['=', '+', '-', '@'].includes(s[0])) s = "'" + s;
+  return s;
+}
+
+function sanitizeCsvFieldClient(val) {
+  const s = sanitizeCsvTextClient(val);
+  if (/[;"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function csvQuoteAllCell(val) {
+  const cleaned = String(val ?? '').replace(/\r/g, '').replace(/\n/g, ' ');
+  return `"${cleaned.replace(/"/g, '""')}"`;
+}
+
+function parseDmyOrAmtToCents(amountStr) {
+  const c = parseStrictEurCentsClient(amountStr);
+  if (c !== null) return c;
+  const n = parseFloat(String(amountStr || '0').replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : Math.round(n * 100);
+}
+
+// In-Browser PDF Text Extraction using Mozilla PDF.js (visual Y-line / X-coord ordered)
 async function extractTextFromPdf(arrayBuffer) {
   if (typeof pdfjsLib === 'undefined') {
     throw new Error('PDF-Engine wird geladen. Bitte kurz warten oder Demo-Auszug testen.');
@@ -582,33 +793,420 @@ async function extractTextFromPdf(arrayBuffer) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.js');
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
   const pdfDoc = await loadingTask.promise;
-  let fullText = '';
+  const pageTexts = [];
+  const lowTextPages = [];
   for (let p = 1; p <= pdfDoc.numPages; p++) {
     const page = await pdfDoc.getPage(p);
     const content = await page.getTextContent();
-    let lastY = null;
-    let pageText = '';
+    const lines = [];
     for (const item of content.items) {
-      const currentY = item.transform && typeof item.transform[5] === 'number' ? item.transform[5] : null;
-      if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3) {
-        pageText += '\n';
-      } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
-        pageText += ' ';
+      const str = (item.str || '').trim();
+      if (!str) continue;
+      const x = item.transform && typeof item.transform[4] === 'number' ? item.transform[4] : 0;
+      const y = item.transform && typeof item.transform[5] === 'number' ? item.transform[5] : 0;
+      let line = lines.find(l => Math.abs(l.y - y) <= 3.0);
+      if (!line) {
+        line = { y, items: [] };
+        lines.push(line);
       }
-      pageText += item.str;
-      if (item.hasEOL) {
-        pageText += '\n';
-      }
-      lastY = currentY !== null ? currentY : lastY;
+      line.items.push({ x, str });
     }
-    fullText += pageText + '\n';
+    lines.sort((a, b) => b.y - a.y);
+    const pageStr = lines.map(l => {
+      l.items.sort((a, b) => a.x - b.x);
+      return l.items.map(it => it.str).join(' ');
+    }).join('\n');
+    pageTexts.push(pageStr);
+    if (pageStr.trim().length < 20) lowTextPages.push(p);
   }
-  return fullText;
+  return { text: pageTexts.join('\n'), pageTexts, lowTextPages };
 }
 
-// Parse Amex or Bank Statement Text Client-Side
-function parsePdfTextClientSide(text, filename = '') {
-  // 1. Amex Format Check
+function classifyErstePartnerClient(extraLines, line1Text) {
+  if (!extraLines || !extraLines.length) return { partner: null, rest: [] };
+  const cand = extraLines[0].trim();
+  const low = cand.toLowerCase();
+  const skipPrefixes = ['kartenendnummer', 's visa card', 's mastercard', 'iban', 'bic', 'mandatsreferenz', 'gläubiger-id', 'referenz', 'reklamationen', 'verwendungszweck', 'kurs', 'entgelt'];
+  if (!cand || skipPrefixes.some(p => low.startsWith(p)) || low.includes('iban') || /\b(?:AT|DE)\d{2}\s?\d{4}/.test(cand)) {
+    return { partner: null, rest: extraLines };
+  }
+  if ((line1Text || '').toLowerCase().includes('kreditkartenrechnung') && low.includes('visa card')) {
+    return { partner: null, rest: extraLines };
+  }
+  const hasCompanyMarker = /\b(gmbh|ag|kg|og|ug|e\.u\.|ltd|limited|inc\.?|mbh|bank|wien|österreich|austria|finanzamt|gericht)\b/i.test(cand) || /^(HG|BG|LG)\s/.test(cand);
+  const isCleanName = /^[A-ZÄÖÜ][A-Za-zÄÖÜäöüß&\.\-]+(?:\s+[A-ZÄÖÜa-zäöüß&\.\-]+){1,4}$/.test(cand) && !/\d/.test(cand);
+  if (hasCompanyMarker || isCleanName) {
+    return { partner: cand, rest: extraLines.slice(1) };
+  }
+  return { partner: null, rest: extraLines };
+}
+
+function parseErsteBankTextClientSide(extracted, filename, useValuta) {
+  const pageTexts = typeof extracted === 'string' ? [extracted] : (extracted.pageTexts || [extracted.text || '']);
+  const warnings = [];
+  const errors = [];
+  if (extracted.lowTextPages && extracted.lowTextPages.length > 0 && pageTexts.some(t => t.trim().length >= 50)) {
+    errors.push(`Seite(n) ${extracted.lowTextPages.join(', ')} enthalten keine lesbare Textebene (Misch-PDF).`);
+  }
+
+  let accountIban = '';
+  let currency = 'EUR';
+  const currMatch = (pageTexts[0] || '').match(/Betr[äa]ge\/Amounts\s+in\s+([A-Z]{3})/i);
+  if (currMatch) currency = currMatch[1].toUpperCase();
+
+  let holder = 'Erste Bank Austria';
+  const p1Lines = (pageTexts[0] || '').split('\n').map(l => l.trim()).filter(Boolean);
+  for (let i = 1; i < p1Lines.length; i++) {
+    if (p1Lines[i].toLowerCase().includes('zuletzt gültiger kontowortlaut')) {
+      if (!/erste bank|sparkasse|am belvedere/i.test(p1Lines[i - 1])) {
+        holder = p1Lines[i - 1];
+      }
+      break;
+    }
+  }
+
+  const segments = [];
+  const transactions = [];
+  let activeSeg = null;
+  const rowRe = /^(.+?)\s+(\d{2}\.\d{2}\.\d{4})(?:\s*\*)?\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)$/;
+
+  for (let idx = 0; idx < pageTexts.length; idx++) {
+    const pText = pageTexts[idx];
+    const pageNum = idx + 1;
+    if (pText.trim().length < 20) continue;
+
+    let candIbanRaw = '';
+    const mIbanLine = pText.match(/IBAN\s*:\s*([^\r\n]+)/i);
+    if (mIbanLine) {
+      const tail = mIbanLine[1].split(/(?:^|\s)\b(?:BIC|SWIFT)\b\s*:?/i)[0].trim();
+      const tok = tail.match(/^([A-Z]{2}\d{2}(?:[ \t]*[A-Z0-9]{1,4}){2,8})/i);
+      candIbanRaw = tok ? tok[1] : (tail.split(/\s+/)[0] || '');
+    } else {
+      const mStand = pText.match(/\b(AT\d{2}(?:\s?\d{4}){4})\b/);
+      if (mStand) candIbanRaw = mStand[1];
+    }
+    if (candIbanRaw) {
+      const candIban = candIbanRaw.replace(/\s+/g, '').toUpperCase();
+      if (!isValidIbanClient(candIban)) {
+        errors.push(`Seite ${pageNum}: Ungültige IBAN-Prüfsumme ('${candIban}').`);
+      } else if (!accountIban) {
+        accountIban = candIban;
+      } else if (candIban !== accountIban) {
+        errors.push(`Seite ${pageNum}: Abweichende IBAN '${candIban}' im PDF.`);
+      }
+    }
+
+    const mSeg = pText.match(/\bNr\.\s*(\d{1,4})\/(\d{4})\b/i);
+    const segNum = mSeg ? parseInt(mSeg[1], 10) : null;
+    const segYear = mSeg ? mSeg[2] : null;
+    const mOpen = pText.match(/Alter\s+Kontostand(?:\s+Old\s+Balance)?\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)/i);
+    const closeMatches = [...pText.matchAll(/Neuer\s+Kontostand(?:\/New\s+Balance)?\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)/gi)];
+    const openCents = mOpen ? parseStrictEurCentsClient(mOpen[1]) : null;
+    const closeCents = closeMatches.length ? parseStrictEurCentsClient(closeMatches[closeMatches.length - 1][1]) : null;
+
+    if (!activeSeg || (segNum !== null && (activeSeg.stmtNum !== segNum || activeSeg.stmtYear !== segYear))) {
+      activeSeg = { stmtNum: segNum, stmtYear: segYear, openingCents: openCents, closingCents: closeCents, txs: [] };
+      segments.push(activeSeg);
+    } else if (closeCents !== null) {
+      activeSeg.closingCents = closeCents;
+    }
+
+    const lines = pText.split('\n').map(l => l.trim()).filter(Boolean);
+    let inTable = false;
+    let current = null;
+    let afterAbschluss = false;
+
+    const flush = () => {
+      if (!current) return;
+      const { partner, rest } = classifyErstePartnerClient(current.extra, current.line1);
+      const desc = [current.line1, ...rest].join(' ').replace(/\s+/g, ' ').trim();
+      const segTag = segNum !== null ? `ERS-${String(segNum).padStart(3, '0')}` : `ERS-P${pageNum}`;
+      const txObj = {
+        booking_date: useValuta ? formatDmyToIso(current.valutaStr) : null,
+        value_date: formatDmyToIso(current.valutaStr),
+        date: useValuta ? current.valutaStr : '',
+        valutaDate: current.valutaStr,
+        partner,
+        partner_iban: null,
+        description: desc.slice(0, 250),
+        text: desc.slice(0, 250),
+        amount_cents: current.cents,
+        amountStr: formatCentsCommaClient(current.cents),
+        currency,
+        reference: `${segTag}-${transactions.length + 1}`,
+        belegNr: `${segTag}-${transactions.length + 1}`,
+        account_id: accountIban,
+        bank_name: 'Erste Bank Austria',
+        source_file_id: filename,
+        validation_status: 'VALID',
+      };
+      activeSeg.txs.push(txObj);
+      transactions.push(txObj);
+      current = null;
+    };
+
+    for (const line of lines) {
+      const low = line.toLowerCase();
+      if (low.includes('buchungstext') && low.includes('valuta')) {
+        inTable = true;
+        continue;
+      }
+      if (!inTable) continue;
+      if (low.startsWith('neuer kontostand') || /^AT\d{2}[\d\s]{14,}\s+\d{2}\.\d{2}\.\d{4}/.test(line) || low.startsWith('iban datum/date')) {
+        flush();
+        break;
+      }
+      if (/^\*{3}\s*Abschlussbuchung/i.test(line)) {
+        flush();
+        afterAbschluss = true;
+        continue;
+      }
+      const m = line.match(rowRe);
+      if (m) {
+        flush();
+        afterAbschluss = false;
+        const valOk = parseStrictDmyClient(m[2]);
+        const cents = parseStrictEurCentsClient(m[3]);
+        if (!valOk || cents === null) {
+          errors.push(`Seite ${pageNum}: Ungültige Zeile '${line}'.`);
+          continue;
+        }
+        current = { line1: m[1].trim(), extra: [], valutaStr: valOk, cents };
+      } else if (afterAbschluss && low.startsWith('reklamationen')) {
+        continue;
+      } else {
+        // Guard R62-4: Reject damaged amounts following a DD.MM.YYYY date instead of absorbing into description
+        const mBroken = line.match(/^(.+?)\s+(\d{2}\.\d{2}\.\d{4})(?:\s*\*)?\s+(\S+(?:\s+[+-])?)$/);
+        if (mBroken && !/^\*{3}/.test(line)) {
+          const brokenAmt = mBroken[3].trim();
+          const looksDamagedAmt = (/\d/.test(brokenAmt) || /[A-Za-z*?]{1,4}[,.][A-Za-z0-9*?]{1,3}[+-]?/.test(brokenAmt))
+            && (brokenAmt.includes(',') || brokenAmt.includes('.') || /[+-]$/.test(brokenAmt) || /^[+-]/.test(brokenAmt));
+          if (looksDamagedAmt) {
+            flush();
+            errors.push(`Seite ${pageNum}: Nicht eindeutiger Betrag '${brokenAmt}' bei '${mBroken[1].trim()}'.`);
+            continue;
+          }
+        }
+        if (current) {
+          current.extra.push(line);
+        } else {
+          errors.push(`Seite ${pageNum}: Nicht zugeordnete Zeile im Umsatzbereich: '${line}'.`);
+        }
+      }
+    }
+    flush();
+  }
+
+  let overallRecon = 'UNVERIFIED';
+  const seenSeg = new Set();
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (seg.stmtNum !== null && seg.stmtYear) {
+      const k = `${seg.stmtYear}-${seg.stmtNum}`;
+      if (seenSeg.has(k)) errors.push(`Doppelter Auszug Nr. ${seg.stmtNum}/${seg.stmtYear}.`);
+      seenSeg.add(k);
+      if (i > 0 && segments[i - 1].stmtNum !== null && segments[i - 1].stmtYear === seg.stmtYear && seg.stmtNum !== segments[i - 1].stmtNum + 1) {
+        errors.push(`Fehlender Auszug zwischen Nr. ${segments[i - 1].stmtNum} und ${seg.stmtNum}.`);
+      }
+    }
+    if (seg.openingCents !== null && seg.closingCents !== null) {
+      const sum = seg.txs.reduce((a, t) => a + t.amount_cents, 0);
+      if (seg.openingCents + sum !== seg.closingCents) {
+        errors.push(`Saldendifferenz in Auszug Nr. ${seg.stmtNum || '?'}/${seg.stmtYear || '?'}.`);
+      }
+    }
+    if (i > 0 && segments[i - 1].closingCents !== null && seg.openingCents !== null && segments[i - 1].closingCents !== seg.openingCents) {
+      errors.push(`Saldensprung zwischen Auszügen.`);
+    }
+  }
+
+  const allBalanced = segments.length > 0 && segments.every(s => s.openingCents !== null && s.closingCents !== null) && errors.length === 0;
+  if (errors.length > 0) overallRecon = 'DISCREPANCY';
+  else if (allBalanced) overallRecon = 'BALANCED';
+
+  if (transactions.length > 0) {
+    if (useValuta) {
+      warnings.push("Valutadatum als Buchungsdatum verwendet (Quellspalte 'Valuta/Value' des Erste Bank PDFs).");
+    } else {
+      warnings.push("Auszug enthält nur Valutadaten ('Valuta/Value'), kein separates Buchungsdatum. Aktivieren Sie 'Valutadatum als Buchungsdatum', falls zulässig.");
+    }
+  }
+  warnings.push(...errors);
+  if (errors.length && transactions.length) transactions[0].validation_status = 'ERROR';
+
+  return {
+    transactions,
+    account: holder,
+    card: accountIban,
+    bankName: 'Erste Bank Austria',
+    openingCents: segments.length ? segments[0].openingCents : null,
+    closingCents: segments.length ? segments[segments.length - 1].closingCents : null,
+    reconciliation: overallRecon,
+    warnings,
+    segments: segments.map(s => ({
+      file: filename,
+      stmtNum: s.stmtNum,
+      stmtYear: s.stmtYear,
+      openingCents: s.openingCents,
+      closingCents: s.closingCents,
+      txs: s.txs,
+    })),
+  };
+}
+
+function parseErsteVisaTextClientSide(extracted, filename) {
+  const pageTexts = typeof extracted === 'string' ? [extracted] : (extracted.pageTexts || [extracted.text || '']);
+  const warnings = [];
+  const errors = [];
+  if (extracted.lowTextPages && extracted.lowTextPages.length > 0 && pageTexts.some(t => t.trim().length >= 50)) {
+    errors.push(`Seite(n) ${extracted.lowTextPages.join(', ')} enthalten keine lesbare Textebene.`);
+  }
+
+  let card = '';
+  const mCard = (pageTexts[0] || '').match(/Kartennummer\s*\/\s*Card\s*Number\s*[\r\n\s]*([0-9Xx\*]{8,20})/i)
+    || (pageTexts[0] || '').match(/Umsatz\s+der\s+Karte\s+([0-9Xx\*]{4,20})/i);
+  if (mCard) card = mCard[1].trim();
+
+  let openingCents = null;
+  let closingCents = null;
+  const transactions = [];
+  const rowRe = /^(\d{2}\.\d{2}\.\d{4})\s+(\d{2}\.\d{2}\.\d{4})\s+(.+?)\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)$/;
+  let inTable = false;
+
+  for (let p = 0; p < pageTexts.length; p++) {
+    const pText = pageTexts[p];
+    const mPrev = pText.match(/Offener\s+Betrag\s+Vormonat\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)/i);
+    if (mPrev && openingCents === null) openingCents = parseStrictEurCentsClient(mPrev[1]);
+    const mOut = pText.match(/Offener\s+Betrag\s*\/\s*Outstanding\s+balance\s+([+-]?\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*[+-]?)/i);
+    if (mOut) closingCents = parseStrictEurCentsClient(mOut[1]);
+
+    for (const rawLine of pText.split('\n')) {
+      const line = rawLine.trim();
+      const low = line.toLowerCase();
+      if (!line) continue;
+      if (low.includes('betrag eur') || low.startsWith('offener betrag vormonat') || low.startsWith('umsatz der karte')) {
+        inTable = true;
+        continue;
+      }
+      if (low.startsWith('offener betrag / outstanding') || low.startsWith('einzugsbetrag') || low.startsWith('der einzugsbetrag wird')) {
+        inTable = false;
+        continue;
+      }
+      if (!inTable || /kauf\s+buchung|contracting company|amount foreign currency/i.test(line)) continue;
+      const m = line.match(rowRe);
+      if (!m) {
+        errors.push(`Seite ${p + 1}: Unvollständige Kreditkarten-Zeile: '${line}'.`);
+        continue;
+      }
+      const kaufOk = parseStrictDmyClient(m[1]);
+      const buchOk = parseStrictDmyClient(m[2]);
+      const cents = parseStrictEurCentsClient(m[4]);
+      if (!kaufOk || !buchOk || cents === null) {
+        errors.push(`Seite ${p + 1}: Ungültige Daten in '${line}'.`);
+        continue;
+      }
+      let core = m[3].trim();
+      let foreignCurrency = null, foreignAmountCents = null, fxNote = '';
+      const fxTail = core.match(/\s+(\d[\d\.,]*\s+[A-Z]{3})\s+(\d+[\.,]\d+)(?:\s+(\d+[\.,]\d+))?$/);
+      if (fxTail) {
+        const fxParts = fxTail[1].match(/^(\d[\d\.,]*)\s+([A-Z]{3})$/);
+        if (fxParts) {
+          const normFx = (!fxParts[1].includes(',') && fxParts[1].includes('.')) ? fxParts[1].replace('.', ',') : fxParts[1];
+          const fCents = parseStrictEurCentsClient(normFx);
+          if (fCents !== null) {
+            foreignCurrency = fxParts[2];
+            foreignAmountCents = cents < 0 ? -Math.abs(fCents) : Math.abs(fCents);
+          }
+        }
+        const feePart = fxTail[3] ? `, Entgelt ${fxTail[3]} EUR` : '';
+        fxNote = ` (${fxTail[1]}, Kurs ${fxTail[2]}${feePart})`;
+        core = core.slice(0, fxTail.index).trim();
+      }
+      const isNotice = core.toLowerCase().includes('ihre zahlung');
+      let partner = null, ort = '';
+      if (!isNotice) {
+        const idxSp = core.lastIndexOf(' ');
+        if (idxSp > 0) {
+          partner = core.slice(0, idxSp).trim();
+          ort = core.slice(idxSp + 1).trim();
+        } else {
+          partner = core;
+        }
+      }
+      const desc = isNotice
+        ? `${core}${fxNote}`
+        : [ort || `Kartenumsatz (Kauf ${kaufOk})`, fxNote.trim(), ort ? `Kauf ${kaufOk}` : ''].filter(Boolean).join(' ').trim();
+      const ref = `VISA-${buchOk.slice(0, 2)}${buchOk.slice(3, 5)}-${transactions.length + 1}`;
+      transactions.push({
+        booking_date: formatDmyToIso(buchOk),
+        value_date: null,
+        date: buchOk,
+        partner,
+        partner_iban: null,
+        foreign_currency: foreignCurrency,
+        foreign_amount_cents: foreignAmountCents,
+        description: desc.slice(0, 250),
+        text: desc.slice(0, 250),
+        amount_cents: cents,
+        amountStr: formatCentsCommaClient(cents),
+        currency: 'EUR',
+        reference: ref,
+        belegNr: ref,
+        account_id: card || 's Visa Card Business',
+        bank_name: 'Erste Bank s Visa Card',
+        source_file_id: filename,
+        validation_status: 'VALID',
+      });
+    }
+  }
+
+  let recon = 'UNVERIFIED';
+  if (openingCents !== null && closingCents !== null && transactions.length) {
+    const sum = transactions.reduce((a, t) => a + t.amount_cents, 0);
+    recon = (openingCents + sum === closingCents && errors.length === 0) ? 'BALANCED' : 'DISCREPANCY';
+  } else if (errors.length > 0) {
+    recon = 'DISCREPANCY';
+  }
+  warnings.push(...errors);
+  if (errors.length && transactions.length) transactions[0].validation_status = 'ERROR';
+
+  return {
+    transactions,
+    account: 's Visa Card Business',
+    card: card || 's Visa Card Business',
+    bankName: 'Erste Bank s Visa Card',
+    openingCents,
+    closingCents,
+    reconciliation: recon,
+    warnings,
+    segments: [{
+      file: filename,
+      stmtNum: null,
+      stmtYear: null,
+      openingCents,
+      closingCents,
+      txs: transactions,
+    }],
+  };
+}
+
+// Parse Amex, Erste Bank, Visa Gold, or Universal Bank Statement Text Client-Side
+function parsePdfTextClientSide(extracted, filename = '', useValuta = false) {
+  const text = typeof extracted === 'string' ? extracted : (extracted?.text || '');
+  const upper = text.toUpperCase();
+
+  if ((upper.includes('MONATSRECHNUNG') || upper.includes('MONTHLY STATEMENT'))
+      && upper.includes('KAUF') && upper.includes('BUCHUNG')
+      && (upper.includes('VERTRAGSUNTERNEHMEN') || upper.includes('CONTRACTING COMPANY'))) {
+    return parseErsteVisaTextClientSide(extracted, filename);
+  }
+  if ((upper.includes('ERSTE BANK') || upper.includes('OESTERREICHISCHEN SPARKASSEN') || upper.includes('GIBAATWW'))
+      && (upper.includes('KONTOAUSZUG') || upper.includes('ACCOUNT STATEMENT'))
+      && upper.includes('BUCHUNGSTEXT') && upper.includes('VALUTA')) {
+    return parseErsteBankTextClientSide(extracted, filename, useValuta);
+  }
+
+  // Amex Format Check
   if (/american express|amex/i.test(text) || /american express|amex/i.test(filename)) {
     let year = '2026';
     let stmtMonth = '';
@@ -629,7 +1227,7 @@ function parsePdfTextClientSide(text, filename = '') {
     }
 
     let holder = 'American Express';
-    const holderMatch = text.match(/^([A-Za-zÄÖÜäöüß0-9\.\,\-\s\&]{3,50})\s+[xX0-9]{4}-[xX0-9]{6}/m) 
+    const holderMatch = text.match(/^([A-Za-zÄÖÜäöüß0-9\.\,\-\s\&]{3,50})\s+[xX0-9]{4}-[xX0-9]{6}/m)
       || text.match(/(?:Neue\s+)?Belastungen\s+für\s+([A-Za-zÄÖÜäöüß0-9\.\,\-\s\&]{3,50})/i);
     if (holderMatch) {
       holder = holderMatch[1].trim();
@@ -651,26 +1249,34 @@ function parsePdfTextClientSide(text, filename = '') {
         }
         const fullDate = `${day}.${mo}.${txYear}`;
         const finalAmount = isCredit ? amountRaw : '-' + amountRaw;
+        const cents = parseDmyOrAmtToCents(finalAmount);
         txs.push({
+          booking_date: formatDmyToIso(fullDate),
           date: fullDate,
           text: details.trim(),
-          amountStr: finalAmount,
+          description: details.trim(),
+          amountStr: formatCentsCommaClient(cents),
+          amount_cents: cents,
           currency: 'EUR',
           belegNr: `AMEX-${txs.length + 1}`,
+          reference: `AMEX-${txs.length + 1}`,
           konto: '',
           account: holder,
           card: card,
-          sourceFile: filename
+          account_id: card || holder,
+          bank_name: holder,
+          sourceFile: filename,
+          source_file_id: filename,
+          validation_status: 'VALID',
         });
       }
     }
 
     if (txs.length > 0) {
-      return { transactions: txs, account: holder, card: card };
+      return { transactions: txs, account: holder, card: card, warnings: [], reconciliation: 'UNVERIFIED' };
     }
   }
 
-  // 2. Universal Bank Statement Parser
   return parseUniversalBankText(text, filename);
 }
 
@@ -709,32 +1315,50 @@ function parseUniversalBankText(text, filename = '') {
       const rawDate = dMatch[1];
       const rest = line.substring(rawDate.length).trim();
       const aMatch = rest.match(amountPattern);
+      const normD = normalizeDate(rawDate);
 
       if (aMatch) {
         const rawAmount = aMatch[1];
         const desc = rest.substring(0, rest.lastIndexOf(rawAmount)).trim();
+        const amtNorm = normalizeAmount(rawAmount);
         currentTx = {
-          date: normalizeDate(rawDate),
+          booking_date: formatDmyToIso(normD),
+          date: normD,
           text: desc || 'Bank Buchung',
-          amountStr: normalizeAmount(rawAmount),
+          description: desc || 'Bank Buchung',
+          amountStr: amtNorm,
+          amount_cents: parseDmyOrAmtToCents(amtNorm),
           currency: 'EUR',
           belegNr: `BELEG-${txs.length + 1}`,
+          reference: `BELEG-${txs.length + 1}`,
           konto: '',
           account: holder,
           card: iban,
-          sourceFile: filename
+          account_id: iban || holder,
+          bank_name: holder,
+          sourceFile: filename,
+          source_file_id: filename,
+          validation_status: 'VALID',
         };
       } else {
         currentTx = {
-          date: normalizeDate(rawDate),
+          booking_date: formatDmyToIso(normD),
+          date: normD,
           text: rest,
+          description: rest,
           amountStr: '',
+          amount_cents: 0,
           currency: 'EUR',
           belegNr: `BELEG-${txs.length + 1}`,
+          reference: `BELEG-${txs.length + 1}`,
           konto: '',
           account: holder,
           card: iban,
-          sourceFile: filename
+          account_id: iban || holder,
+          bank_name: holder,
+          sourceFile: filename,
+          source_file_id: filename,
+          validation_status: 'VALID',
         };
       }
     } else if (currentTx) {
@@ -742,10 +1366,15 @@ function parseUniversalBankText(text, filename = '') {
       if (aMatch && !currentTx.amountStr) {
         const rawAmount = aMatch[1];
         const extraText = line.substring(0, line.lastIndexOf(rawAmount)).trim();
-        if (extraText) currentTx.text += ' ' + extraText;
+        if (extraText) {
+          currentTx.text += ' ' + extraText;
+          currentTx.description = currentTx.text;
+        }
         currentTx.amountStr = normalizeAmount(rawAmount);
+        currentTx.amount_cents = parseDmyOrAmtToCents(currentTx.amountStr);
       } else if (!currentTx.amountStr) {
         currentTx.text += ' ' + line;
+        currentTx.description = currentTx.text;
       }
     }
   }
@@ -754,7 +1383,580 @@ function parseUniversalBankText(text, filename = '') {
     txs.push(currentTx);
   }
 
-  return { transactions: txs, account: holder, card: iban };
+  return { transactions: txs, account: holder, card: iban, warnings: [], reconciliation: 'UNVERIFIED' };
+}
+
+function computeClientExportBlocks(result, fmt, defaultBankAccount = null) {
+  const blocks = [];
+  const txs = result?.transactions || [];
+  if (!txs.length) {
+    blocks.push('Keine Buchungssätze vorhanden.');
+    return blocks;
+  }
+  if (result.overall_reconciliation === 'DISCREPANCY') {
+    blocks.push('Saldenabweichung (DISCREPANCY) festgestellt: Anfangssaldo + Umsätze stimmt nicht mit Endsaldo überein.');
+  }
+  if (txs.some(t => t.validation_status === 'ERROR')) {
+    blocks.push('Mindestens eine Buchung enthält einen Validierungsfehler.');
+  }
+  if (txs.some(t => !t.booking_date)) {
+    blocks.push("Fehlendes Buchungsdatum (nur Valutadatum vorhanden). Bitte 'Valutadatum als Buchungsdatum verwenden' aktivieren.");
+  }
+  const accts = new Set(txs.map(t => t.account_id).filter(Boolean));
+  if (accts.size > 1) {
+    blocks.push(`Gemischte Bankkonten erkannt (${Array.from(accts).join(', ')}). Buchhaltungsexport erfordert genau ein Konto.`);
+  }
+  const currs = new Set(txs.map(t => t.currency).filter(Boolean));
+  if (currs.size > 1) {
+    blocks.push(`Gemischte Währungen erkannt (${Array.from(currs).join(', ')}).`);
+  }
+  if (defaultBankAccount !== null && defaultBankAccount !== undefined && String(defaultBankAccount).trim() !== '' && !/^[0-9]{3,9}$/.test(String(defaultBankAccount).trim())) {
+    blocks.push("Ungültiges Bankkonto (Erwartet: 3- bis 9-stellige Ziffernfolge).");
+  }
+  if (txs.some(t => t.contra_account && !/^[0-9]{3,9}$/.test(String(t.contra_account).trim()))) {
+    blocks.push("Ungültiges Gegenkonto (contra_account): Erwartet wird eine 3- bis 9-stellige Ziffernfolge.");
+  }
+  if (fmt === 'bmd_bankauszug' && txs.some(t => (t.currency || 'EUR').toUpperCase() !== 'EUR')) {
+    blocks.push("Format 'BMD Bankauszug (22 Spalten)' unterstützt aktuell nur EUR.");
+  }
+  if (fmt === 'datev') {
+    const years = new Set(txs.filter(t => t.booking_date).map(t => String(t.booking_date).slice(0, 4)));
+    if (years.size > 1) {
+      blocks.push(`Mehrere Geschäftsjahre erkannt (${Array.from(years).join(', ')}). DATEV EXTF erfordert genau ein Jahr.`);
+    }
+  }
+  return blocks;
+}
+
+function buildCanonicalResultExport(result, fmt, defaultBankAccount = null) {
+  const txs = result.transactions || [];
+  if (fmt === 'bmd_bankauszug') {
+    const hdr = [
+      'Transaction Booking Date','Transaction Purpose','Transaction Partner','Transaction Partner IBAN',
+      'Transaction Foreign Currency','Transaction Foreign Amount','Transaction Currency','Transaction Amount',
+      'Booking Amount','Invoice Type','Invoice Currency','Invoice Total','Invoice Number','Invoice Internal No',
+      'Invoice Date','Invoice Partner Company','Invoice Partner Number','Invoice Document ID','Invoice File',
+      'Invoice Tags','Transaction ID','Payment Category'
+    ];
+    const rows = txs.map(tx => {
+      const bDate = formatIsoOrDmyToDmy(tx.booking_date);
+      const partner = (tx.partner || '').trim();
+      let purpose = (tx.description || '').trim();
+      if (partner && purpose.toLowerCase().startsWith(partner.toLowerCase() + ' - ')) {
+        purpose = purpose.slice(partner.length + 3).trim();
+      } else if (partner && purpose === partner) {
+        purpose = '';
+      }
+      let pIban = (tx.partner_iban || '').replace(/\s+/g, '');
+      if (pIban && tx.account_id && pIban.toUpperCase() === String(tx.account_id).replace(/\s+/g, '').toUpperCase()) {
+        pIban = '';
+      }
+      const fCurr = tx.foreign_currency ? String(tx.foreign_currency).toUpperCase() : '';
+      const fAmt = (fCurr && tx.foreign_amount_cents != null) ? formatCentsCommaClient(tx.foreign_amount_cents) : '';
+      const curr = (tx.currency || 'EUR').toUpperCase();
+      const amtStr = formatCentsCommaClient(tx.amount_cents);
+      return [
+        bDate, sanitizeCsvFieldClient(purpose), sanitizeCsvFieldClient(partner), sanitizeCsvFieldClient(pIban),
+        sanitizeCsvFieldClient(fCurr), fAmt, sanitizeCsvFieldClient(curr),
+        amtStr, amtStr,
+        ...new Array(13).fill('')
+      ].join(';');
+    });
+    const csvText = hdr.join(';') + '\r\n' + rows.join('\r\n') + '\r\n';
+    const built = buildBlobForFormat(csvText, 'bmd_bankauszug');
+    return { csvText, filename: 'BMD_Bankauszug_22.csv', ...built };
+  }
+
+  if (fmt === 'bmd' || fmt === 'bmd_ntcs') {
+    const bmdKonto = (defaultBankAccount && String(defaultBankAccount).trim() !== '1200')
+      ? String(defaultBankAccount).trim()
+      : '2800';
+    const hdr = ['Satzart', 'Belegdatum', 'Konto', 'Gegenkonto', 'Betrag', 'Währung', 'Text', 'Belegnummer']
+      .map(csvQuoteAllCell).join(';');
+    const rows = txs.map(tx => {
+      const bDate = formatIsoOrDmyToDmy(tx.booking_date);
+      const p = (tx.partner || '').trim();
+      const d = (tx.description || '').trim();
+      const fullTxt = (p && d && !d.includes(p)) ? `${p} - ${d}` : (d || p);
+      const cleanTxt = sanitizeCsvTextClient(fullTxt).slice(0, 120);
+      const cleanRef = sanitizeCsvTextClient(tx.reference || '').slice(0, 30);
+      const contra = (tx.contra_account || '').trim();
+      const curr = (tx.currency || 'EUR').trim();
+      return [
+        '0',
+        bDate,
+        bmdKonto,
+        contra,
+        formatCentsCommaClient(tx.amount_cents),
+        curr,
+        cleanTxt,
+        cleanRef,
+      ].map(csvQuoteAllCell).join(';');
+    });
+    const csvText = hdr + '\r\n' + rows.join('\r\n') + '\r\n';
+    const built = buildBlobForFormat(csvText, 'bmd');
+    return { csvText, filename: 'BMD_Bankauszug.csv', ...built };
+  }
+
+  // DATEV EXTF (Exact backend parity: 22-field Row 1 with WKZ in col 22, QUOTE_ALL Row 2 & data rows)
+  const datevKonto = (defaultBankAccount && String(defaultBankAccount).trim()) ? String(defaultBankAccount).trim() : '1200';
+  const years = txs.filter(t => t.booking_date).map(t => String(t.booking_date).slice(0, 4)).sort();
+  const yr = years[0] || String(new Date().getFullYear());
+  const nowStr = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '000';
+  const extfLine1 = `"EXTF";700;21;"Buchungsstapel";12;${nowStr};;"";"";"";1001;10001;${yr}0101;4;${yr}0101;${yr}1231;"Statement2Muster";"";1;;0;"EUR"`;
+  const extfLine2 = [
+    'Umsatz (ohne Soll/Haben-Kz)', 'Soll/Haben-Kennzeichen', 'WKZ Umsatz', 'Kurs',
+    'Basis-Umsatz', 'WKZ Basis-Umsatz', 'Konto', 'Gegenkonto (ohne BU-Schlüssel)',
+    'BU-Schlüssel', 'Belegdatum', 'Belegfeld 1', 'Belegfeld 2', 'Skonto', 'Buchungstext'
+  ].map(csvQuoteAllCell).join(';');
+  const rows = txs.map(tx => {
+    const cents = Number(tx.amount_cents) || 0;
+    const sh = cents >= 0 ? 'S' : 'H';
+    const absAmt = formatCentsCommaClient(Math.abs(cents));
+    const curr = (tx.currency || 'EUR').trim();
+    const contra = (tx.contra_account || '').trim();
+    const dmy = formatIsoOrDmyToDmy(tx.booking_date);
+    const ttmm = dmy.length >= 5 ? dmy.slice(0, 2) + dmy.slice(3, 5) : '0000';
+    const p = (tx.partner || '').trim();
+    const d = (tx.description || '').trim();
+    const fullTxt = (p && d && !d.includes(p)) ? `${p} - ${d}` : (d || p);
+    const cleanRef = sanitizeCsvTextClient(tx.reference || '').slice(0, 36);
+    const cleanTxt = sanitizeCsvTextClient(fullTxt).slice(0, 60);
+    return [
+      absAmt, sh, curr, '', '', '',
+      datevKonto, contra, '', ttmm, cleanRef, '', '', cleanTxt,
+    ].map(csvQuoteAllCell).join(';');
+  });
+  const csvText = extfLine1 + '\r\n' + extfLine2 + '\r\n' + rows.join('\r\n') + '\r\n';
+  const built = buildBlobForFormat(csvText, 'datev');
+  return { csvText, filename: 'EXTF_Buchungsstapel.csv', ...built };
+}
+
+function displayCanonicalPreview(result) {
+  const txs = result?.transactions || [];
+  parsedTransactions = [];
+  let sumCents = 0;
+
+  txs.forEach(tx => {
+    const cents = Number(tx.amount_cents) || 0;
+    sumCents += cents;
+    const dateDisp = tx.booking_date
+      ? formatIsoOrDmyToDmy(tx.booking_date)
+      : (tx.value_date ? `${formatIsoOrDmyToDmy(tx.value_date)} (Valuta)` : '—');
+    const p = (tx.partner || '').trim();
+    const d = (tx.description || '').trim();
+    const textDisp = (p && !d.toLowerCase().startsWith(p.toLowerCase())) ? (d ? `${p} — ${d}` : p) : (d || p || 'Buchung');
+    parsedTransactions.push({
+      date: dateDisp,
+      text: textDisp,
+      amountStr: formatCentsCommaClient(cents),
+      numericVal: cents / 100,
+      currency: tx.currency || 'EUR',
+      belegNr: tx.reference || '',
+      konto: tx.contra_account || '',
+    });
+  });
+
+  renderTableRows(parsedTransactions);
+  if (previewCount) previewCount.textContent = parsedTransactions.length;
+  const totalFormatted = (sumCents / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  if (previewTotal) previewTotal.textContent = totalFormatted;
+  if (searchInput) searchInput.value = '';
+  if (uploadView) uploadView.classList.add('hidden');
+  if (previewView) previewView.classList.remove('hidden');
+  if (historyView) historyView.classList.add('hidden');
+  return { count: parsedTransactions.length, totalFormatted };
+}
+
+function chainClientFileSegments(segments) {
+  if (!segments || segments.length <= 1) {
+    if (segments && segments.length === 1) {
+      const seg = segments[0];
+      const o = seg.openingCents;
+      const c = seg.closingCents;
+      if (o !== null && o !== undefined && c !== null && c !== undefined && seg.txs && seg.txs.length) {
+        const sum = seg.txs.reduce((acc, t) => acc + (Number(t.amount_cents) || 0), 0);
+        if (o + sum !== c) {
+          return {
+            hasDiscrepancy: true,
+            warnings: [`Saldendifferenz in Datei '${seg.file || 'unbekannt'}': Anfangssaldo + Umsätze stimmt nicht mit Endsaldo überein.`],
+          };
+        }
+      }
+    }
+    return { hasDiscrepancy: false, warnings: [] };
+  }
+
+  let hasDiscrepancy = false;
+  const warnings = [];
+
+  // 1. Validate internal Solldoppik balance for every segment
+  for (const seg of segments) {
+    if (seg.openingCents !== null && seg.openingCents !== undefined && seg.closingCents !== null && seg.closingCents !== undefined && seg.txs && seg.txs.length) {
+      const sum = seg.txs.reduce((acc, t) => acc + (Number(t.amount_cents) || 0), 0);
+      if (seg.openingCents + sum !== seg.closingCents) {
+        hasDiscrepancy = true;
+        warnings.push(`Saldendifferenz in Datei '${seg.file || 'unbekannt'}': Anfangssaldo + Umsätze stimmt nicht mit Endsaldo überein.`);
+      }
+    }
+  }
+
+  // 2. Duplicate statement number or identical duplicate statement payload detection
+  const segSignature = (seg) => {
+    const txSigs = (seg.txs || []).map(t =>
+      `${t.booking_date || ''}|${t.value_date || ''}|${Number(t.amount_cents) || 0}|${(t.currency || 'EUR').toUpperCase()}|${(t.description || '').trim()}|${(t.partner || '').trim()}`
+    ).sort();
+    return JSON.stringify([seg.openingCents ?? null, seg.closingCents ?? null, seg.stmtYear ?? null, seg.stmtNum ?? null, txSigs]);
+  };
+  const segDateBounds = (seg) => {
+    const ds = (seg.txs || []).map(t => t.booking_date || t.value_date).filter(Boolean).sort();
+    return ds.length ? [ds[0], ds[ds.length - 1]] : [null, null];
+  };
+
+  const seenStmtNums = new Set();
+  const seenSigs = new Set();
+  for (const seg of segments) {
+    if (seg.stmtNum !== null && seg.stmtNum !== undefined && seg.stmtYear) {
+      const k = `${seg.stmtYear}-${seg.stmtNum}`;
+      if (seenStmtNums.has(k)) {
+        hasDiscrepancy = true;
+        warnings.push(`Doppelter Auszug Nr. ${String(seg.stmtNum).padStart(3, '0')}/${seg.stmtYear} im Multi-Datei-Batch ('${seg.file || 'unbekannt'}').`);
+      }
+      seenStmtNums.add(k);
+    }
+    const sig = segSignature(seg);
+    if (seenSigs.has(sig)) {
+      hasDiscrepancy = true;
+      warnings.push(`Doppelte oder überlappende Auszugsdatei im Batch erkannt ('${seg.file || 'unbekannt'}').`);
+    }
+    seenSigs.add(sig);
+  }
+
+  // 3. Require balances on either all segments or none
+  const anyMissingBal = segments.some(s => s.openingCents === null || s.openingCents === undefined || s.closingCents === null || s.closingCents === undefined);
+  const anyPresentBal = segments.some(s => (s.openingCents !== null && s.openingCents !== undefined) || (s.closingCents !== null && s.closingCents !== undefined));
+  if (anyMissingBal) {
+    if (anyPresentBal) {
+      hasDiscrepancy = true;
+      warnings.push('Unvollständige Saldenkette im Multi-Datei-Batch: Mindestens eine Datei enthält keine Kontostände.');
+    }
+    return { hasDiscrepancy, warnings };
+  }
+
+  // 4. Order-independent chaining by statement numbers or unique closing->opening permutation
+  const allHaveStmtNums = segments.every(s => s.stmtNum !== null && s.stmtNum !== undefined && s.stmtYear);
+  if (allHaveStmtNums) {
+    const ordered = [...segments].sort((a, b) => (Number(a.stmtYear) - Number(b.stmtYear)) || (Number(a.stmtNum) - Number(b.stmtNum)));
+    for (let i = 1; i < ordered.length; i++) {
+      const prev = ordered[i - 1];
+      const curr = ordered[i];
+      if (String(prev.stmtYear) === String(curr.stmtYear) && Number(prev.stmtNum) + 1 !== Number(curr.stmtNum)) {
+        hasDiscrepancy = true;
+        warnings.push(`Fehlende Auszugsnummer zwischen Nr. ${String(prev.stmtNum).padStart(3, '0')}/${prev.stmtYear} und Nr. ${String(curr.stmtNum).padStart(3, '0')}/${curr.stmtYear}.`);
+      }
+      if (prev.closingCents !== curr.openingCents) {
+        hasDiscrepancy = true;
+        warnings.push(`Saldensprung im Multi-Datei-Batch zwischen '${prev.file}' und '${curr.file}' (fehlender oder überlappender Auszug).`);
+      }
+      const [, prevMaxD] = segDateBounds(prev);
+      const [currMinD] = segDateBounds(curr);
+      if (prevMaxD && currMinD && prevMaxD > currMinD) {
+        hasDiscrepancy = true;
+        warnings.push(`Zeitliche Überlappung im Multi-Datei-Batch zwischen '${prev.file}' und '${curr.file}'.`);
+      }
+    }
+    return { hasDiscrepancy, warnings };
+  }
+
+  const n = segments.length;
+  const adjUndirected = new Map();
+  const inDeg = new Map();
+  const outDeg = new Map();
+  const edgesFrom = new Map();
+  const nodes = new Set();
+
+  for (let i = 0; i < n; i++) {
+    const u = Number(segments[i].openingCents);
+    const v = Number(segments[i].closingCents);
+    nodes.add(u);
+    nodes.add(v);
+    if (!adjUndirected.has(u)) adjUndirected.set(u, new Set());
+    if (!adjUndirected.has(v)) adjUndirected.set(v, new Set());
+    adjUndirected.get(u).add(v);
+    adjUndirected.get(v).add(u);
+    outDeg.set(u, (outDeg.get(u) || 0) + 1);
+    inDeg.set(v, (inDeg.get(v) || 0) + 1);
+    if (!edgesFrom.has(u)) edgesFrom.set(u, []);
+    edgesFrom.get(u).push(i);
+  }
+
+  // O(N) Connectivity & Eulerian degree check (R63-2)
+  let eulerPossible = nodes.size > 0;
+  const startNodes = [];
+  const endNodes = [];
+  if (eulerPossible) {
+    const firstNode = nodes.values().next().value;
+    const visitedNodes = new Set([firstNode]);
+    const queue = [firstNode];
+    for (let qi = 0; qi < queue.length; qi++) {
+      for (const nxt of (adjUndirected.get(queue[qi]) || [])) {
+        if (!visitedNodes.has(nxt)) {
+          visitedNodes.add(nxt);
+          queue.push(nxt);
+        }
+      }
+    }
+    if (visitedNodes.size < nodes.size) {
+      eulerPossible = false;
+    } else {
+      for (const node of nodes) {
+        const diff = (outDeg.get(node) || 0) - (inDeg.get(node) || 0);
+        if (diff === 1) startNodes.push(node);
+        else if (diff === -1) endNodes.push(node);
+        else if (diff !== 0) {
+          eulerPossible = false;
+          break;
+        }
+      }
+      if (eulerPossible && !((startNodes.length === 1 && endNodes.length === 1) || (startNodes.length === 0 && endNodes.length === 0))) {
+        eulerPossible = false;
+      }
+    }
+  }
+
+  const solutions = [];
+  let budgetExhausted = false;
+  if (eulerPossible) {
+    const bounds = segments.map(segDateBounds);
+    const candidateStarts = startNodes.length === 1
+      ? (edgesFrom.get(startNodes[0]) || [])
+      : Array.from({ length: n }, (_, idx) => idx);
+    const MAX_STEPS = 25000;
+    const useBitMemo = n <= 26;
+    const fullMask = useBitMemo ? ((1 << n) - 1) : 0;
+    const deadStates = new Set();
+    const usedArr = new Array(n).fill(false);
+    const path = [];
+    let steps = 0;
+
+    const dfs = (usedMask, lastIdx) => {
+      if (solutions.length >= 2 || budgetExhausted) return false;
+      if (path.length === n) {
+        solutions.push([...path]);
+        return true;
+      }
+      if (steps >= MAX_STEPS) {
+        budgetExhausted = true;
+        return false;
+      }
+      steps++;
+      const stateKey = useBitMemo ? `${usedMask}:${lastIdx}` : null;
+      if (stateKey && deadStates.has(stateKey)) return false;
+
+      const prevClose = Number(segments[lastIdx].closingCents);
+      const prevMaxD = bounds[lastIdx][1];
+      let anyFound = false;
+      for (const nxt of (edgesFrom.get(prevClose) || [])) {
+        if (usedArr[nxt]) continue;
+        const currMinD = bounds[nxt][0];
+        if (prevMaxD && currMinD && prevMaxD > currMinD) continue;
+        usedArr[nxt] = true;
+        path.push(nxt);
+        const nxtMask = useBitMemo ? (usedMask | (1 << nxt)) : 0;
+        if (dfs(nxtMask, nxt)) anyFound = true;
+        path.pop();
+        usedArr[nxt] = false;
+        if (solutions.length >= 2 || budgetExhausted) break;
+      }
+      if (!anyFound && !budgetExhausted && solutions.length < 2 && stateKey) {
+        deadStates.add(stateKey);
+      }
+      return anyFound;
+    };
+
+    for (const sIdx of candidateStarts) {
+      if (solutions.length >= 2 || budgetExhausted) break;
+      usedArr[sIdx] = true;
+      path.push(sIdx);
+      dfs(useBitMemo ? (1 << sIdx) : 0, sIdx);
+      path.pop();
+      usedArr[sIdx] = false;
+    }
+  }
+
+  if (budgetExhausted || solutions.length !== 1) {
+    hasDiscrepancy = true;
+    if (budgetExhausted) {
+      warnings.push('Saldenkette zu komplex oder mehrdeutig für automatische Rekonstruktion (Bitte Auszüge mit Auszugsnummern hochladen).');
+    } else {
+      warnings.push(
+        solutions.length > 1
+          ? 'Mehrdeutige Auszugsreihenfolge im Multi-Datei-Batch: mehrere Saldenketten möglich.'
+          : 'Saldensprung oder zeitliche Lücke im Multi-Datei-Batch (fehlender, vertauschter oder überlappender Auszug).'
+      );
+    }
+  }
+  return { hasDiscrepancy, warnings };
+}
+
+function applyClientSideExportToPreview(result, fmt, batchName) {
+  syncFormatSelection(fmt);
+  const blocks = computeClientExportBlocks(result, fmt);
+  const allWarnings = [...(result.warnings || [])];
+  if (blocks.length > 0) {
+    currentExportBytes = null;
+    currentCsvBlob = null;
+    if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+    showPreviewWarnings([...allWarnings, ...blocks], true);
+    return { blocked: true };
+  }
+
+  const out = buildCanonicalResultExport(result, fmt);
+  if (out.unrepresentableCount > 0) {
+    allWarnings.push(`${out.unrepresentableCount} Sonderzeichen außerhalb Windows-1252 wurden durch '?' ersetzt.`);
+  }
+  currentCsvText = out.csvText;
+  currentExportBytes = out.bytes;
+  currentCsvBlob = out.blob;
+  currentCsvMime = out.mime;
+  currentCsvFilename = out.filename;
+  if (btnDownloadCsv) btnDownloadCsv.disabled = false;
+  showPreviewWarnings(allWarnings, false);
+
+  chrome.storage.local.set({
+    lastConvertedCsv: currentCsvText,
+    lastConvertedFilename: currentCsvFilename,
+    lastConvertedFormat: fmt,
+    lastAccountsFound: currentAccountsFound,
+    lastDuplicatesCount: currentDuplicatesCount,
+    lastReconciliationStatus: result.overall_reconciliation || 'UNVERIFIED'
+  });
+
+  if (batchName) {
+    const totalFormatted = ((result.transactions || []).reduce((a, t) => a + (Number(t.amount_cents) || 0), 0) / 100)
+      .toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    saveToHistory({
+      id: Date.now().toString(),
+      filename: batchName,
+      timestamp: new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      count: (result.transactions || []).length,
+      totalSum: totalFormatted,
+      csvText: currentCsvText,
+      format: fmt,
+      isMixed: Object.keys(result.accounts || {}).length > 1 || (currentAccountsFound || []).length > 1
+    });
+  }
+  return { blocked: false };
+}
+
+async function switchPreviewFormat(fmt, expectedConvGen = null) {
+  syncFormatSelection(fmt);
+  if (currentExportSource === 'backend') {
+    if (!currentOperationId) {
+      if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+      showPreviewWarnings(['Operation nicht mehr im Cache. Bitte Datei erneut konvertieren.'], true);
+      return false;
+    }
+    const convGen = expectedConvGen !== null ? expectedConvGen : activeOperationGen;
+    const expGen = ++activeExportGen;
+    exportRequestSeq++;
+    if (activeExportController) {
+      try { activeExportController.abort('superseded'); } catch (_) {}
+      activeExportController = null;
+    }
+    currentExportBytes = null;
+    currentCsvBlob = null;
+    if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+
+    let token = '';
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        if (chrome.storage.local) {
+          const l = await chrome.storage.local.get('authToken');
+          token = (l && l.authToken) ? l.authToken : '';
+        }
+        if (!token && chrome.storage.session) {
+          const s = await chrome.storage.session.get('authToken');
+          token = (s && s.authToken) ? s.authToken : '';
+        }
+      }
+    } catch (e) {}
+    if (convGen !== activeOperationGen || expGen !== activeExportGen) return false;
+
+    const reqHeaders = {};
+    if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
+
+    const timeoutMs = window.__EXPORT_TIMEOUT_MS || window.__CONVERT_TIMEOUT_MS || 30000;
+    const controller = new AbortController();
+    activeExportController = controller;
+    const timeoutId = setTimeout(() => {
+      try { controller.abort('timeout'); } catch (_) {}
+    }, timeoutMs);
+
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/v1/operations/${encodeURIComponent(currentOperationId)}/export?format=${encodeURIComponent(fmt)}`, {
+        method: 'GET',
+        headers: reqHeaders,
+        signal: controller.signal
+      });
+      if (convGen !== activeOperationGen || expGen !== activeExportGen) return false;
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        if (convGen !== activeOperationGen || expGen !== activeExportGen) return false;
+        if (resp.status === 410) {
+          currentOperationId = null;
+        }
+        showPreviewWarnings([errData.detail || `Export blockiert (${resp.status})`], true);
+        if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+        return false;
+      }
+
+      const buffer = await resp.arrayBuffer();
+      if (convGen !== activeOperationGen || expGen !== activeExportGen) return false;
+
+      const bytes = new Uint8Array(buffer);
+      const disp = resp.headers.get('Content-Disposition') || '';
+      const fnMatch = disp.match(/filename="?([^";]+)"?/);
+      const mime = resp.headers.get('Content-Type') || (fmt === 'bmd_bankauszug' ? 'text/csv;charset=utf-8;' : 'text/csv;charset=windows-1252;');
+      currentExportBytes = bytes;
+      currentCsvMime = mime;
+      currentCsvBlob = new Blob([bytes], { type: mime });
+      currentCsvFilename = (fnMatch && fnMatch[1]) || (fmt === 'bmd_bankauszug' ? 'BMD_Bankauszug_22.csv' : fmt === 'bmd' ? 'BMD_Bankauszug.csv' : 'EXTF_Buchungsstapel.csv');
+      const decoder = new TextDecoder(fmt === 'bmd_bankauszug' ? 'utf-8' : 'windows-1252');
+      currentCsvText = decoder.decode(bytes);
+      if (btnDownloadCsv) btnDownloadCsv.disabled = false;
+      showPreviewWarnings(currentCanonicalResult?.warnings || [], false);
+
+      chrome.storage.local.set({
+        lastConvertedCsv: currentCsvText,
+        lastConvertedFilename: currentCsvFilename,
+        lastConvertedFormat: fmt,
+        lastAccountsFound: currentAccountsFound,
+        lastDuplicatesCount: currentDuplicatesCount,
+        lastReconciliationStatus: currentCanonicalResult?.overall_reconciliation || 'UNVERIFIED'
+      });
+      return true;
+    } catch (err) {
+      if (convGen !== activeOperationGen || expGen !== activeExportGen) return false;
+      if (controller.signal.aborted && controller.signal.reason === 'timeout') {
+        showPreviewWarnings([`Zeitüberschreitung beim Export (${timeoutMs / 1000}s).`], true);
+      } else {
+        showPreviewWarnings([err.message || 'Export konnte nicht geladen werden.'], true);
+      }
+      if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+      if (activeExportController === controller) activeExportController = null;
+    }
+  }
+
+  if (currentCanonicalResult) {
+    const res = applyClientSideExportToPreview(currentCanonicalResult, fmt, null);
+    return !res.blocked;
+  }
+  return false;
 }
 
 async function readFileAsText(file) {
@@ -769,42 +1971,63 @@ async function readFileAsText(file) {
 }
 
 // 1-Click Instant Demo Conversion
-async function processDemoConversion() {
-  await new Promise(r => setTimeout(r, 200));
+async function processDemoConversion(convGen = activeOperationGen) {
+  await new Promise(r => setTimeout(r, 150));
+  if (convGen !== activeOperationGen) return;
+  const selectedFormat = getSelectedFormat();
+  currentExportSource = 'demo';
+  currentOperationId = null;
 
-  const isMixed = true;
   currentAccountsFound = [
     { name: 'American Express (*22001)', card: '22001', count: 8, files: ['Demo_Amex.pdf'] },
     { name: 'Wise Business (EUR)', card: '', count: 6, files: ['Demo_Wise.csv'] }
   ];
   currentDuplicatesCount = 0;
 
-  const datevRows = SAMPLE_TRANSACTIONS.map((tx, idx) => {
-    return `${tx.date};${tx.text};${tx.amountStr};EUR;DEMO-${idx + 1};`;
-  });
-  currentCsvText = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n" + datevRows.join("\r\n");
-  const win1252Bytes = encodeWindows1252(currentCsvText);
-  currentCsvBlob = new Blob([win1252Bytes], { type: 'text/csv;charset=windows-1252;' });
-  currentCsvFilename = 'Statement2Muster_DATEV_Demo.csv';
+  const txs = SAMPLE_TRANSACTIONS.map((tx, idx) => ({
+    booking_date: formatDmyToIso(tx.date),
+    value_date: null,
+    partner: null,
+    partner_iban: null,
+    description: tx.text,
+    amount_cents: Math.round(tx.numericVal * 100),
+    currency: 'EUR',
+    reference: `DEMO-${idx + 1}`,
+    account_id: tx.account,
+    bank_name: tx.account,
+    validation_status: 'VALID',
+  }));
 
-  chrome.storage.local.set({
-    lastConvertedCsv: currentCsvText,
-    lastConvertedFilename: currentCsvFilename,
-    lastAccountsFound: currentAccountsFound,
-    lastDuplicatesCount: currentDuplicatesCount
-  });
+  currentCanonicalResult = {
+    transactions: txs,
+    accounts: { amex: { account_id: '22001' }, wise: { account_id: 'Wise' } },
+    overall_reconciliation: 'UNVERIFIED',
+    warnings: [],
+  };
 
-  const stats = displayPreview(currentCsvText);
+  displayCanonicalPreview(currentCanonicalResult);
+  updateReconciliationBadge('UNVERIFIED');
   renderSafeguards(currentAccountsFound, currentDuplicatesCount);
+
+  // Demo intentionally shows mixed-accounts showcase; keep demo download enabled cleanly via single-demo override if blocked
+  const out = buildCanonicalResultExport(currentCanonicalResult, selectedFormat);
+  currentCsvText = out.csvText;
+  currentExportBytes = out.bytes;
+  currentCsvBlob = out.blob;
+  currentCsvMime = out.mime;
+  currentCsvFilename = out.filename;
+  if (btnDownloadCsv) btnDownloadCsv.disabled = false;
+  showPreviewWarnings(['Hinweis: Demo-Datensatz kombiniert Amex + Wise zur Darstellung des Anti-Mix-Guards.'], false);
 
   saveToHistory({
     id: Date.now().toString(),
     filename: '✨ Demo-Auszug (14 Buchungen)',
     timestamp: new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    count: stats.count,
-    totalSum: stats.totalFormatted,
+    count: txs.length,
+    totalSum: (txs.reduce((a, t) => a + t.amount_cents, 0) / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €',
     csvText: currentCsvText,
-    isMixed: isMixed
+    format: selectedFormat,
+    isMixed: true
   });
 
   chrome.storage.local.get(['conversionsLeft'], (result) => {
@@ -814,7 +2037,7 @@ async function processDemoConversion() {
   });
 
   hideStatus();
-  showLoupeToast('✅ <strong>DATEV Muster erfolgreich erstellt!</strong> Sie können die Datei nun herunterladen.');
+  showLoupeToast('✅ <strong>Musterdaten erfolgreich konvertiert!</strong>');
 }
 
 // Visual Reconciliation Badge (Solldoppik status)
@@ -826,39 +2049,37 @@ function updateReconciliationBadge(status) {
 
   badge.classList.remove('hidden');
   if (status === 'BALANCED') {
-    badge.style.background = 'rgba(34, 197, 94, 0.15)';
-    badge.style.color = '#4ade80';
-    badge.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+    badge.style.background = '#ecfdf5';
+    badge.style.color = '#046a4e';
+    badge.style.borderColor = '#059669';
     if (icon) icon.textContent = '✓';
     if (text) text.textContent = 'Salden ausgeglichen (Solldoppik)';
   } else if (status === 'DISCREPANCY') {
-    badge.style.background = 'rgba(239, 68, 68, 0.15)';
-    badge.style.color = '#f87171';
-    badge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+    badge.style.background = '#fef2f2';
+    badge.style.color = '#991b1b';
+    badge.style.borderColor = '#dc2626';
     if (icon) icon.textContent = '⚠';
     if (text) text.textContent = 'Saldenabweichung (Prüfung nötig)';
   } else {
-    badge.style.background = 'rgba(168, 162, 158, 0.15)';
-    badge.style.color = '#a8a29e';
-    badge.style.borderColor = 'rgba(168, 162, 158, 0.3)';
+    badge.style.background = '#f5f5f4';
+    badge.style.color = '#382823';
+    badge.style.borderColor = '#d5c3ba';
     if (icon) icon.textContent = 'ℹ';
     if (text) text.textContent = 'Einzelbeleg (kein Saldo)';
   }
 }
 
-// Backend Conversion Handler (when managed or local server is running)
-async function processBackendConversion(files) {
+// Backend Conversion Handler (Strict Managed Policy: NEVER silently falls back to offline client-side on API error)
+async function processBackendConversion(files, convGen = activeOperationGen) {
   const isMulti = files.length > 1;
   const formData = new FormData();
   for (const file of files) {
     formData.append('files', file);
   }
 
-  // Determine chosen export format
-  const formatRadio = document.querySelector('input[name="export-format"]:checked');
-  const selectedFormat = formatRadio ? formatRadio.value : 'datev';
+  const selectedFormat = getSelectedFormat();
+  const useValuta = Boolean(valutaAsBookingCheckbox && valutaAsBookingCheckbox.checked);
 
-  // Read auth token from local storage (primary) or session storage (fallback)
   let token = '';
   try {
     if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -872,100 +2093,127 @@ async function processBackendConversion(files) {
       }
     }
   } catch (e) {}
+  if (convGen !== activeOperationGen) return;
 
   const reqHeaders = {};
   if (token) {
     reqHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const timeoutMs = window.__CONVERT_TIMEOUT_MS || 15000;
+  const timeoutMs = window.__CONVERT_TIMEOUT_MS || 30000;
   const controller = new AbortController();
+  activeConvertController = controller;
   const timeoutId = setTimeout(() => {
-    controller.abort('timeout');
+    try { controller.abort('timeout'); } catch (_) {}
   }, timeoutMs);
 
-  let response;
-  let buffer;
+  let data = null;
   let reconStatus = 'UNVERIFIED';
   let isMixed = false;
+  let blockedPayload = null;
   try {
-    response = await fetch(`${apiBaseUrl}/api/v1/convert?format=${encodeURIComponent(selectedFormat)}`, {
-      method: 'POST',
-      headers: reqHeaders,
-      body: formData,
-      signal: controller.signal
-    });
+    const response = await fetch(
+      `${apiBaseUrl}/api/v1/convert?format=json&target_format=${encodeURIComponent(selectedFormat)}&use_valuta_as_booking_date=${useValuta ? 'true' : 'false'}`,
+      {
+        method: 'POST',
+        headers: reqHeaders,
+        body: formData,
+        signal: controller.signal
+      }
+    );
+    if (convGen !== activeOperationGen) return;
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.detail || `Server Fehler: ${response.status}`);
-    }
-
-    // Extract reconciliation and audit headers
     reconStatus = response.headers.get('X-Reconciliation-Status') || 'UNVERIFIED';
-    updateReconciliationBadge(reconStatus);
-
     isMixed = response.headers.get('X-Mixed-Accounts') === 'true';
     const accountsRaw = response.headers.get('X-Accounts-Found') || '[]';
     currentDuplicatesCount = parseInt(response.headers.get('X-Duplicates-Count') || '0', 10);
-    
     try {
       currentAccountsFound = JSON.parse(accountsRaw);
     } catch (e) {
       currentAccountsFound = [];
     }
 
-    buffer = await response.arrayBuffer();
+    if (response.status === 422) {
+      const errData = await response.json().catch(() => ({}));
+      if (convGen !== activeOperationGen) return;
+      if (errData && errData.result) {
+        blockedPayload = {
+          result: errData.result,
+          blocks: errData.export_blocks && errData.export_blocks.length ? errData.export_blocks : [errData.detail || 'Export blockiert'],
+        };
+      } else {
+        throw new Error(errData.detail || 'Validierungsfehler (422)');
+      }
+    } else if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server Fehler: ${response.status}`);
+    } else {
+      data = await response.json();
+      if (convGen !== activeOperationGen) return;
+    }
   } catch (fetchErr) {
-    if (controller.signal.aborted) {
+    if (convGen !== activeOperationGen) return;
+    if (controller.signal.aborted && controller.signal.reason === 'timeout') {
       throw new Error(`Zeitüberschreitung: Der Server hat nicht innerhalb von ${timeoutMs / 1000}s geantwortet.`);
     }
     throw fetchErr;
   } finally {
     clearTimeout(timeoutId);
+    if (activeConvertController === controller) activeConvertController = null;
   }
 
-  const decoder = new TextDecoder('windows-1252');
-  const csvText = decoder.decode(buffer);
-  
-  currentCsvText = csvText;
-  currentCsvBlob = new Blob([buffer], { type: 'text/csv;charset=windows-1252;' });
-  
-  let batchName = '';
-  const dispHeader = response.headers.get('Content-Disposition') || '';
-  const filenameMatch = dispHeader.match(/filename="?([^";]+)"?/);
+  if (convGen !== activeOperationGen) return;
 
-  if (filenameMatch && filenameMatch[1]) {
-    currentCsvFilename = filenameMatch[1];
-    batchName = filenameMatch[1];
-  } else if (isMulti) {
-    currentCsvFilename = `Muster_Sammelauszug_${files.length}_Dateien.csv`;
-    batchName = `⚡ Sammel-Auszug (${files.length} Dateien)`;
-  } else {
-    currentCsvFilename = `Muster_${files[0].name.replace(/\.[^/.]+$/, "")}.csv`;
-    batchName = files[0].name;
+  if (blockedPayload) {
+    currentExportSource = 'backend';
+    currentCanonicalResult = blockedPayload.result;
+    currentOperationId = null;
+    currentExportBytes = null;
+    currentCsvBlob = null;
+    currentCsvText = '';
+    displayCanonicalPreview(blockedPayload.result);
+    updateReconciliationBadge(blockedPayload.result.overall_reconciliation || reconStatus);
+    renderSafeguards(currentAccountsFound, currentDuplicatesCount);
+    if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+    showPreviewWarnings([...(blockedPayload.result.warnings || []), ...blockedPayload.blocks], true);
+    hideStatus();
+    return;
   }
 
-  chrome.storage.local.set({
-    lastConvertedCsv: currentCsvText,
-    lastConvertedFilename: currentCsvFilename,
-    lastAccountsFound: currentAccountsFound,
-    lastDuplicatesCount: currentDuplicatesCount,
-    lastReconciliationStatus: reconStatus
-  });
+  currentExportSource = 'backend';
+  currentCanonicalResult = data;
+  currentOperationId = data.operation_id || null;
 
-  const stats = displayPreview(csvText);
+  const stats = displayCanonicalPreview(data);
+  updateReconciliationBadge(data.overall_reconciliation || reconStatus);
   renderSafeguards(currentAccountsFound, currentDuplicatesCount);
 
-  saveToHistory({
-    id: Date.now().toString(),
-    filename: batchName,
-    timestamp: new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    count: stats.count,
-    totalSum: stats.totalFormatted,
-    csvText: currentCsvText,
-    isMixed: isMixed
-  });
+  if (!currentOperationId || (data.export_blocks && data.export_blocks.length > 0)) {
+    if (btnDownloadCsv) btnDownloadCsv.disabled = true;
+    showPreviewWarnings([...(data.warnings || []), ...(data.export_blocks || ['Export blockiert — bitte prüfen.'])], true);
+    hideStatus();
+    return;
+  }
+
+  const exportedOk = await switchPreviewFormat(selectedFormat, convGen);
+  if (convGen !== activeOperationGen || !exportedOk) {
+    hideStatus();
+    return;
+  }
+
+  const batchName = isMulti ? `⚡ Sammel-Auszug (${files.length} Dateien)` : files[0].name;
+  if (currentCsvText) {
+    saveToHistory({
+      id: Date.now().toString(),
+      filename: batchName,
+      timestamp: new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      count: stats.count,
+      totalSum: stats.totalFormatted,
+      csvText: currentCsvText,
+      format: selectedFormat,
+      isMixed: isMixed
+    });
+  }
 
   chrome.storage.local.get(['conversionsLeft'], (result) => {
     let left = (result.conversionsLeft !== undefined ? result.conversionsLeft : 3) - 1;
@@ -976,10 +2224,16 @@ async function processBackendConversion(files) {
   hideStatus();
 }
 
-// In-Browser Client-Side Conversion Handler (Default, autark & 100% DSGVO-konform)
-async function processClientSideFiles(files) {
+// In-Browser Client-Side Conversion Handler (Only used in standalone offline mode)
+async function processClientSideFiles(files, convGen = activeOperationGen) {
+  const selectedFormat = getSelectedFormat();
+  const useValuta = Boolean(valutaAsBookingCheckbox && valutaAsBookingCheckbox.checked);
+
   let allTransactions = [];
   const processedAccounts = {};
+  const accountSegments = {};
+  const allWarnings = [];
+  const reconStatuses = [];
   let totalDuplicates = 0;
 
   for (const file of files) {
@@ -988,9 +2242,22 @@ async function processClientSideFiles(files) {
 
     if (isCsv) {
       const text = await readFileAsText(file);
+      if (convGen !== activeOperationGen) return;
       const res = parseCsvClientSide(text, file.name);
       if (res.transactions.length > 0) {
-        res.transactions.forEach(t => allTransactions.push(t));
+        res.transactions.forEach(t => {
+          const cents = parseDmyOrAmtToCents(t.amountStr);
+          allTransactions.push({
+            ...t,
+            booking_date: formatDmyToIso(t.date),
+            value_date: null,
+            description: t.text,
+            amount_cents: cents,
+            reference: t.belegNr || '',
+            account_id: t.account || 'Bank CSV',
+            validation_status: 'VALID',
+          });
+        });
         res.accounts.forEach(acc => {
           if (!processedAccounts[acc.name]) {
             processedAccounts[acc.name] = { name: acc.name, card: acc.card, count: 0, files: [] };
@@ -1002,116 +2269,123 @@ async function processClientSideFiles(files) {
         });
       }
     } else if (isPdf) {
-      try {
-        const buffer = await file.arrayBuffer();
-        const text = await extractTextFromPdf(buffer);
-        const res = parsePdfTextClientSide(text, file.name);
-        if (res.transactions.length > 0) {
-          res.transactions.forEach(t => allTransactions.push(t));
-          const accName = res.account || file.name.replace(/\.[^/.]+$/, "");
-          if (!processedAccounts[accName]) {
-            processedAccounts[accName] = { name: accName, card: res.card || '', count: 0, files: [] };
-          }
-          processedAccounts[accName].count += res.transactions.length;
-          if (!processedAccounts[accName].files.includes(file.name)) {
-            processedAccounts[accName].files.push(file.name);
-          }
+      const buffer = await file.arrayBuffer();
+      if (convGen !== activeOperationGen) return;
+      const extracted = await extractTextFromPdf(buffer);
+      if (convGen !== activeOperationGen) return;
+      const res = parsePdfTextClientSide(extracted, file.name, useValuta);
+      if (res.warnings && res.warnings.length) {
+        allWarnings.push(...res.warnings);
+      }
+      if (res.reconciliation) reconStatuses.push(res.reconciliation);
+      const accName = res.account || file.name.replace(/\.[^/.]+$/, "");
+      const accSegKey = res.card || accName;
+      if (res.segments && res.segments.length) {
+        if (!accountSegments[accSegKey]) accountSegments[accSegKey] = [];
+        accountSegments[accSegKey].push(...res.segments);
+      } else if (res.openingCents !== undefined || res.closingCents !== undefined) {
+        if (!accountSegments[accSegKey]) accountSegments[accSegKey] = [];
+        accountSegments[accSegKey].push({
+          file: file.name,
+          stmtNum: null,
+          stmtYear: null,
+          openingCents: res.openingCents ?? null,
+          closingCents: res.closingCents ?? null,
+          txs: res.transactions || [],
+        });
+      }
+      if (res.transactions.length > 0) {
+        res.transactions.forEach(t => allTransactions.push(t));
+        if (!processedAccounts[accName]) {
+          processedAccounts[accName] = { name: accName, card: res.card || '', count: 0, files: [] };
         }
-      } catch (pdfErr) {
-        console.warn('Local PDF extraction error:', pdfErr);
+        processedAccounts[accName].count += res.transactions.length;
+        if (!processedAccounts[accName].files.includes(file.name)) {
+          processedAccounts[accName].files.push(file.name);
+        }
       }
     }
   }
 
-  // Deduplication check (non-destructive in R0: all transactions are preserved)
-  const seen = new Set();
-  const uniqueTxs = [];
-  for (const tx of allTransactions) {
-    const key = `${tx.date}_${tx.text}_${tx.amountStr}`;
-    if (seen.has(key)) {
-      totalDuplicates++;
-    } else {
-      seen.add(key);
+  let chainDiscrepancy = false;
+  for (const segs of Object.values(accountSegments)) {
+    const chainRes = chainClientFileSegments(segs);
+    if (chainRes.hasDiscrepancy) chainDiscrepancy = true;
+    if (chainRes.warnings && chainRes.warnings.length) {
+      allWarnings.push(...chainRes.warnings);
     }
-    // R0 fix (A09): do not drop transactions based on naive heuristic
-    uniqueTxs.push(tx);
   }
 
-  if (uniqueTxs.length === 0) {
-    throw new Error('Keine Buchungssätze in der Datei erkannt. Bitte prüfen Sie das Dateiformat oder nutzen Sie die Demo-Musterdaten.');
+  const seen = new Set();
+  for (const tx of allTransactions) {
+    const key = `${tx.booking_date || tx.valutaDate || ''}_${tx.description}_${tx.amount_cents}`;
+    if (seen.has(key)) totalDuplicates++;
+    else seen.add(key);
   }
+
+  if (allTransactions.length === 0) {
+    throw new Error(allWarnings[0] || 'Keine Buchungssätze in der Datei erkannt. Bitte prüfen Sie das Dateiformat.');
+  }
+
+  if (convGen !== activeOperationGen) return;
 
   const isMulti = files.length > 1;
-  const isMixed = Object.keys(processedAccounts).length > 1;
   const accountsFound = Object.values(processedAccounts);
+  const overallRecon = (chainDiscrepancy || reconStatuses.includes('DISCREPANCY'))
+    ? 'DISCREPANCY'
+    : (reconStatuses.length > 0 && reconStatuses.every(s => s === 'BALANCED'))
+      ? 'BALANCED'
+      : 'UNVERIFIED';
 
-  const datevRows = uniqueTxs.map((tx, idx) => {
-    return `${tx.date};${tx.text};${tx.amountStr};${tx.currency || 'EUR'};${tx.belegNr || ('BELEG-' + (idx + 1))};${tx.konto || ''}`;
-  });
-
-  const fullCsvText = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n" + datevRows.join("\r\n");
-  const win1252Bytes = encodeWindows1252(fullCsvText);
-
-  currentCsvText = fullCsvText;
-  currentCsvBlob = new Blob([win1252Bytes], { type: 'text/csv;charset=windows-1252;' });
+  currentExportSource = 'offline';
+  currentOperationId = null;
   currentAccountsFound = accountsFound;
   currentDuplicatesCount = totalDuplicates;
+  currentCanonicalResult = {
+    transactions: allTransactions,
+    accounts: processedAccounts,
+    overall_reconciliation: overallRecon,
+    warnings: Array.from(new Set(allWarnings)),
+  };
 
-  let batchName = '';
-  if (isMulti) {
-    currentCsvFilename = `Muster_Sammelauszug_${files.length}_Dateien.csv`;
-    batchName = `⚡ Sammel-Auszug (${files.length} Dateien)`;
-  } else {
-    currentCsvFilename = `Muster_${files[0].name.replace(/\.[^/.]+$/, "")}.csv`;
-    batchName = files[0].name;
-  }
-
-  chrome.storage.local.set({
-    lastConvertedCsv: currentCsvText,
-    lastConvertedFilename: currentCsvFilename,
-    lastAccountsFound: currentAccountsFound,
-    lastDuplicatesCount: currentDuplicatesCount
-  });
-
-  const stats = displayPreview(currentCsvText);
+  displayCanonicalPreview(currentCanonicalResult);
+  updateReconciliationBadge(overallRecon);
   renderSafeguards(currentAccountsFound, currentDuplicatesCount);
 
-  saveToHistory({
-    id: Date.now().toString(),
-    filename: batchName,
-    timestamp: new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    count: stats.count,
-    totalSum: stats.totalFormatted,
-    csvText: currentCsvText,
-    isMixed: isMixed
-  });
+  const batchName = isMulti ? `⚡ Sammel-Auszug (${files.length} Dateien)` : files[0].name;
+  const exportRes = applyClientSideExportToPreview(currentCanonicalResult, selectedFormat, batchName);
 
-  chrome.storage.local.get(['conversionsLeft'], (result) => {
-    let left = (result.conversionsLeft !== undefined ? result.conversionsLeft : 3) - 1;
-    chrome.storage.local.set({ conversionsLeft: Math.max(0, left) });
-    updateLimitDisplay(Math.max(0, left));
-  });
+  if (!exportRes || !exportRes.blocked) {
+    chrome.storage.local.get(['conversionsLeft'], (result) => {
+      let left = (result.conversionsLeft !== undefined ? result.conversionsLeft : 3) - 1;
+      chrome.storage.local.set({ conversionsLeft: Math.max(0, left) });
+      updateLimitDisplay(Math.max(0, left));
+    });
+  }
 
   hideStatus();
-  showLoupeToast('✅ <strong>DATEV Muster erfolgreich erstellt!</strong> Sie können die Datei nun herunterladen.');
 }
 
-// Convert Action (Supports Single, Multi-File Batch & Anti-Mix Guard)
+// Convert Action (Supports Single, Multi-File Batch & Strict Managed Policy)
 convertBtn.addEventListener('click', async () => {
   if (selectedFiles.length === 0 && !isDemoActive) return;
 
+  invalidatePendingOperations('new_convert');
+  const convGen = activeOperationGen;
+
   convertBtn.disabled = true;
   const isMulti = selectedFiles.length > 1;
-  const statusMsg = isMulti 
-    ? `Verarbeite ${selectedFiles.length} Auszüge (In-Memory)...` 
+  const statusMsg = isMulti
+    ? `Verarbeite ${selectedFiles.length} Auszüge (In-Memory)...`
     : 'Wird verarbeitet (In-Memory)...';
   showStatus('processing', statusMsg);
 
-  // 1. If Demo mode, execute instant in-memory conversion
+  // 1. Demo mode
   if (isDemoActive) {
     try {
-      await processDemoConversion();
+      await processDemoConversion(convGen);
     } catch (e) {
+      if (convGen !== activeOperationGen) return;
       console.error(e);
       showStatus('error', `Fehler: ${e.message}`);
       checkState();
@@ -1119,12 +2393,20 @@ convertBtn.addEventListener('click', async () => {
     return;
   }
 
-  // 2. If backend is online, attempt backend conversion
-  if (backendOnline) {
+  // 2. Managed API / Authenticated session check: NEVER silently fall back to offline JS on error
+  let hasManagedToken = false;
+  try {
+    const stor = await chrome.storage.local.get(['authToken']);
+    hasManagedToken = Boolean(stor && stor.authToken);
+  } catch (e) {}
+  if (convGen !== activeOperationGen) return;
+
+  if (backendOnline || hasManagedToken) {
     try {
-      await processBackendConversion(selectedFiles);
+      await processBackendConversion(selectedFiles, convGen);
       return;
     } catch (backendError) {
+      if (convGen !== activeOperationGen) return;
       console.error('Backend conversion failed:', backendError);
       showStatus('error', `Server-Fehler: ${backendError.message || 'Verarbeitung fehlgeschlagen'}`);
       checkState();
@@ -1132,10 +2414,11 @@ convertBtn.addEventListener('click', async () => {
     }
   }
 
-  // 3. Standalone Client-Side In-Memory Engine (100% autark)
+  // 3. Standalone Client-Side In-Memory Engine (only when strictly offline / unauthenticated local mode)
   try {
-    await processClientSideFiles(selectedFiles);
+    await processClientSideFiles(selectedFiles, convGen);
   } catch (error) {
+    if (convGen !== activeOperationGen) return;
     console.error(error);
     showStatus('error', `Fehler: ${error.message || 'Verarbeitung fehlgeschlagen'}`);
     checkState();
@@ -1230,9 +2513,7 @@ function renderSafeguards(accounts, dupes) {
   } else {
     conflictCard.classList.add('hidden');
     filterChipsBar.classList.add('hidden');
-    if (btnDownloadCsvText) {
-      btnDownloadCsvText.textContent = 'DATEV CSV herunterladen';
-    }
+    updateDownloadButtonText();
   }
 
   // 2. Duplicate Detection
@@ -1284,11 +2565,12 @@ function displayPreview(csvText) {
 
   parsedTransactions = [];
   let totalSum = 0;
+  const firstHeaderLine = (lines[0] || '').replace(/^\uFEFF/, '');
 
   // 1. DATEV EXTF Format
-  if (lines[0].startsWith('"EXTF"') || lines[0].startsWith('EXTF')) {
+  if (firstHeaderLine.startsWith('"EXTF"') || firstHeaderLine.startsWith('EXTF')) {
     let year = '2026';
-    const yrMatch = lines[0].match(/;\b(202[0-9])0101;/);
+    const yrMatch = firstHeaderLine.match(/;\b(202[0-9])0101;/);
     if (yrMatch) year = yrMatch[1];
     const dataRows = lines.slice(2);
     dataRows.forEach(row => {
@@ -1324,8 +2606,38 @@ function displayPreview(csvText) {
         konto
       });
     });
-  } else if (lines[0].includes('Satzart')) {
-    // 2. BMD Format
+  } else if (firstHeaderLine.startsWith('Transaction Booking Date')) {
+    // 2. BMD Bankauszug (22 columns)
+    const dataRows = lines.slice(1);
+    dataRows.forEach(row => {
+      if (!row.trim()) return;
+      const cols = parseRow(row).map(c => c.replace(/^"|"$/g, '').trim());
+      const date = cols[0] || '';
+      const purpose = cols[1] || '';
+      const partner = cols[2] || '';
+      const text = (partner && purpose && !purpose.toLowerCase().startsWith(partner.toLowerCase()))
+        ? `${partner} — ${purpose}`
+        : (purpose || partner || '');
+      const currency = cols[6] || 'EUR';
+      const amountStr = cols[7] || '0,00';
+      const belegNr = cols[20] || '';
+      const konto = '';
+
+      const numericVal = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
+      if (!isNaN(numericVal)) totalSum += numericVal;
+
+      parsedTransactions.push({
+        date,
+        text,
+        amountStr,
+        numericVal: isNaN(numericVal) ? 0 : numericVal,
+        currency,
+        belegNr,
+        konto
+      });
+    });
+  } else if (firstHeaderLine.includes('Satzart')) {
+    // 3. BMD NTCS Format (8 columns)
     const dataRows = lines.slice(1);
     dataRows.forEach(row => {
       if (!row.trim()) return;
@@ -1536,9 +2848,8 @@ btnDownloadCsv.addEventListener('click', () => {
   // R0 fix (A08): Auto-split into multiple pseudo-separated files is disabled
   // to prevent cross-client data leaks until canonical tenant model is implemented in R4.
   // Single unified account download
-  if (!currentCsvBlob && currentCsvText) {
-    const bytes = encodeWindows1252(currentCsvText);
-    currentCsvBlob = new Blob([bytes], { type: 'text/csv;charset=windows-1252;' });
+  if (!currentCsvBlob && currentExportBytes) {
+    currentCsvBlob = new Blob([currentExportBytes], { type: currentCsvMime });
   }
   if (!currentCsvBlob) return;
 
@@ -1565,20 +2876,29 @@ function downloadCsvBlob(blob, filename) {
 
 // Format Selection Change Listener
 function updateDownloadButtonText() {
-  const formatRadio = document.querySelector('input[name="export-format"]:checked');
-  const selectedFormat = formatRadio ? formatRadio.value : 'datev';
+  const selectedFormat = getSelectedFormat();
   if (!btnDownloadCsvText) return;
-  if (selectedFormat === 'bmd') {
-    btnDownloadCsvText.textContent = 'BMD CSV herunterladen';
+  if (selectedFormat === 'bmd_bankauszug') {
+    btnDownloadCsvText.textContent = 'BMD Bankauszug (22 Sp.) laden';
+  } else if (selectedFormat === 'bmd') {
+    btnDownloadCsvText.textContent = 'BMD NTCS (8 Sp.) laden';
   } else if (selectedFormat === 'muster_csv') {
-    btnDownloadCsvText.textContent = 'Muster CSV herunterladen';
+    btnDownloadCsvText.textContent = 'Muster CSV laden';
   } else {
-    btnDownloadCsvText.textContent = 'DATEV CSV herunterladen';
+    btnDownloadCsvText.textContent = 'DATEV EXTF CSV laden';
   }
 }
 
+document.querySelectorAll('input[name="upload-export-format"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    syncFormatSelection(e.target.value);
+  });
+});
+
 document.querySelectorAll('input[name="export-format"]').forEach(radio => {
-  radio.addEventListener('change', updateDownloadButtonText);
+  radio.addEventListener('change', (e) => {
+    switchPreviewFormat(e.target.value);
+  });
 });
 
 // Convert Another File
@@ -1588,6 +2908,7 @@ btnNewConvert.addEventListener('click', () => {
     rowPopover.classList.remove('visible');
     rowPopover.classList.add('hidden');
   }
+  showPreviewWarnings([], false);
   conflictCard.classList.add('hidden');
   duplicateCard.classList.add('hidden');
   filterChipsBar.classList.add('hidden');
@@ -1669,14 +2990,33 @@ function renderHistoryView() {
         </div>
       `;
 
+function detectCsvFormatFromText(csvText, fallbackFormat = 'datev') {
+  const firstLine = ((csvText || '').split(/\r?\n/)[0] || '').replace(/^\uFEFF/, '');
+  if (firstLine.startsWith('Transaction Booking Date')) return 'bmd_bankauszug';
+  if (firstLine.startsWith('"EXTF"') || firstLine.startsWith('EXTF')) return 'datev';
+  if (firstLine.includes('Satzart')) return 'bmd';
+  return fallbackFormat;
+}
+
       // View Button
       el.querySelector('.btn-view-hist').addEventListener('click', () => {
+        const fmt = item.format || detectCsvFormatFromText(item.csvText);
+        syncFormatSelection(fmt);
+        currentExportSource = 'history';
+        currentOperationId = null;
+        currentCanonicalResult = null;
         currentCsvText = item.csvText;
-        currentCsvFilename = item.filename.startsWith('⚡') 
-          ? `Muster_Sammelauszug.csv`
-          : `Muster_${item.filename.replace(/\.[^/.]+$/, "")}.csv`;
-        currentCsvBlob = new Blob([item.csvText], { type: 'text/csv;charset=windows-1252;' });
-        
+        const extPrefix = fmt === 'bmd_bankauszug' ? 'BMD_Bankauszug_22' : fmt === 'bmd' ? 'BMD' : fmt === 'datev' ? 'EXTF' : 'Muster';
+        currentCsvFilename = item.filename.startsWith('⚡')
+          ? `${extPrefix}_Sammelauszug.csv`
+          : `${extPrefix}_${item.filename.replace(/\.[^/.]+$/, "")}.csv`;
+        const built = buildBlobForFormat(item.csvText, fmt);
+        currentExportBytes = built.bytes;
+        currentCsvMime = built.mime;
+        currentCsvBlob = built.blob;
+        if (btnDownloadCsv) btnDownloadCsv.disabled = false;
+        showPreviewWarnings([], false);
+
         tabConvert.classList.add('active');
         tabHistory.classList.remove('active');
         displayPreview(item.csvText);
@@ -1684,11 +3024,13 @@ function renderHistoryView() {
 
       // Download Button
       el.querySelector('.btn-down-hist').addEventListener('click', () => {
-        const blob = new Blob([item.csvText], { type: 'text/csv;charset=windows-1252;' });
-        const name = item.filename.startsWith('⚡') 
-          ? `Muster_Sammelauszug.csv`
-          : `Muster_${item.filename.replace(/\.[^/.]+$/, "")}.csv`;
-        downloadCsvBlob(blob, name);
+        const fmt = item.format || detectCsvFormatFromText(item.csvText);
+        const built = buildBlobForFormat(item.csvText, fmt);
+        const extPrefix = fmt === 'bmd_bankauszug' ? 'BMD_Bankauszug_22' : fmt === 'bmd' ? 'BMD' : fmt === 'datev' ? 'EXTF' : 'Muster';
+        const name = item.filename.startsWith('⚡')
+          ? `${extPrefix}_Sammelauszug.csv`
+          : `${extPrefix}_${item.filename.replace(/\.[^/.]+$/, "")}.csv`;
+        downloadCsvBlob(built.blob, name);
       });
 
       // Delete Button
@@ -1713,10 +3055,13 @@ function deleteHistoryItem(id) {
 
 btnClearHistory.addEventListener('click', () => {
   chrome.storage.local.set({ statementHistory: [] }, () => {
-    chrome.storage.local.remove(['lastConvertedCsv', 'lastConvertedFilename', 'lastAccountsFound', 'lastDuplicatesCount'], () => {
+    chrome.storage.local.remove(['lastConvertedCsv', 'lastConvertedFilename', 'lastConvertedFormat', 'lastAccountsFound', 'lastDuplicatesCount', 'lastReconciliationStatus'], () => {
       currentCsvText = null;
+      currentExportBytes = null;
       currentCsvBlob = null;
       currentCsvFilename = null;
+      currentOperationId = null;
+      currentCanonicalResult = null;
       parsedTransactions = [];
       if (typeof previewTableBody !== 'undefined' && previewTableBody) previewTableBody.innerHTML = '';
       if (typeof previewView !== 'undefined' && previewView) previewView.classList.add('hidden');
@@ -1824,6 +3169,8 @@ if (btnOpenAuth) {
       const user = res.userSession;
       if (user && user.isLoggedIn) {
         if (confirm(`👤 Angemeldet als: ${user.name || user.email}\nTarif: ${user.plan || 'Standard'}\n\nMöchten Sie sich abmelden?`)) {
+          invalidatePendingOperations('logout');
+          currentCanonicalResult = null;
           chrome.storage.local.get(['authToken'], (tokenRes) => {
             const tok = tokenRes ? tokenRes.authToken : null;
             const logoutHeaders = {};
@@ -1930,6 +3277,8 @@ if (btnVerifyOtp) {
         authToken: data.access_token,
         userSession: user
       }, () => {
+        invalidatePendingOperations('login');
+        currentCanonicalResult = null;
         applyLoggedInState(user);
         lastEntitlementCheck = 0;
         refreshEntitlementDisplay();
@@ -1961,6 +3310,7 @@ function showAuthStatus(msg, isError) {
 
 // Initialize on extension startup
 initAuthState();
+syncFormatSelection(getSelectedFormat());
 
 function escapeHtml(text) {
   return text

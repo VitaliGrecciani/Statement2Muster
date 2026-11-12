@@ -85,6 +85,8 @@
         <div class="format-tags">
           <span class="tag">PDF</span>
           <span class="tag">CSV</span>
+          <span class="tag">Erste Bank</span>
+          <span class="tag">Visa Gold</span>
           <span class="tag">Wise</span>
           <span class="tag">VR Bank</span>
           <span class="tag">Amex</span>
@@ -125,6 +127,28 @@
         </button>
       </div>
 
+      <!-- Pre-Convert Target Format & Valuta Option -->
+      <div class="format-selection-wrapper" style="margin: 4px 0; padding: 10px 12px; background: #ffffff; border: 1.5px solid var(--table-border); border-radius: var(--radius-md);">
+        <div style="font-size: 10.5px; font-weight: 850; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Zielformat für Buchhaltung</div>
+        <div class="format-options" style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="upload-export-format" value="bmd_bankauszug" id="upload-fmt-bmd-bankauszug" style="accent-color: var(--primary);"> BMD — Bankauszug CSV (22 Spalten)
+          </label>
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="upload-export-format" value="datev" checked id="upload-fmt-datev" style="accent-color: var(--primary);"> DATEV — EXTF Buchungsstapel
+          </label>
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="upload-export-format" value="bmd" id="upload-fmt-bmd" style="accent-color: var(--primary);"> BMD NTCS — bisheriges 8-Spalten-Profil
+          </label>
+        </div>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--table-border); display: flex; align-items: flex-start; gap: 7px;">
+          <input id="valuta-as-booking" type="checkbox" class="custom-checkbox" style="margin-top: 2px;">
+          <label for="valuta-as-booking" style="font-size: 11px; font-weight: 700; line-height: 1.35; color: var(--text-muted); cursor: pointer;">
+            Valutadatum als Buchungsdatum verwenden (z. B. Erste Digitales Banking PDFs)
+          </label>
+        </div>
+      </div>
+
       <!-- DSGVO Consent -->
       <div class="consent-box">
         <input id="consent" type="checkbox" class="custom-checkbox" checked>
@@ -138,7 +162,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span>In DATEV Muster konvertieren</span>
+        <span id="convert-btn-text">In DATEV (EXTF) konvertieren</span>
       </button>
 
       <!-- Status Alerts -->
@@ -172,6 +196,19 @@
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         <span id="duplicate-text">0 Duplikate automatisch bereinigt</span>
+      </div>
+
+      <!-- Validation / Valuta / Export Block Warning Banner -->
+      <div id="preview-warning-card" class="conflict-warning-card hidden" style="margin-bottom: 10px;">
+        <div class="conflict-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span id="preview-warning-title">Hinweis zur Buchungsprüfung</span>
+        </div>
+        <div id="preview-warning-body" class="conflict-subtitle" style="margin-top: 4px;"></div>
       </div>
 
       <div class="preview-header-bar">
@@ -223,17 +260,17 @@
       </div>
 
       <!-- Format Selection -->
-      <div class="format-selection-wrapper" style="margin: 10px 0 14px; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
-        <div style="font-size: 11px; font-weight: 700; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Zielformat für Buchhaltung</div>
-        <div class="format-options" style="display: flex; gap: 14px; flex-wrap: wrap;">
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
-            <input type="radio" name="export-format" value="datev" checked id="fmt-datev"> DATEV (EXTF)
+      <div class="format-selection-wrapper" style="margin: 4px 0 8px; padding: 10px 12px; background: #ffffff; border: 1.5px solid var(--table-border); border-radius: var(--radius-md);">
+        <div style="font-size: 10.5px; font-weight: 850; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Zielformat für Buchhaltung</div>
+        <div class="format-options" style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="export-format" value="bmd_bankauszug" id="fmt-bmd-bankauszug" style="accent-color: var(--primary);"> BMD — Bankauszug CSV (22 Spalten)
           </label>
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
-            <input type="radio" name="export-format" value="bmd" id="fmt-bmd"> BMD 5.1
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="export-format" value="datev" checked id="fmt-datev" style="accent-color: var(--primary);"> DATEV — EXTF Buchungsstapel
           </label>
-          <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #f5f5f4;">
-            <input type="radio" name="export-format" value="muster_csv" id="fmt-muster"> Muster CSV
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: var(--text-main);">
+            <input type="radio" name="export-format" value="bmd" id="fmt-bmd" style="accent-color: var(--primary);"> BMD NTCS — bisheriges 8-Spalten-Profil
           </label>
         </div>
       </div>

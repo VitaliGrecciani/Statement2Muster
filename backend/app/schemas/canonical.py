@@ -22,6 +22,10 @@ class CanonicalTransaction(BaseModel):
     amount_cents: int  # Negative for debit/expense, positive for credit/revenue
     currency: str = "EUR"
     description: str = ""
+    partner: Optional[str] = None
+    partner_iban: Optional[str] = None
+    foreign_currency: Optional[str] = None
+    foreign_amount_cents: Optional[int] = None
     reference: str = ""
     contra_account: Optional[str] = None
     validation_status: Literal["VALID", "AMBIGUOUS", "ERROR"] = "VALID"
@@ -72,6 +76,20 @@ class CanonicalTransaction(BaseModel):
         cents = abs_cents % 100
         return f"{euros},{cents:02d}"
 
+    @computed_field
+    @property
+    def signed_foreign_amount(self) -> Optional[str]:
+        """Signed foreign amount with decimal comma and no thousands separator, if present."""
+        if self.foreign_amount_cents is None:
+            return None
+        if self.foreign_amount_cents == 0:
+            return "0,00"
+        sign = "-" if self.foreign_amount_cents < 0 else ""
+        abs_cents = abs(self.foreign_amount_cents)
+        euros = abs_cents // 100
+        cents = abs_cents % 100
+        return f"{sign}{euros},{cents:02d}"
+
 class AccountSummary(BaseModel):
     """Account level reconciliation summary."""
     account_id: str
@@ -86,11 +104,15 @@ class AccountSummary(BaseModel):
     discrepancy_cents: Optional[int] = None
     transaction_count: int = 0
     files: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    statement_numbers: List[tuple[int, int]] = Field(default_factory=list)
+    segment_fingerprint: Optional[str] = None
 
 class StatementResult(BaseModel):
     """
     Validated conversion result across all processed statements.
     """
+    operation_id: Optional[str] = None
     request_id: str
     tenant_id: str
     transactions: List[CanonicalTransaction] = Field(default_factory=list)
@@ -100,3 +122,5 @@ class StatementResult(BaseModel):
     unparsed_lines: List[Dict[str, Any]] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
     overall_reconciliation: Literal["BALANCED", "UNVERIFIED", "DISCREPANCY"] = "UNVERIFIED"
+    export_eligible: bool = True
+    export_blocks: List[str] = Field(default_factory=list)

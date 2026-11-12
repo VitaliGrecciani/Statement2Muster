@@ -1,0 +1,34 @@
+{
+  "cache_pair_admission": {
+    "canonical_bytes": 1851,
+    "shared_budget_bytes": 1852,
+    "convert_http": 200,
+    "operation_issued": true,
+    "canonical_present": false,
+    "export_http": 410,
+    "committed_delta": 1
+  },
+  "datev_replay_bytes": {
+    "statuses": [
+      200,
+      200
+    ],
+    "equal": false,
+    "sha256": [
+      "3bc5572b5d6a7b261617b5d7180fd3a926ec4df373380b83a7e1ec5660306a9e",
+      "9c38a942c4f7c3495f043fdd1d56af7780e42f20158687c085438045863d9993"
+    ],
+    "first_lines": [
+      "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112130046000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+      "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112130047000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\""
+    ]
+  },
+  "chain_12_segments": {
+    "timed_out": true,
+    "timeout_seconds": 6,
+    "stdout": "CHAIN_STARTED\n",
+    "stderr": "",
+    "scope": "Real reconciliation function in isolated child; not an HTTP load test; no production traffic"
+  },
+  "scope": "Independent local ASGI boundary probes; synthetic data; temporary SQLite"
+}

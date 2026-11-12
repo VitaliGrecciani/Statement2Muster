@@ -27,7 +27,13 @@ def export_to_muster_csv(transactions: List[CanonicalTransaction]) -> bytes:
 
     for tx in transactions:
         date_str = tx.booking_date.strftime("%d.%m.%Y") if tx.booking_date else ""
-        text = sanitize_csv_field(tx.description or "")
+        raw_desc = (tx.description or "").strip()
+        raw_partner = (tx.partner or "").strip()
+        if raw_partner and raw_desc and raw_partner not in raw_desc:
+            combined_desc = f"{raw_partner} - {raw_desc}"
+        else:
+            combined_desc = raw_desc or raw_partner
+        text = sanitize_csv_field(combined_desc)
         amount = tx.signed_amount
         currency = tx.currency or "EUR"
         ref = sanitize_csv_field(tx.reference or "")

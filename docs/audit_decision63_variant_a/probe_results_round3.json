@@ -1,0 +1,33 @@
+{
+  "cache_pair_admission": {
+    "canonical_bytes": 1893,
+    "shared_budget_bytes": 1894,
+    "convert_http": 413,
+    "operation_issued": false,
+    "canonical_present": false,
+    "export_http": null,
+    "committed_delta": 0
+  },
+  "datev_replay_bytes": {
+    "statuses": [
+      200,
+      200
+    ],
+    "equal": true,
+    "sha256": [
+      "e7a93a813ad07ed3c109760bbb17645abbb104e2ddfbe47477cd68345ac9c5ff",
+      "e7a93a813ad07ed3c109760bbb17645abbb104e2ddfbe47477cd68345ac9c5ff"
+    ],
+    "first_lines": [
+      "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112131412000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+      "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112131412000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\""
+    ]
+  },
+  "chain_12_segments": {
+    "timed_out": false,
+    "exit": 0,
+    "stdout": "CHAIN_STARTED\n{\"seconds\": 0.00021869991905987263, \"result\": [null, null, \"Unknown\", true, [\"Saldensprung oder zeitliche L\\u00fccke im Multi-Datei-Batch (fehlender, vertauschter oder \\u00fcberlappender Auszug).\"]]}\n",
+    "stderr": ""
+  },
+  "scope": "Round-3 verification of Decision 63 fixes using Codex's exact audit63/probes.py functions; synthetic data; temporary SQLite"
+}

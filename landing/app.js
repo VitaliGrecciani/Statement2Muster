@@ -33,9 +33,379 @@ const demoTableBody = document.getElementById('demo-table-body');
 const demoCount = document.getElementById('demo-count');
 const demoSum = document.getElementById('demo-sum');
 const btnDownloadDemoCsv = document.getElementById('btn-download-demo-csv');
+const btnDownloadDemoText = document.getElementById('btn-download-demo-text');
+const demoWarnings = document.getElementById('demo-warnings');
+const demoReconBadge = document.getElementById('demo-recon-badge');
+const demoReconText = document.getElementById('demo-recon-text');
+const demoResultFormatSelect = document.getElementById('demo-result-format-select');
+const landingValutaCheckbox = document.getElementById('landing-valuta-as-booking');
 const landingPopover = document.getElementById('landing-popover');
 
-let currentDemoCsvText = '';
+let currentDemoBytes = null;
+let currentDemoFilename = 'EXTF_Buchungsstapel.csv';
+let currentDemoMime = 'text/csv;charset=windows-1252;';
+let currentOperationId = null;
+let currentCanonicalData = null;
+let isSampleMode = false;
+let landingExportSeq = 0;
+let activeLandingOpGen = 0;
+let activeLandingExportGen = 0;
+let activeLandingConvertCtrl = null;
+let activeLandingExportCtrl = null;
+
+function invalidateLandingOperations(reason = 'reset') {
+  activeLandingOpGen++;
+  activeLandingExportGen++;
+  landingExportSeq++;
+  if (activeLandingConvertCtrl) {
+    try { activeLandingConvertCtrl.abort(reason); } catch (_) {}
+    activeLandingConvertCtrl = null;
+  }
+  if (activeLandingExportCtrl) {
+    try { activeLandingExportCtrl.abort(reason); } catch (_) {}
+    activeLandingExportCtrl = null;
+  }
+  currentOperationId = null;
+  currentDemoBytes = null;
+  if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+}
+
+const LANDING_WIN1252 = {
+  0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87,
+  0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a, 0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e,
+  0x2018: 0x91, 0x2019: 0x92, 0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96,
+  0x2014: 0x97, 0x02dc: 0x98, 0x2122: 0x99, 0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c,
+  0x017e: 0x9e, 0x0178: 0x9f
+};
+
+function encodeWindows1252(str) {
+  const bytes = new Uint8Array(str.length);
+  let replacedCount = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code <= 0x7f) {
+      bytes[i] = code;
+    } else if (code >= 0xa0 && code <= 0xff) {
+      bytes[i] = code;
+    } else if (LANDING_WIN1252[code]) {
+      bytes[i] = LANDING_WIN1252[code];
+    } else {
+      bytes[i] = 0x3f;
+      replacedCount++;
+    }
+  }
+  return { bytes, replacedCount };
+}
+
+function encodeUtf8WithBom(str) {
+  const body = new TextEncoder().encode(str);
+  const out = new Uint8Array(3 + body.length);
+  out[0] = 0xef; out[1] = 0xbb; out[2] = 0xbf;
+  out.set(body, 3);
+  return out;
+}
+
+function sanitizeCsvTextLanding(val) {
+  let s = String(val || '').replace(/[\r\n\t]+/g, ' ').trim();
+  if (s && ['=', '+', '-', '@'].includes(s[0])) s = "'" + s;
+  return s;
+}
+
+function sanitizeCsvField(val) {
+  const s = sanitizeCsvTextLanding(val);
+  if (/[;"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function csvQuoteAllLanding(val) {
+  const s = String(val ?? '');
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function formatDmyToIsoLanding(dmy) {
+  if (!dmy) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dmy)) return dmy;
+  const m = String(dmy).match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(dmy);
+}
+
+function formatIsoToDmy(iso) {
+  if (!iso) return '';
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(iso)) return iso;
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso);
+}
+
+function formatCentsComma(cents) {
+  const n = Number(cents) || 0;
+  if (n === 0) return '0,00';
+  const sign = n < 0 ? '-' : '';
+  const absC = Math.abs(Math.round(n));
+  return `${sign}${Math.floor(absC / 100)},${String(absC % 100).padStart(2, '0')}`;
+}
+
+function getSelectedLandingFormat() {
+  const r = document.querySelector('input[name="landing-export-format"]:checked');
+  return r ? r.value : 'datev';
+}
+
+function syncLandingFormatUI(fmt) {
+  document.querySelectorAll('input[name="landing-export-format"]').forEach(el => {
+    el.checked = (el.value === fmt);
+  });
+  if (demoResultFormatSelect && demoResultFormatSelect.value !== fmt) {
+    demoResultFormatSelect.value = fmt;
+  }
+  if (btnDownloadDemoText) {
+    if (fmt === 'bmd_bankauszug') {
+      btnDownloadDemoText.textContent = 'BMD Bankauszug (22 Sp.) laden';
+    } else if (fmt === 'bmd_ntcs') {
+      btnDownloadDemoText.textContent = 'BMD NTCS (8 Sp.) laden';
+    } else {
+      btnDownloadDemoText.textContent = 'DATEV CSV herunterladen';
+    }
+  }
+}
+
+function showDemoWarnings(messages, isError = false) {
+  if (!demoWarnings) return;
+  const clean = (messages || []).filter(Boolean);
+  if (!clean.length) {
+    demoWarnings.classList.add('hidden');
+    demoWarnings.textContent = '';
+    return;
+  }
+  demoWarnings.className = isError ? 's2m-alert s2m-alert--danger' : 's2m-alert s2m-alert--warning';
+  demoWarnings.innerHTML = clean.map(m => `<div>${escapeHtml(m)}</div>`).join('');
+  demoWarnings.classList.remove('hidden');
+}
+
+function updateLandingReconBadge(status) {
+  if (!demoReconBadge || !demoReconText) return;
+  if (status === 'BALANCED') {
+    demoReconBadge.className = 's2m-badge s2m-badge--success';
+    demoReconText.textContent = 'Salden ausgeglichen';
+  } else if (status === 'DISCREPANCY') {
+    demoReconBadge.className = 's2m-badge s2m-badge--danger';
+    demoReconText.textContent = 'Saldenabweichung erkannt';
+  } else {
+    demoReconBadge.className = 's2m-badge s2m-badge--info';
+    demoReconText.textContent = 'Exportvorschau bereit';
+  }
+}
+
+function buildLandingCanonicalExport(txList, fmt, defaultBankAccount = null) {
+  const txs = txList || [];
+  if (fmt === 'bmd_bankauszug') {
+    const headers22 = [
+      'Transaction Booking Date','Transaction Purpose','Transaction Partner','Transaction Partner IBAN',
+      'Transaction Foreign Currency','Transaction Foreign Amount','Transaction Currency','Transaction Amount',
+      'Booking Amount','Invoice Type','Invoice Currency','Invoice Total','Invoice Number','Invoice Internal No',
+      'Invoice Date','Invoice Partner Company','Invoice Partner Number','Invoice Document ID','Invoice File',
+      'Invoice Tags','Transaction ID','Payment Category'
+    ];
+    const rows = txs.map((tx) => {
+      const bDate = formatIsoToDmy(tx.booking_date || tx.date);
+      const partner = (tx.partner || '').trim();
+      let purpose = (tx.description || tx.text || '').trim();
+      if (partner && purpose.toLowerCase().startsWith(partner.toLowerCase() + ' - ')) {
+        purpose = purpose.slice(partner.length + 3).trim();
+      } else if (partner && purpose === partner) {
+        purpose = '';
+      }
+      let pIban = (tx.partner_iban || '').replace(/\s+/g, '');
+      if (pIban && tx.account_id && pIban.toUpperCase() === String(tx.account_id).replace(/\s+/g, '').toUpperCase()) {
+        pIban = '';
+      }
+      const fCurr = tx.foreign_currency ? String(tx.foreign_currency).toUpperCase() : '';
+      const fAmt = (fCurr && tx.foreign_amount_cents != null) ? formatCentsComma(tx.foreign_amount_cents) : '';
+      const curr = (tx.currency || 'EUR').toUpperCase();
+      const amt = tx.amount_cents != null ? formatCentsComma(tx.amount_cents) : String(tx.amountStr || '0,00').replace(/^\+/, '');
+      return [
+        bDate, sanitizeCsvField(purpose), sanitizeCsvField(partner), sanitizeCsvField(pIban),
+        sanitizeCsvField(fCurr), fAmt, sanitizeCsvField(curr),
+        amt, amt, ...new Array(13).fill('')
+      ].join(';');
+    });
+    const csvText = headers22.join(';') + '\r\n' + rows.join('\r\n') + '\r\n';
+    return {
+      bytes: encodeUtf8WithBom(csvText),
+      filename: 'BMD_Bankauszug_22_Demo.csv',
+      mime: 'text/csv;charset=utf-8;',
+      replacedCount: 0,
+      csvText,
+    };
+  }
+
+  if (fmt === 'bmd_ntcs' || fmt === 'bmd') {
+    const bmdKonto = (defaultBankAccount && String(defaultBankAccount).trim() !== '1200')
+      ? String(defaultBankAccount).trim()
+      : '2800';
+    const hdr = ['Satzart', 'Belegdatum', 'Konto', 'Gegenkonto', 'Betrag', 'Währung', 'Text', 'Belegnummer']
+      .map(csvQuoteAllLanding).join(';');
+    const rows = txs.map((tx, i) => {
+      const bDate = formatIsoToDmy(tx.booking_date || tx.date);
+      const p = (tx.partner || '').trim();
+      const d = (tx.description || tx.text || '').trim();
+      const fullTxt = (p && d && !d.includes(p)) ? `${p} - ${d}` : (d || p);
+      const cleanTxt = sanitizeCsvTextLanding(fullTxt).slice(0, 120);
+      const cleanRef = sanitizeCsvTextLanding(tx.reference || `DEMO-${i + 1}`).slice(0, 30);
+      const contra = (tx.contra_account || '').trim();
+      const curr = (tx.currency || 'EUR').trim();
+      const amt = tx.amount_cents != null ? formatCentsComma(tx.amount_cents) : String(tx.amountStr || '0,00').replace(/^\+/, '');
+      return [
+        '0', bDate, bmdKonto, contra, amt, curr, cleanTxt, cleanRef
+      ].map(csvQuoteAllLanding).join(';');
+    });
+    const csvText = hdr + '\r\n' + rows.join('\r\n') + '\r\n';
+    const enc = encodeWindows1252(csvText);
+    return {
+      bytes: enc.bytes,
+      filename: 'BMD_Bankauszug_Demo.csv',
+      mime: 'text/csv;charset=windows-1252;',
+      replacedCount: enc.replacedCount,
+      csvText,
+    };
+  }
+
+  const datevKonto = (defaultBankAccount && String(defaultBankAccount).trim()) ? String(defaultBankAccount).trim() : '1200';
+  const years = txs.map(t => formatDmyToIsoLanding(t.booking_date || t.date)).filter(Boolean).map(s => s.slice(0, 4)).sort();
+  const yr = years[0] || String(new Date().getFullYear());
+  const nowStr = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '000';
+  const extfLine1 = `"EXTF";700;21;"Buchungsstapel";12;${nowStr};;"";"";"";1001;10001;${yr}0101;4;${yr}0101;${yr}1231;"Statement2Muster";"";1;;0;"EUR"`;
+  const extfLine2 = [
+    'Umsatz (ohne Soll/Haben-Kz)', 'Soll/Haben-Kennzeichen', 'WKZ Umsatz', 'Kurs',
+    'Basis-Umsatz', 'WKZ Basis-Umsatz', 'Konto', 'Gegenkonto (ohne BU-Schlüssel)',
+    'BU-Schlüssel', 'Belegdatum', 'Belegfeld 1', 'Belegfeld 2', 'Skonto', 'Buchungstext'
+  ].map(csvQuoteAllLanding).join(';');
+  const rows = txs.map((tx, i) => {
+    const cents = tx.amount_cents != null ? Number(tx.amount_cents) : Math.round((Number(tx.numericVal) || 0) * 100);
+    const sh = cents >= 0 ? 'S' : 'H';
+    const absAmt = formatCentsComma(Math.abs(cents));
+    const curr = (tx.currency || 'EUR').trim();
+    const contra = (tx.contra_account || '').trim();
+    const dmy = formatIsoToDmy(tx.booking_date || tx.date);
+    const ttmm = dmy.length >= 5 ? dmy.slice(0, 2) + dmy.slice(3, 5) : '0000';
+    const p = (tx.partner || '').trim();
+    const d = (tx.description || tx.text || '').trim();
+    const fullTxt = (p && d && !d.includes(p)) ? `${p} - ${d}` : (d || p);
+    const cleanRef = sanitizeCsvTextLanding(tx.reference || `DEMO-${i + 1}`).slice(0, 36);
+    const cleanTxt = sanitizeCsvTextLanding(fullTxt).slice(0, 60);
+    return [
+      absAmt, sh, curr, '', '', '',
+      datevKonto, contra, '', ttmm, cleanRef, '', '', cleanTxt
+    ].map(csvQuoteAllLanding).join(';');
+  });
+  const csvText = extfLine1 + '\r\n' + extfLine2 + '\r\n' + rows.join('\r\n') + '\r\n';
+  const enc = encodeWindows1252(csvText);
+  return {
+    bytes: enc.bytes,
+    filename: 'EXTF_Buchungsstapel_Demo.csv',
+    mime: 'text/plain;charset=windows-1252;',
+    replacedCount: enc.replacedCount,
+    csvText,
+  };
+}
+
+function buildSampleExport(fmt) {
+  const canonicalSampleTxs = SAMPLE_TRANSACTIONS.map((t, i) => ({
+    booking_date: formatDmyToIsoLanding(t.date),
+    partner: null,
+    partner_iban: null,
+    description: t.text,
+    amount_cents: Math.round((Number(t.numericVal) || 0) * 100),
+    currency: 'EUR',
+    reference: `DEMO-${i + 1}`,
+    contra_account: '',
+  }));
+  const out = buildLandingCanonicalExport(canonicalSampleTxs, fmt);
+  currentDemoBytes = out.bytes;
+  currentDemoFilename = out.filename;
+  currentDemoMime = out.mime;
+  if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = false;
+  return out;
+}
+
+async function fetchLandingExportBytes(fmt, expectedOpGen = null) {
+  syncLandingFormatUI(fmt);
+  if (isSampleMode) {
+    const out = buildSampleExport(fmt);
+    if (out.replacedCount > 0) {
+      showDemoWarnings([`${out.replacedCount} Sonderzeichen außerhalb Windows-1252 wurden durch '?' ersetzt.`], false);
+    } else {
+      showDemoWarnings([]);
+    }
+    return true;
+  }
+  if (!currentOperationId) return false;
+
+  const opGen = expectedOpGen !== null ? expectedOpGen : activeLandingOpGen;
+  const expGen = ++activeLandingExportGen;
+  landingExportSeq++;
+  if (activeLandingExportCtrl) {
+    try { activeLandingExportCtrl.abort('superseded'); } catch (_) {}
+    activeLandingExportCtrl = null;
+  }
+  currentDemoBytes = null;
+  if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+
+  const token = sessionStorage.getItem('s2m_access_token');
+  if (!token) {
+    showDemoWarnings(['Sitzung abgelaufen. Bitte erneut anmelden.'], true);
+    return false;
+  }
+
+  const timeoutMs = window.__LANDING_TIMEOUT_MS || 30000;
+  const controller = new AbortController();
+  activeLandingExportCtrl = controller;
+  const timeoutId = setTimeout(() => {
+    try { controller.abort('timeout'); } catch (_) {}
+  }, timeoutMs);
+
+  try {
+    const resp = await fetch(`${apiBaseUrl}/api/v1/operations/${encodeURIComponent(currentOperationId)}/export?format=${encodeURIComponent(fmt)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal
+    });
+    if (opGen !== activeLandingOpGen || expGen !== activeLandingExportGen) return false;
+
+    if (!resp.ok) {
+      const errJson = await resp.json().catch(() => ({}));
+      if (opGen !== activeLandingOpGen || expGen !== activeLandingExportGen) return false;
+      const detail = errJson.detail || `Exportfehler (${resp.status})`;
+      if (resp.status === 410) {
+        currentOperationId = null;
+      }
+      showDemoWarnings([detail], true);
+      if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+      return false;
+    }
+
+    const buf = await resp.arrayBuffer();
+    if (opGen !== activeLandingOpGen || expGen !== activeLandingExportGen) return false;
+    currentDemoBytes = new Uint8Array(buf);
+    const disp = resp.headers.get('Content-Disposition') || '';
+    const fnMatch = disp.match(/filename="?([^";]+)"?/);
+    currentDemoFilename = (fnMatch && fnMatch[1]) || (fmt === 'bmd_bankauszug' ? 'BMD_Bankauszug_22.csv' : fmt === 'bmd_ntcs' ? 'BMD_Bankauszug.csv' : 'EXTF_Buchungsstapel.csv');
+    currentDemoMime = resp.headers.get('Content-Type') || (fmt === 'bmd_bankauszug' ? 'text/csv;charset=utf-8;' : 'text/csv;charset=windows-1252;');
+    if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = false;
+    showDemoWarnings(currentCanonicalData?.warnings || [], false);
+    return true;
+  } catch (err) {
+    if (opGen !== activeLandingOpGen || expGen !== activeLandingExportGen) return false;
+    if (controller.signal.aborted && controller.signal.reason === 'timeout') {
+      showDemoWarnings([`Zeitüberschreitung beim Export (${timeoutMs / 1000}s).`], true);
+    } else {
+      showDemoWarnings([err.message || 'Export konnte nicht geladen werden.'], true);
+    }
+    if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+    if (activeLandingExportCtrl === controller) activeLandingExportCtrl = null;
+  }
+}
 
 // ==========================================================================
 // 1. Live Demo & Converter
@@ -80,21 +450,84 @@ if (landingDropzone) {
   });
 }
 
-// 1-Click Sample Loader
-if (btnLoadSample) {
-  btnLoadSample.addEventListener('click', () => {
-    showDemoStatus('Lade DATEV-Musterdaten...');
-    currentDemoCsvText = "Belegdatum;Buchungstext;Betrag;Währung;Belegnummer;Gegenkonto/Konto\r\n" + 
-      SAMPLE_TRANSACTIONS.map(t => `${t.date};${t.text};${t.amountStr};EUR;DEMO;`).join("\r\n");
-    setTimeout(() => {
-      renderDemoTable(SAMPLE_TRANSACTIONS);
-      hideDemoStatus();
-    }, 400);
+// 1-Click Sample Loader & Format Sync
+document.querySelectorAll('input[name="landing-export-format"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    const fmt = e.target.value;
+    syncLandingFormatUI(fmt);
+    if (isSampleMode || currentOperationId) {
+      fetchLandingExportBytes(fmt);
+    }
+  });
+});
+
+if (demoResultFormatSelect) {
+  demoResultFormatSelect.addEventListener('change', (e) => {
+    const fmt = e.target.value;
+    syncLandingFormatUI(fmt);
+    if (isSampleMode || currentOperationId) {
+      fetchLandingExportBytes(fmt);
+    }
   });
 }
 
+if (landingValutaCheckbox) {
+  landingValutaCheckbox.addEventListener('change', () => {
+    const hadOp = Boolean(currentOperationId || currentCanonicalData);
+    invalidateLandingOperations('valuta_changed');
+    if (hadOp && !isSampleMode) {
+      showDemoWarnings(['Datumsoption geändert — bitte Datei erneut hochladen, um das Ergebnis neu zu berechnen.'], false);
+    }
+  });
+}
+
+if (btnLoadSample) {
+  btnLoadSample.addEventListener('click', () => {
+    invalidateLandingOperations('sample_clicked');
+    const opGen = activeLandingOpGen;
+    const fmt = getSelectedLandingFormat();
+    showDemoStatus('Lade Musterdaten...');
+    isSampleMode = true;
+    currentCanonicalData = null;
+    setTimeout(() => {
+      if (opGen !== activeLandingOpGen) return;
+      syncLandingFormatUI(fmt);
+      const out = buildSampleExport(fmt);
+      updateLandingReconBadge('BALANCED');
+      if (out.replacedCount > 0) {
+        showDemoWarnings([`${out.replacedCount} Sonderzeichen außerhalb Windows-1252 wurden durch '?' ersetzt.`], false);
+      } else {
+        showDemoWarnings([]);
+      }
+      renderDemoTable(SAMPLE_TRANSACTIONS);
+      hideDemoStatus();
+    }, 250);
+  });
+}
+
+function mapCanonicalTxToDemoRow(tx) {
+  const displayDate = tx.booking_date
+    ? formatIsoToDmy(tx.booking_date)
+    : (tx.value_date ? `${formatIsoToDmy(tx.value_date)} (Valuta)` : '—');
+  const partnerPrefix = tx.partner && !String(tx.description || '').toLowerCase().startsWith(String(tx.partner).toLowerCase())
+    ? `${tx.partner} — `
+    : '';
+  const cents = Number(tx.amount_cents) || 0;
+  return {
+    date: displayDate,
+    text: `${partnerPrefix}${tx.description || ''}`.trim() || tx.partner || 'Buchung',
+    amountStr: formatCentsComma(cents),
+    numericVal: cents / 100,
+    isCredit: cents >= 0,
+    currency: tx.currency || 'EUR',
+  };
+}
+
 async function processUploadedFiles(files) {
-  currentDemoCsvText = '';
+  invalidateLandingOperations('upload');
+  const opGen = activeLandingOpGen;
+  currentCanonicalData = null;
+  isSampleMode = false;
   if (demoResult) demoResult.classList.add('hidden');
   showDemoStatus(`Analysiere ${files.length} Datei(en) in-memory...`);
 
@@ -102,6 +535,15 @@ async function processUploadedFiles(files) {
   for (const f of files) {
     formData.append('files', f);
   }
+  const selectedFormat = getSelectedLandingFormat();
+  const useValuta = Boolean(landingValutaCheckbox && landingValutaCheckbox.checked);
+
+  const timeoutMs = window.__LANDING_TIMEOUT_MS || 30000;
+  const controller = new AbortController();
+  activeLandingConvertCtrl = controller;
+  const timeoutId = setTimeout(() => {
+    try { controller.abort('timeout'); } catch (_) {}
+  }, timeoutMs);
 
   try {
     const token = sessionStorage.getItem('s2m_access_token');
@@ -110,11 +552,35 @@ async function processUploadedFiles(files) {
       showDemoStatus('Bitte melden Sie sich an, bevor Sie einen Auszug hochladen.');
       return;
     }
-    const response = await fetch(`${apiBaseUrl}/api/v1/convert`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
-    });
+    const response = await fetch(
+      `${apiBaseUrl}/api/v1/convert?format=json&target_format=${encodeURIComponent(selectedFormat)}&use_valuta_as_booking_date=${useValuta ? 'true' : 'false'}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+        signal: controller.signal
+      }
+    );
+    if (opGen !== activeLandingOpGen) return;
+
+    if (response.status === 422) {
+      const errJson = await response.json().catch(() => ({}));
+      if (opGen !== activeLandingOpGen) return;
+      if (errJson && errJson.result) {
+        currentCanonicalData = errJson.result;
+        currentOperationId = null;
+        currentDemoBytes = null;
+        const blockedRows = (errJson.result.transactions || []).map(mapCanonicalTxToDemoRow);
+        updateLandingReconBadge(errJson.result.overall_reconciliation || 'UNVERIFIED');
+        renderDemoTable(blockedRows);
+        if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+        const blocks = errJson.export_blocks && errJson.export_blocks.length ? errJson.export_blocks : [errJson.detail || 'Export blockiert'];
+        showDemoWarnings([...(errJson.result.warnings || []), ...blocks], true);
+        hideDemoStatus();
+        return;
+      }
+      throw new Error(errJson.detail || 'Validierungsfehler (422)');
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -123,46 +589,44 @@ async function processUploadedFiles(files) {
         showAuthModal();
         throw new Error('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
       }
-      throw new Error(`Fehler beim Konvertieren: ${response.statusText}`);
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.detail || `Fehler beim Konvertieren: ${response.statusText}`);
     }
 
-    const buffer = await response.arrayBuffer();
-    const decoder = new TextDecoder('windows-1252');
-    currentDemoCsvText = decoder.decode(buffer);
+    const data = await response.json();
+    if (opGen !== activeLandingOpGen) return;
 
-    // Parse CSV
-    const lines = currentDemoCsvText.trim().split(/\r?\n/);
-    const transactions = [];
+    currentCanonicalData = data;
+    currentOperationId = data.operation_id || null;
 
-    lines.slice(1).forEach(row => {
-      if (!row.trim()) return;
-      const cols = row.split(';');
-      const date = cols[0] || '';
-      const text = cols[1] || '';
-      const amountStr = cols[2] || '0,00';
-      const num = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
-      const isCredit = !amountStr.startsWith('-');
-
-      transactions.push({
-        date,
-        text,
-        amountStr,
-        numericVal: isNaN(num) ? 0 : num,
-        isCredit
-      });
-    });
-
+    const transactions = (data.transactions || []).map(mapCanonicalTxToDemoRow);
+    updateLandingReconBadge(data.overall_reconciliation || 'UNVERIFIED');
     renderDemoTable(transactions);
     hideDemoStatus();
 
+    if (currentOperationId && !(data.export_blocks && data.export_blocks.length)) {
+      await fetchLandingExportBytes(selectedFormat, opGen);
+    } else if (data.export_blocks && data.export_blocks.length) {
+      if (btnDownloadDemoCsv) btnDownloadDemoCsv.disabled = true;
+      showDemoWarnings([...(data.warnings || []), ...data.export_blocks], true);
+    } else if (data.warnings && data.warnings.length) {
+      showDemoWarnings(data.warnings, false);
+    }
   } catch (err) {
+    if (opGen !== activeLandingOpGen) return;
     console.error('Konvertierungsfehler:', err);
-    currentDemoCsvText = '';
+    currentDemoBytes = null;
     if (demoResult) demoResult.classList.add('hidden');
-    showDemoStatus(err.message || 'Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
+    const msg = (controller.signal.aborted && controller.signal.reason === 'timeout')
+      ? `Zeitüberschreitung: Server hat nicht innerhalb von ${timeoutMs / 1000}s geantwortet.`
+      : (err.message || 'Die Datei konnte nicht verarbeitet werden. Bitte prüfen Sie das Format.');
+    showDemoStatus(msg);
     setTimeout(() => {
-      hideDemoStatus();
-    }, 4000);
+      if (opGen === activeLandingOpGen) hideDemoStatus();
+    }, 5000);
+  } finally {
+    clearTimeout(timeoutId);
+    if (activeLandingConvertCtrl === controller) activeLandingConvertCtrl = null;
   }
 }
 
@@ -193,21 +657,27 @@ function renderDemoTable(items) {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="td-date-demo">${item.date}</td>
+      <td class="td-date-demo">${escapeHtml(item.date)}</td>
       <td class="td-text-demo">${escapeHtml(item.text)}</td>
-      <td class="${amountClass}">${displayAmount}</td>
+      <td class="${amountClass}">${escapeHtml(displayAmount)}</td>
     `;
 
     // Floating Popover Loupe
     tr.addEventListener('mouseenter', (e) => {
       if (!landingPopover) return;
+      const activeFmt = getSelectedLandingFormat();
+      const fmtLabel = activeFmt === 'bmd_bankauszug'
+        ? 'BMD Bankauszug (22 Sp.)'
+        : activeFmt === 'bmd_ntcs'
+          ? 'BMD NTCS (8 Sp.)'
+          : 'DATEV EXTF';
       landingPopover.innerHTML = `
         <div class="s2m-pop__head">
-          <span class="s2m-num s2m-muted">${item.date}</span>
-          <span class="${amountClass}">${displayAmount}</span>
+          <span class="s2m-num s2m-muted">${escapeHtml(item.date)}</span>
+          <span class="${amountClass}">${escapeHtml(displayAmount)}</span>
         </div>
         <div class="s2m-pop__text">${escapeHtml(item.text)}</div>
-        <div class="s2m-pop__foot"><span>DATEV-Format</span><span>Währung: EUR</span></div>
+        <div class="s2m-pop__foot"><span>${escapeHtml(fmtLabel)}</span><span>Währung: ${escapeHtml(item.currency || 'EUR')}</span></div>
       `;
       landingPopover.classList.remove('hidden');
       landingPopover.classList.add('visible');
@@ -257,18 +727,17 @@ function positionPopover(e) {
 // Download Button
 if (btnDownloadDemoCsv) {
   btnDownloadDemoCsv.addEventListener('click', () => {
-    let csvContent = currentDemoCsvText;
-    if (!csvContent) {
-      showDemoStatus('Keine konvertierten Daten zum Download verfügbar. Bitte Datei hochladen oder Musterdaten laden.');
-      setTimeout(() => hideDemoStatus(), 3000);
+    if (!currentDemoBytes || !currentDemoBytes.length) {
+      showDemoStatus('Keine gültige Exportdatei verfügbar. Bitte prüfen Sie Hinweise oben oder laden Sie den Auszug neu.');
+      setTimeout(() => hideDemoStatus(), 3500);
       return;
     }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=windows-1252;' });
+    const blob = new Blob([currentDemoBytes], { type: currentDemoMime || 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Statement2Muster_DATEV.csv';
+    a.download = currentDemoFilename || 'Statement2Muster.csv';
     a.click();
     URL.revokeObjectURL(url);
   });
@@ -392,12 +861,15 @@ async function setSignedIn(token) {
     authEmail.readOnly = false;
   }
   sessionStorage.setItem('s2m_access_token', token);
+  invalidateLandingOperations('login');
   if (btnOpenLogin) btnOpenLogin.textContent = 'Abmelden';
   if (authModal) authModal.classList.add('hidden');
   setAuthStatus('');
 }
 
 async function signOut() {
+  invalidateLandingOperations('logout');
+  currentCanonicalData = null;
   const token = sessionStorage.getItem('s2m_access_token');
   sessionStorage.removeItem('s2m_access_token');
   if (btnOpenLogin) btnOpenLogin.textContent = 'Anmelden';

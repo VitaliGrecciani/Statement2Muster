@@ -1,0 +1,27 @@
+{
+  "base_head": "b6c706c8cbef2d57be802c0bd5d736ae612fd392",
+  "scope": "uncommitted working tree, audit only",
+  "files": {
+    "backend/app/exporters/bmd.py": "f9ef550a38b4c22b76fe2b71f7133737f290483781ee41ebed5a23d7ddac2183",
+    "backend/app/exporters/bmd_bankauszug.py": "74e520740b57a708e4205a6e5fe9586e59f669295d7e12f6a5fe3a57bf360597",
+    "backend/app/exporters/datev.py": "5ca56a8602530316d4f3d60988fd305f0c7f9048053eead7f0a99708ea99d013",
+    "backend/app/exporters/formats.py": "d25ae0afb0d9621b8cf0a6f28d1669b1d83ae61f93746eb316573f340ec3c0c9",
+    "backend/app/exporters/muster_csv.py": "eee59a27e0b26610c66756c95b1b9e2a74e5287f8185811a26a5f732b06cb311",
+    "backend/app/main.py": "71d5f05dd69a359d3cc742659461df1c0b289b78a42481c02cdfeabd220f536b",
+    "backend/app/parsers/amex_parser.py": "0364db1d1f23d15a45a6eb417e2c770716a7e29f6968d7218a7a14207acd1f02",
+    "backend/app/parsers/csv_parser.py": "8b67ddc27d761950fca390082e1d76b3ec409374732acab98c943cfa7e367d1a",
+    "backend/app/parsers/erste_parser.py": "28580ee138e857cc3d138e946a7e9a5dc40a723e43a63eca2a7b9373498db37d",
+    "backend/app/parsers/registry.py": "07dbcdfee0c8f2baaf4035f34323dd089db0c341e9ad671ec4dbd6fa4f397683",
+    "backend/app/schemas/canonical.py": "817f2af8471ac8c18e55bfa7fd694c4c7599dba818a0d37b14c63a786d94b90c",
+    "backend/app/services/parser_process_supervisor.py": "da9b4f22b386b34fa4f5ca2654771f13611b67f68deeb3f23974b70d6de6c170",
+    "backend/app/services/reconciliation_service.py": "5272af063fb9e89e38d8a69f264d961b2abdd89d9409b2fe8abd8966c31253e0",
+    "backend/test_bmd_bankauszug_erste.py": "cb100669b71086e12ccc472eff45dea89cd94633bae2537be94523445475b266",
+    "extension/app.js": "907691ff5bc5f4e1f3313bebe237cb9cf9f96656c1381aadc9ae078dee596db1",
+    "extension/sidepanel.html": "b31be55076c4b78481cf8b0a0a9278cdd98ea9b0278c7d6d5a6b6eab5ee1faf6",
+    "extension_firefox_build/app.js": "6b697efc5ca62e051f0654aa7f08aa48c2ed0c0f977291fc87453a6728582840",
+    "extension_firefox_build/sidepanel.html": "4d0487d44b2be8c84d94046a2d912c9e05c83503f9f48cf41d442e185fc622cf",
+    "landing/app.js": "e37d5276a1663f369bfe71dc8cafe767848b61678df51fdd6af400864804abe0",
+    "landing/index.html": "6fba533944b8f19b2bc5b6be7586effba8e8959144ec9955a835957ec5934710",
+    "landing/styles.css": "a2f66ae499290d4629fa3ca9bc3a06db451ce6d569b6eb2454e6d5e1a7df0718"
+  }
+}

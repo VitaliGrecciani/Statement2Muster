@@ -273,9 +273,12 @@ class UniversalBankStatementParser:
                         transactions = table_txs
                         logger.info(f"{tag} Strategy 3 succeeded: {len(transactions)} txs found in tables")
 
-                # Strategy 4: Automatic Native OCR for Scanned PDFs (when 0 chars or 0 txs found)
-                total_chars = len(raw_combined.strip())
-                if not transactions and (total_chars < 50 or total_pages > 0):
+                # Check mixed scan pages inside digital text PDF
+                page_char_counts = [len((p.extract_text() or "").strip()) for p in pdf.pages]
+                total_chars = sum(page_char_counts)
+
+                # Strategy 4: Automatic Native OCR ONLY when whole PDF lacks a digital text layer
+                if not transactions and total_chars < 50:
                     logger.info(f"{tag} PDF has no digital text layer ({total_chars} chars). Launching Strategy 4 (High-Res Native OCR Engine)...")
                     ocr_text = self._run_native_ocr(pdf_bytes, filename)
                     if ocr_text:
@@ -284,6 +287,13 @@ class UniversalBankStatementParser:
                         if ocr_txs:
                             transactions = ocr_txs
                             logger.info(f"{tag} Strategy 4 (OCR) succeeded: {len(transactions)} txs recognized!")
+                elif total_chars >= 50 and any(c < 20 for c in page_char_counts):
+                    scan_pages = [i + 1 for i, c in enumerate(page_char_counts) if c < 20]
+                    logger.warning(f"{tag} Mixed PDF detected: pages {scan_pages} lack digital text.")
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Misch-PDF erkannt: Seite(n) {scan_pages} enthalten keine Textebene (Scan) und können nicht sicher ohne vollständige OCR verarbeitet werden."
+                    )
 
                 if len(transactions) > settings.MAX_ROWS_PER_FILE:
                     raise HTTPException(
@@ -377,8 +387,14 @@ class UniversalBankStatementParser:
                 logger.error(f"Native OCR failed on {tag}: {ocr_err}", exc_info=True)
                 return ""
 
+        ocr_timeout = float(getattr(settings, "OCR_TIMEOUT_SECONDS", 90))
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            return executor.submit(_ocr_worker).result()
+            future = executor.submit(_ocr_worker)
+            try:
+                return future.result(timeout=ocr_timeout)
+            except concurrent.futures.TimeoutError:
+                logger.error(f"Native OCR timed out after {ocr_timeout}s on {tag}")
+                return ""
 
     def _normalize_ocr_line(self, line: str) -> str:
         """Normalizes Cyrillic/Latin homoglyphs in dates and amounts produced by OCR on localized Windows."""
@@ -415,7 +431,8 @@ class UniversalBankStatementParser:
             "kontostand per", "freistellungsauftrag", "einlagensicherung", "ihre ansprechpartner",
             "seite ", "iban:", "bic:", "gläubiger-id", "mandatsreferenz:", "buchungstag wert",
             "buchungstag / wert", "vorgang / verwendungszweck", "soll / haben", "umsatz in eur",
-            "wertstellung vorgang", "auszug nr", "iban / bic", "seite:", "datum uhrzeit"
+            "wertstellung vorgang", "auszug nr", "iban / bic", "seite:", "datum uhrzeit",
+            "offener betrag", "einzugsbetrag", "umsatz der karte", "der einzugsbetrag"
         ]
 
         current_tx_meta = None

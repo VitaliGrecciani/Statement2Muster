@@ -46,7 +46,7 @@ def _hard_kill_pid(pid: int):
         except OSError:
             pass
 
-def _worker_entrypoint(send_conn, content: bytes, filename: str, tenant_id: str, client_entity_id: str, max_rows: int):
+def _worker_entrypoint(send_conn, content: bytes, filename: str, tenant_id: str, client_entity_id: str, max_rows: int, use_valuta_as_booking_date: bool = False):
     """
     Isolated child process entrypoint.
     Executes parsing in independent memory address space.
@@ -64,7 +64,8 @@ def _worker_entrypoint(send_conn, content: bytes, filename: str, tenant_id: str,
             content=content,
             filename=filename,
             tenant_id=tenant_id,
-            client_entity_id=client_entity_id
+            client_entity_id=client_entity_id,
+            use_valuta_as_booking_date=use_valuta_as_booking_date,
         )
         if max_rows and txs and len(txs) > max_rows:
             send_conn.send(("HTTP_ERROR", 413, f"File '{filename}' exceeds maximum allowed limit of {max_rows} rows."))
@@ -186,7 +187,8 @@ class ParserProcessSupervisor:
         client_entity_id: str = "default",
         timeout: Optional[float] = None,
         request_id: Optional[str] = None,
-        max_rows: Optional[int] = None
+        max_rows: Optional[int] = None,
+        use_valuta_as_booking_date: bool = False,
     ) -> Tuple[List[Any], Optional[Any]]:
         effective_timeout = timeout if timeout is not None else self.default_timeout
         file_hash_prefix = hashlib.sha256(filename.encode("utf-8")).hexdigest()[:8]
@@ -233,7 +235,7 @@ class ParserProcessSupervisor:
             
             proc = multiprocessing.Process(
                 target=_worker_entrypoint,
-                args=(send_conn, content, filename, tenant_id, client_entity_id, effective_max_rows),
+                args=(send_conn, content, filename, tenant_id, client_entity_id, effective_max_rows, use_valuta_as_booking_date),
                 daemon=True
             )
             proc.start()

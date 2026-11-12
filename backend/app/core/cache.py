@@ -75,6 +75,114 @@ class ExpiringOrderedDict(OrderedDict):
         return super().keys()
 
 
+class SharedMemoryBudget:
+    """Thread-safe shared RAM budget across one or more BoundedMemoryCache instances (R62-8)."""
+
+    def __init__(self, max_bytes: Optional[int] = None):
+        self.max_bytes = max_bytes or settings.RAM_CACHE_MAX_BYTES
+        self._lock = threading.RLock()
+        self._caches: List["BoundedMemoryCache"] = []
+
+    def register(self, cache: "BoundedMemoryCache") -> None:
+        with self._lock:
+            if cache not in self._caches:
+                self._caches.append(cache)
+
+    def current_bytes(self) -> int:
+        with self._lock:
+            return sum(c._current_bytes for c in self._caches)
+
+    def evict_if_needed(self, incoming_bytes: int) -> bool:
+        """
+        Ensures `current_bytes + incoming_bytes <= max_bytes` by purging expired entries
+        and evicting oldest LRU items across sibling caches. Returns False if impossible.
+        """
+        with self._lock:
+            if incoming_bytes > self.max_bytes:
+                return False
+            now = time.time()
+            for c in self._caches:
+                with c._lock:
+                    c._purge_expired(now)
+            while self.current_bytes() + incoming_bytes > self.max_bytes:
+                # Pick the cache with the oldest least-recently-used item
+                victim_cache = None
+                oldest_exp = float("inf")
+                for c in self._caches:
+                    with c._lock:
+                        if c._entries:
+                            _, first_entry = next(iter(c._entries.items()))
+                            if first_entry.expires_at < oldest_exp:
+                                oldest_exp = first_entry.expires_at
+                                victim_cache = c
+                if victim_cache is None:
+                    break
+                with victim_cache._lock:
+                    if victim_cache._entries:
+                        _, oldest_entry = victim_cache._entries.popitem(last=False)
+                        victim_cache._current_bytes = max(0, victim_cache._current_bytes - oldest_entry.size_bytes)
+            return (self.current_bytes() + incoming_bytes) <= self.max_bytes
+
+    def admit_batch(
+        self,
+        items: List[Tuple["BoundedMemoryCache", str, Any]],
+        ttl_seconds: Optional[int] = None,
+    ) -> bool:
+        """
+        Atomically admits a logically linked group of (cache, key, value) entries under a single
+        shared RAM budget (R63-1). Either ALL entries are retained simultaneously within budget or
+        ALL batch entries are removed and False is returned without leaving orphaned references.
+        """
+        if not items:
+            return True
+        with self._lock:
+            sizes = [estimate_size(val) for _, _, val in items]
+            total_incoming = sum(sizes)
+            if total_incoming > self.max_bytes:
+                return False
+            for (c, _, _), sz in zip(items, sizes):
+                if sz > c.max_bytes:
+                    return False
+
+            now = time.time()
+            # Reclaim space from any prior value of the exact same keys being replaced, then purge expired
+            reclaimable = 0
+            for c, k, _ in items:
+                with c._lock:
+                    c._purge_expired(now)
+                    old = super(ExpiringOrderedDict, c._entries).get(k)
+                    if old is not None:
+                        reclaimable += old.size_bytes
+
+            net_needed = max(0, total_incoming - reclaimable)
+            if not self.evict_if_needed(net_needed):
+                return False
+
+            protected: set = set()
+            inserted_ok = True
+            for c, k, val in items:
+                ok = c.set(k, val, ttl_seconds=ttl_seconds)
+                if not ok:
+                    inserted_ok = False
+                    break
+                protected.add((id(c), k))
+
+            # Post-condition: ALL entries MUST coexist simultaneously without mutual eviction or budget overflow
+            if inserted_ok and len(protected) == len(items) and self.current_bytes() <= self.max_bytes:
+                all_present = True
+                for c, k, _ in items:
+                    if c.get(k) is None:
+                        all_present = False
+                        break
+                if all_present:
+                    return True
+
+            # Roll back entire batch on partial eviction/budget shrink/failure
+            for c, k, _ in items:
+                c.delete(k)
+            return False
+
+
 class BoundedMemoryCache:
     """
     RAM-only bounded cache adhering to Zero Durable Retention (ADR-001 / B02 / B07 / C06):
@@ -90,15 +198,19 @@ class BoundedMemoryCache:
         self,
         ttl_seconds: Optional[int] = None,
         max_bytes: Optional[int] = None,
-        max_entries: Optional[int] = None
+        max_entries: Optional[int] = None,
+        shared_budget: Optional[SharedMemoryBudget] = None,
     ):
         self.ttl_seconds = ttl_seconds or settings.RAM_CACHE_TTL_SECONDS
         self.max_bytes = max_bytes or settings.RAM_CACHE_MAX_BYTES
         self.max_entries = max_entries or settings.RAM_CACHE_MAX_ENTRIES
+        self.shared_budget = shared_budget
         self._entries: ExpiringOrderedDict = ExpiringOrderedDict(self)
         self._current_bytes: int = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._stopped = False
+        if self.shared_budget is not None:
+            self.shared_budget.register(self)
         self._sweeper_thread = threading.Thread(target=self._sweep_loop, daemon=True)
         self._sweeper_thread.start()
 
@@ -140,13 +252,42 @@ class BoundedMemoryCache:
             self._entries.move_to_end(key)
             return entry.value
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> None:
-        with self._lock:
-            now = time.time()
-            ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
-            expires_at = now + ttl
-            size = estimate_size(value)
+    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None) -> bool:
+        now = time.time()
+        ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
+        expires_at = now + ttl
+        size = estimate_size(value)
 
+        # If a single item exceeds local cache cap, reject before touching sibling caches
+        if size > self.max_bytes:
+            return False
+
+        if self.shared_budget is not None:
+            with self.shared_budget._lock:
+                with self._lock:
+                    if key in self._entries:
+                        old_entry = self._entries.pop(key)
+                        self._current_bytes = max(0, self._current_bytes - old_entry.size_bytes)
+                    self._purge_expired(now)
+                    while (
+                        self._entries
+                        and (
+                            len(self._entries) >= self.max_entries
+                            or (self._current_bytes + size) > self.max_bytes
+                        )
+                    ):
+                        _, oldest_entry = self._entries.popitem(last=False)
+                        self._current_bytes = max(0, self._current_bytes - oldest_entry.size_bytes)
+
+                if not self.shared_budget.evict_if_needed(size):
+                    return False
+
+                with self._lock:
+                    self._entries[key] = CacheEntry(value, expires_at, size)
+                    self._current_bytes += size
+                    return True
+
+        with self._lock:
             # If existing key, remove old size first
             if key in self._entries:
                 old_entry = self._entries.pop(key)
@@ -166,12 +307,9 @@ class BoundedMemoryCache:
                 _, oldest_entry = self._entries.popitem(last=False)
                 self._current_bytes = max(0, self._current_bytes - oldest_entry.size_bytes)
 
-            # If a single item is larger than the total budget, do not cache it
-            if size > self.max_bytes:
-                return
-
             self._entries[key] = CacheEntry(value, expires_at, size)
             self._current_bytes += size
+            return True
 
     def delete(self, key: str) -> None:
         with self._lock:
@@ -244,5 +382,6 @@ class BoundedMemoryCache:
                 "ttl_seconds": self.ttl_seconds
             }
 
-# Global singleton instance for conversion response caching
-idempotent_result_cache = BoundedMemoryCache()
+# Global shared RAM budget & singleton cache instances (R62-8)
+shared_ram_budget = SharedMemoryBudget(max_bytes=settings.RAM_CACHE_MAX_BYTES)
+idempotent_result_cache = BoundedMemoryCache(shared_budget=shared_ram_budget)

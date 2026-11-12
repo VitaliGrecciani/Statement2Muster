@@ -1,0 +1,72 @@
+{
+  "scope": "Decision 62 Round-2 verification; local ASGI / synthetic fixtures / temporary SQLite",
+  "ui_json_without_valuta": {
+    "bare_convert_http": 200,
+    "bare_operation_id": null,
+    "bare_export_eligible": false,
+    "targeted_422_http": 422,
+    "targeted_has_result_preview": true,
+    "committed_delta": 0
+  },
+  "operation_evicted_only": {
+    "replay_http": 410,
+    "export_http": 410,
+    "parser_calls": 1
+  },
+  "both_caches_evicted": {
+    "http": 410,
+    "parser_calls": 1,
+    "cache_control": "no-store, private"
+  },
+  "export_headers": {
+    "http": 200,
+    "cache_control": "no-store, private"
+  },
+  "export_account_validation": {
+    "http": 422,
+    "detail": "Ungültiges Kontofeld 'default_bank_account': Erwartet wird eine 3- bis 9-stellige Ziffernfolge (z.B. 1200 oder 2800)."
+  },
+  "malformed_amount_text_fallback": {
+    "transactions": 1,
+    "errors": [
+      "Seite 1: Nicht eindeutiger Betrag '12,3X-' bei 'Bad'."
+    ],
+    "description": "Good",
+    "amount_cents": -1000
+  },
+  "multifile_chain": {
+    "same_day_forward": "BALANCED",
+    "same_day_reversed": "BALANCED",
+    "duplicated_zero_net_statement": "DISCREPANCY"
+  },
+  "local_export": {
+    "datev_raw_row1": "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112115327000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+    "datev_header_fields": 22,
+    "datev_header_currency_col22": "EUR",
+    "datev_header_col17": "Statement2Muster",
+    "datev_contra_account": "4930",
+    "bmd_header": [
+      "Satzart",
+      "Belegdatum",
+      "Konto",
+      "Gegenkonto",
+      "Betrag",
+      "Währung",
+      "Text",
+      "Belegnummer"
+    ],
+    "bmd_contra_account": "4930"
+  },
+  "offline_discontinuous_chain": {
+    "aggregate": "DISCREPANCY",
+    "export_blocks": [
+      "Saldenabweichung (DISCREPANCY) festgestellt: Anfangssaldo + Umsätze stimmt nicht mit Endsaldo überein."
+    ]
+  },
+  "late_export_after_reset": {
+    "selected": "datev",
+    "filename": "",
+    "downloadEnabled": false,
+    "text": ""
+  }
+}

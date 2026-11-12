@@ -1,0 +1,106 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 86 items
+
+backend/test_amex.py::test_amex_parser_regex PASSED                      [  1%]
+backend/test_amex.py::test_universal_vrbank_parser PASSED                [  2%]
+backend/test_bmd_bankauszug_erste.py::test_bmd_bankauszug_22col_schema_bom_crlf_quoting_and_partner PASSED [  3%]
+backend/test_bmd_bankauszug_erste.py::test_erste_bank_6p_valuta_opt_in_and_quota_protection PASSED [  4%]
+backend/test_bmd_bankauszug_erste.py::test_erste_visa_gold_fx_buchung_date_and_reconciliation PASSED [  5%]
+backend/test_bmd_bankauszug_erste.py::test_operation_cache_ttl_security_and_format_validation PASSED [  6%]
+backend/test_bmd_bankauszug_erste.py::test_mixed_scan_page_and_segment_gaps_and_validation PASSED [  8%]
+backend/test_bmd_bankauszug_erste.py::test_amex_low_text_threshold_fixed_for_scanned_pdfs PASSED [  9%]
+backend/test_bmd_bankauszug_erste.py::test_non_eur_currency_blocked_for_bmd_bankauszug_and_multifile_chaining PASSED [ 10%]
+backend/test_bmd_bankauszug_erste.py::test_real_duplicate_payments_kept_in_conversion PASSED [ 11%]
+backend/test_bmd_bankauszug_erste.py::test_worker_supervisor_timeout_clean PASSED [ 12%]
+backend/test_bmd_bankauszug_erste.py::test_frontend_js_win1252_bom_and_client_parsers PASSED [ 13%]
+backend/test_bmd_bankauszug_erste.py::test_section4_12tx_erste_bank_and_5tx_visa_baseline_fixtures PASSED [ 15%]
+backend/test_bmd_bankauszug_erste.py::test_decision62_r62_2_cache_eviction_admission_and_r62_8_headers PASSED [ 16%]
+backend/test_bmd_bankauszug_erste.py::test_decision62_r62_4_and_r62_5_counterexamples PASSED [ 17%]
+backend/test_bmd_bankauszug_erste.py::test_decision63_r63_3_6seg_12tx_471_66_plus_462_76_934_42_baseline PASSED [ 18%]
+backend/test_bmd_bankauszug_erste.py::test_decision63_r63_1_and_r63_4_cache_atomicity_and_replay_bytes PASSED [ 19%]
+backend/test_bmd_bankauszug_erste.py::test_decision63_r63_2_bounded_chain_12_segments_and_client_parity PASSED [ 20%]
+backend/test_browser_smoke.py::test_playwright_extension_real_pdfjs_and_backend_flows[extension] PASSED [ 22%]
+backend/test_browser_smoke.py::test_playwright_extension_real_pdfjs_and_backend_flows[extension_firefox_build] PASSED [ 23%]
+backend/test_browser_smoke.py::test_playwright_landing_sample_live_upload_and_download PASSED [ 24%]
+backend/test_datev_bmd.py::test_datev_extf_export_format PASSED          [ 25%]
+backend/test_datev_bmd.py::test_bmd_ntcs_export_format PASSED            [ 26%]
+backend/test_datev_bmd.py::test_csv_parser_bank_statement PASSED         [ 27%]
+backend/test_gpt_action.py::test_gpt_convert_datev_structured PASSED     [ 29%]
+backend/test_gpt_action.py::test_gpt_convert_bmd_structured PASSED       [ 30%]
+backend/test_gpt_action.py::test_gpt_download_not_found PASSED           [ 31%]
+backend/test_gpt_action.py::test_gpt_free_tier_limits_and_exhaustion PASSED [ 32%]
+backend/test_gpt_action.py::test_gpt_concurrent_quota_atomic_guard PASSED [ 33%]
+backend/test_gpt_action.py::test_gpt_invalid_date_rejected_422 PASSED    [ 34%]
+backend/test_gpt_action.py::test_gpt_mixed_years_rejected_422 PASSED     [ 36%]
+backend/test_gpt_action.py::test_gpt_mixed_currencies_rejected_422 PASSED [ 37%]
+backend/test_gpt_action.py::test_gpt_payload_and_row_budget_limits PASSED [ 38%]
+backend/test_gpt_action.py::test_gpt_large_batch_omits_inline_base64 PASSED [ 39%]
+backend/test_gpt_action.py::test_gpt_rejected_fake_and_canceled_licenses PASSED [ 40%]
+backend/test_gpt_action.py::test_gpt_auth_bearer_token_unified_quota PASSED [ 41%]
+backend/test_gpt_action.py::test_gpt_revoked_token_in_body_rejected_401 PASSED [ 43%]
+backend/test_gpt_action.py::test_gpt_different_inputs_same_session_separate_reservations PASSED [ 44%]
+backend/test_gpt_action.py::test_gpt_invalid_retry_does_not_mutate_prior_committed_ledger PASSED [ 45%]
+backend/test_gpt_action.py::test_gpt_ambiguous_date_rejected PASSED      [ 46%]
+backend/test_gpt_action.py::test_gpt_oversized_account_rejected PASSED   [ 47%]
+backend/test_gpt_action.py::test_gpt_distinct_accounts_same_request_id_conflict PASSED [ 48%]
+backend/test_gpt_action.py::test_gpt_completed_replay_returns_cached_or_410 PASSED [ 50%]
+backend/test_gpt_action.py::test_gpt_many_validation_errors_truncated_under_platform_limit PASSED [ 51%]
+backend/test_gpt_action.py::test_gpt_replay_tenant_isolation_r52_1 PASSED [ 52%]
+backend/test_gpt_action.py::test_gpt_file_replay_parser_execution_r52_2 PASSED [ 53%]
+backend/test_gpt_action.py::test_gpt_referential_integrity_eviction_r52_3 PASSED [ 54%]
+backend/test_plugin_and_mcp.py::test_plugin_manifest_endpoint PASSED     [ 55%]
+backend/test_plugin_and_mcp.py::test_mcp_discovery_manifest PASSED       [ 56%]
+backend/test_plugin_and_mcp.py::test_mcp_streamable_get_405_and_diagnostic_status PASSED [ 58%]
+backend/test_plugin_and_mcp.py::test_mcp_early_budget_exceeded_r58_1 PASSED [ 59%]
+backend/test_plugin_and_mcp.py::test_mcp_rpc_protocol_envelope_validation_r58_5 PASSED [ 60%]
+backend/test_plugin_and_mcp.py::test_mcp_rpc_lifecycle PASSED            [ 61%]
+backend/test_plugin_and_mcp.py::test_mcp_tools_list_declares_request_id_r58_4 PASSED [ 62%]
+backend/test_plugin_and_mcp.py::test_mcp_validation_error_sanitization_r58_2 PASSED [ 63%]
+backend/test_plugin_and_mcp.py::test_mcp_financial_summary_mapping_r58_3 PASSED [ 65%]
+backend/test_plugin_and_mcp.py::test_mcp_replay_contract_r58_4 PASSED    [ 66%]
+backend/test_r2_r3.py::test_jwt_asymmetric_token_lifecycle PASSED        [ 67%]
+backend/test_r2_r3.py::test_early_asgi_middleware_rejection PASSED       [ 68%]
+backend/test_r2_r3.py::test_stripe_webhook_and_idempotency PASSED        [ 69%]
+backend/test_r2_r3.py::test_quota_two_phase_commit_and_limits PASSED     [ 70%]
+backend/test_r2_r3.py::test_convert_full_flow_with_auth_and_quota PASSED [ 72%]
+backend/test_r4.py::test_canonical_integer_cents_no_float_drift PASSED   [ 73%]
+backend/test_r4.py::test_reconciliation_solldoppik_balanced PASSED       [ 74%]
+backend/test_r4.py::test_reconciliation_solldoppik_discrepancy PASSED    [ 75%]
+backend/test_r4.py::test_datev_buchungsstapel_exporter PASSED            [ 76%]
+backend/test_r4.py::test_bmd_exporter PASSED                             [ 77%]
+backend/test_r4.py::test_convert_format_switching_and_json_api PASSED    [ 79%]
+backend/test_r4.py::test_unsupported_format_rejection PASSED             [ 80%]
+backend/test_r6_pilot.py::test_healthz_liveness_readiness PASSED         [ 81%]
+backend/test_r6_pilot.py::test_cors_exposed_headers_includes_reconciliation PASSED [ 82%]
+backend/test_r6_pilot.py::test_pilot_e2e_reconciliation_datev_and_bmd PASSED [ 83%]
+backend/test_r6_pilot.py::test_pilot_unsupported_format_safeguard PASSED [ 84%]
+backend/test_reaudit_remediation.py::test_regression_1_auth_challenge_and_jwks PASSED [ 86%]
+backend/test_reaudit_remediation.py::test_regression_2_idempotency_payload_hash_and_parallel_quota PASSED [ 87%]
+backend/test_reaudit_remediation.py::test_regression_3_stripe_lifecycle_fulfillment_and_refund PASSED [ 88%]
+backend/test_reaudit_remediation.py::test_regression_4_byte_budgets_chunked_and_per_file PASSED [ 89%]
+backend/test_reaudit_remediation.py::test_regression_5_parsing_robustness_rollover_errors_and_currencies PASSED [ 90%]
+backend/test_reaudit_remediation.py::test_regression_6_reconciliation_discrepancy_blocks_export PASSED [ 91%]
+backend/test_reaudit_remediation.py::test_regression_7_csv_quoting_sanitization_and_datev_header PASSED [ 93%]
+backend/test_revocation_fail_closed.py::test_revocation_fail_closed_on_db_operational_error PASSED [ 94%]
+backend/test_revocation_fail_closed.py::test_revocation_fail_closed_on_missing_db PASSED [ 95%]
+backend/test_revocation_fail_closed.py::test_revocation_fail_closed_http_api_503 PASSED [ 96%]
+backend/test_revocation_fail_closed.py::test_revocation_recovered_and_confirmed_401 PASSED [ 97%]
+backend/test_revocation_fail_closed.py::test_revocation_expired_ram_cache_falls_through_to_db_operational_error_503 PASSED [ 98%]
+backend/test_revocation_fail_closed.py::test_revocation_expired_ram_cache_falls_through_to_db_confirmed_revocation PASSED [100%]
+
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\starlette\formparsers.py:12
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5: AuthlibDeprecationWarning: The httpx module is deprecated; please use httpx2 instead.
+    from ._compat import httpx2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 86 passed, 2 warnings in 79.45s (0:01:19) ==================

@@ -48,7 +48,8 @@ async def check_and_reserve_quota(
     tenant_id: str,
     file_count: int,
     idempotency_key: str,
-    request_hash: Optional[str] = None
+    request_hash: Optional[str] = None,
+    acceptable_hashes: Optional[list[str]] = None,
 ) -> UsageReservation:
     """
     Two-phase commit quota reservation (ADR-001):
@@ -82,8 +83,11 @@ async def check_and_reserve_quota(
     res = await db.execute(query)
     existing_res = res.scalars().first()
     if existing_res:
+        valid_hashes = set(acceptable_hashes or [])
+        if request_hash:
+            valid_hashes.add(request_hash)
         # If the idempotency key was reused with a DIFFERENT request payload -> 409 Conflict
-        if request_hash and existing_res.request_hash and existing_res.request_hash != request_hash:
+        if valid_hashes and existing_res.request_hash and existing_res.request_hash not in valid_hashes:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Idempotency key reused with different request payload"

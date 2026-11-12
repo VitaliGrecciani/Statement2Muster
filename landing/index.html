@@ -180,10 +180,32 @@
           </div>
 
           <div class="s2m-card__body">
+            <div class="s2m-format-bar" aria-label="Zielformat auswählen">
+              <div class="s2m-format-bar__label">Zielformat für Ihre Buchhaltung</div>
+              <div class="s2m-format-pills">
+                <label class="s2m-format-pill">
+                  <input type="radio" name="landing-export-format" value="bmd_bankauszug">
+                  <span>BMD — Bankauszug CSV, 22 Spalten</span>
+                </label>
+                <label class="s2m-format-pill">
+                  <input type="radio" name="landing-export-format" value="datev" checked>
+                  <span>DATEV — EXTF Buchungsstapel</span>
+                </label>
+                <label class="s2m-format-pill">
+                  <input type="radio" name="landing-export-format" value="bmd_ntcs">
+                  <span>BMD NTCS — bisheriges 8-Spalten-Profil</span>
+                </label>
+              </div>
+              <label class="s2m-valuta-opt" for="landing-valuta-as-booking">
+                <input type="checkbox" id="landing-valuta-as-booking">
+                <span>Valutadatum als Buchungsdatum verwenden (z. B. Erste Digitales Banking PDFs ohne Buchungstag)</span>
+              </label>
+            </div>
+
             <div id="landing-dropzone" class="s2m-dropzone" role="button" tabindex="0" aria-label="PDF- oder CSV-Auszug auswählen">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 14v5h16v-5"/></svg>
               <strong>PDF- oder CSV-Auszug hierher ziehen oder <u>durchsuchen</u></strong>
-              <small>Amex PDF, Wise CSV, PayPal, VR Bank, Sparkasse u. v. m.</small>
+              <small>Erste Bank, Sparkasse, Visa Gold, Amex PDF, Wise CSV, VR Bank u. v. m.</small>
               <input type="file" id="landing-file-input" class="hidden-input" accept=".pdf,.csv" multiple>
             </div>
 
@@ -193,16 +215,24 @@
             </div>
 
             <div id="demo-result" class="s2m-result-wrap hidden">
+              <div id="demo-warnings" class="s2m-alert s2m-alert--warning hidden" role="alert"></div>
               <div class="s2m-result">
                 <div class="s2m-result__stats">
-                  <span class="s2m-badge s2m-badge--success"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg>Exportdatei erstellt</span>
+                  <span id="demo-recon-badge" class="s2m-badge s2m-badge--success"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg><span id="demo-recon-text">Exportdatei erstellt</span></span>
                   <span><strong id="demo-count">25</strong> Buchungen</span>
                   <span>Summe <strong id="demo-sum" class="s2m-num">−7.476,21 €</strong></span>
                 </div>
-                <button id="btn-download-demo-csv" class="s2m-btn s2m-btn--primary s2m-btn--sm" type="button">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7L8 10.5 11.5 7"/><path d="M2.5 11v2.5h11V11"/></svg>
-                  DATEV CSV herunterladen
-                </button>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                  <select id="demo-result-format-select" aria-label="Exportformat wechseln" style="height:36px;padding:0 10px;border-radius:var(--radius-sm);border:1px solid var(--border-control);background:var(--paper-raised);font:600 13px/20px var(--font-sans);">
+                    <option value="bmd_bankauszug">BMD — Bankauszug CSV (22 Sp.)</option>
+                    <option value="datev" selected>DATEV — EXTF Buchungsstapel</option>
+                    <option value="bmd_ntcs">BMD NTCS — 8-Spalten-Profil</option>
+                  </select>
+                  <button id="btn-download-demo-csv" class="s2m-btn s2m-btn--primary s2m-btn--sm" type="button">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7L8 10.5 11.5 7"/><path d="M2.5 11v2.5h11V11"/></svg>
+                    <span id="btn-download-demo-text">DATEV CSV herunterladen</span>
+                  </button>
+                </div>
               </div>
               <div class="s2m-table-wrap">
                 <table class="s2m-table">

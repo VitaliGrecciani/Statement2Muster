@@ -1,14 +1,26 @@
+import csv
 import io
+import re
 import datetime
-from typing import List
+from typing import List, Optional
 from app.schemas.canonical import CanonicalTransaction
+from app.exporters.bmd_bankauszug import sanitize_csv_text
 
-def export_to_datev_csv(transactions: List[CanonicalTransaction], default_bank_account: str = "1200") -> bytes:
+def export_to_datev_csv(
+    transactions: List[CanonicalTransaction],
+    default_bank_account: str = "1200",
+    export_timestamp: Optional[datetime.datetime] = None,
+) -> bytes:
     """
     Exports CanonicalTransactions to official DATEV Format (Buchungsstapel EXTF Version 700).
     Encoding: Windows-1252 with CRLF.
+    If `export_timestamp` is supplied (R63-4), uses it verbatim for reproducible replays.
     """
-    now = datetime.datetime.now()
+    konto = (default_bank_account or "1200").strip()
+    if not re.fullmatch(r"[0-9]{3,9}", konto):
+        raise ValueError(f"Invalid DATEV bank account code: '{konto}'")
+
+    now = export_timestamp or datetime.datetime.now()
     timestamp_str = now.strftime("%Y%m%d%H%M%S000")
 
     # Determine fiscal year from transactions if available
@@ -18,68 +30,63 @@ def export_to_datev_csv(transactions: List[CanonicalTransaction], default_bank_a
     else:
         year = now.strftime("%Y")
 
-    # Row 1: EXTF Metadata Header
-    # Format: "EXTF";Version;Format-Kategorie;Format-Name;Format-Version;Erzeugt-Am;Importiert;Herkunft;Exportiert-Von;Importiert-Von;Berater;Mandant;Wirtschaftsjahr-Beginn;Sachkontenlänge;Datum-Von;Datum-Bis;Bezeichnung;Diktatkürzel;Buchungstyp;Rechnungslegungszweck;Festschreibung;WKZ
+    # Row 1: EXTF Metadata Header (22 fields, WKZ in col 22)
     header_1 = (
         f'"EXTF";700;21;"Buchungsstapel";12;{timestamp_str};;"";"";"";'
         f'1001;10001;{year}0101;4;{year}0101;{year}1231;'
         f'"Statement2Muster";"";1;;0;"EUR"\r\n'
     )
 
-    # Row 2: Field Names
-    header_2 = (
-        '"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";'
-        '"Basis-Umsatz";"WKZ Basis-Umsatz";"Konto";"Gegenkonto (ohne BU-Schlüssel)";'
-        '"BU-Schlüssel";"Belegdatum";"Belegfeld 1";"Belegfeld 2";"Skonto";"Buchungstext"\r\n'
-    )
+    out = io.StringIO(newline="")
+    out.write(header_1)
+    writer = csv.writer(out, delimiter=";", quotechar='"', quoting=csv.QUOTE_ALL, lineterminator="\r\n")
 
-    lines = [header_1, header_2]
+    # Row 2: Field Names
+    writer.writerow([
+        "Umsatz (ohne Soll/Haben-Kz)",
+        "Soll/Haben-Kennzeichen",
+        "WKZ Umsatz",
+        "Kurs",
+        "Basis-Umsatz",
+        "WKZ Basis-Umsatz",
+        "Konto",
+        "Gegenkonto (ohne BU-Schlüssel)",
+        "BU-Schlüssel",
+        "Belegdatum",
+        "Belegfeld 1",
+        "Belegfeld 2",
+        "Skonto",
+        "Buchungstext",
+    ])
 
     for tx in transactions:
-        # 1. Umsatz: absolute amount with comma (e.g. 12,34)
         umsatz = tx.abs_amount_str
-
-        # 2. Soll/Haben: 'S' for debit (negative), 'H' for credit (positive)
         sh = tx.soll_haben_kennzeichen
-
-        # 3. Currency
-        wkz = tx.currency or "EUR"
-
-        # 4-6. Kurs, Basis-Umsatz, WKZ Basis-Umsatz
+        wkz = (tx.currency or "EUR").strip()
         kurs = ""
         basis_umsatz = ""
         wkz_basis = ""
-
-        # 7. Konto: default Sachkonto or parsed
-        konto = default_bank_account
-
-        # 8. Gegenkonto
-        gegenkonto = tx.contra_account or ""
-
-        # 9. BU-Schlüssel
+        gegenkonto = (tx.contra_account or "").strip()
+        if gegenkonto and not re.fullmatch(r"[0-9]{3,9}", gegenkonto):
+            raise ValueError(f"Invalid DATEV contra_account code: '{gegenkonto}'")
         bu = ""
-
-        # 10. Belegdatum: Format TTMM (DATEV standard 4-digit date)
         belegdatum = tx.booking_date.strftime("%d%m") if tx.booking_date else "0000"
-
-        # 11. Belegfeld 1: Reference (max 36 chars in DATEV)
-        belegfeld_1 = (tx.reference or "")[:36].replace('"', '""')
-
-        # 12. Belegfeld 2
+        belegfeld_1 = sanitize_csv_text(tx.reference or "")[:36]
         belegfeld_2 = ""
-
-        # 13. Skonto
         skonto = ""
 
-        # 14. Buchungstext: max 60 characters in DATEV
-        buchungstext = (tx.description or "")[:60].replace('"', '""').replace('\n', ' ').replace('\r', '')
+        raw_desc = (tx.description or "").strip()
+        raw_partner = (tx.partner or "").strip()
+        if raw_partner and raw_desc and raw_partner not in raw_desc:
+            combined_desc = f"{raw_partner} - {raw_desc}"
+        else:
+            combined_desc = raw_desc or raw_partner
+        buchungstext = sanitize_csv_text(combined_desc)[:60]
 
-        row = (
-            f'"{umsatz}";"{sh}";"{wkz}";"{kurs}";"{basis_umsatz}";"{wkz_basis}";'
-            f'"{konto}";"{gegenkonto}";"{bu}";"{belegdatum}";"{belegfeld_1}";'
-            f'"{belegfeld_2}";"{skonto}";"{buchungstext}"\r\n'
-        )
-        lines.append(row)
+        writer.writerow([
+            umsatz, sh, wkz, kurs, basis_umsatz, wkz_basis,
+            konto, gegenkonto, bu, belegdatum, belegfeld_1,
+            belegfeld_2, skonto, buchungstext,
+        ])
 
-    full_csv = "".join(lines)
-    return full_csv.encode("windows-1252", errors="replace")
+    return out.getvalue().encode("windows-1252", errors="replace")

@@ -1,0 +1,13 @@
+........................................................................ [ 83%]
+..............                                                           [100%]
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\starlette\formparsers.py:12
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5
+  C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5: AuthlibDeprecationWarning: The httpx module is deprecated; please use httpx2 instead.
+    from ._compat import httpx2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+86 passed, 2 warnings in 84.32s (0:01:24)

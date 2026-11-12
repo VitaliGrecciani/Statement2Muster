@@ -1,0 +1,61 @@
+C:\Users\zorik\Documents\Obsidian Vault\10_Projects\Statement2Muster\backend\.venv\Lib\site-packages\authlib\integrations\httpx_client\assertion_client.py:5: AuthlibDeprecationWarning: The httpx module is deprecated; please use httpx2 instead.
+  from ._compat import httpx2
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: json, Target: bmd_bankauszug, ValutaMode: False] ===
+INFO:statement2muster:Parsing file 1/1: 52 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 28360) confirmed ready via IPC handshake.
+INFO:httpx:HTTP Request: POST http://test/api/v1/convert?format=json&target_format=bmd_bankauszug "HTTP/1.1 413 Request Entity Too Large"
+INFO:statement2muster:=== Batch Request: 1 file(s) [Format: datev, Target: datev, ValutaMode: False] ===
+INFO:statement2muster:Parsing file 1/1: 52 bytes in-memory
+INFO:statement2muster.parser_supervisor:Parser worker (PID 8604) confirmed ready via IPC handshake.
+INFO:httpx:HTTP Request: POST http://test/api/v1/convert?format=datev "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://test/api/v1/convert?format=datev "HTTP/1.1 200 OK"
+{
+  "r63_counterexamples": {
+    "cache_pair_admission": {
+      "canonical_bytes": 1893,
+      "shared_budget_bytes": 1894,
+      "convert_http": 413,
+      "operation_issued": false,
+      "canonical_present": false,
+      "export_http": null,
+      "committed_delta": 0
+    },
+    "datev_replay_bytes": {
+      "statuses": [
+        200,
+        200
+      ],
+      "equal": true,
+      "sha256": [
+        "1d4d57559e21d826597bebed5801f84691215fba1862485d25177bfbe8c64adb",
+        "1d4d57559e21d826597bebed5801f84691215fba1862485d25177bfbe8c64adb"
+      ],
+      "first_lines": [
+        "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112170158000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\"",
+        "\"EXTF\";700;21;\"Buchungsstapel\";12;20261112170158000;;\"\";\"\";\"\";1001;10001;20260101;4;20260101;20261231;\"Statement2Muster\";\"\";1;;0;\"EUR\""
+      ]
+    }
+  },
+  "submitted_stall_server": {
+    "raw_fetch": {
+      "headersSeen": true,
+      "error": "AbortError: The user aborted a request.",
+      "aborted": true,
+      "elapsedMs": 512.7999999523163
+    },
+    "real_application_handler": {
+      "value": false,
+      "headersSeen": true,
+      "elapsedMs": 258.6999999284744,
+      "downloadDisabled": true,
+      "controllerCleared": true,
+      "warning": "\n        \n          \n            \n            \n            \n          \n          Export blockiert \u2014 Pr\u00fcfung erforderlich\n        \n        \u2022 Zeit\u00fcberschreitung beim Export (0.25s).\n      "
+    },
+    "console_errors": []
+  },
+  "chain_12_segments": {
+    "exit": 0,
+    "stdout": "CHAIN_STARTED\n{\"seconds\": 0.00022279995027929544, \"result\": [null, null, \"Unknown\", true, [\"Saldensprung oder zeitliche L\\u00fccke im Multi-Datei-Batch (fehlender, vertauschter oder \\u00fcberlappender Auszug).\"]]}\n",
+    "stderr": ""
+  }
+}

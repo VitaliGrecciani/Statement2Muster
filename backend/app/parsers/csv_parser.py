@@ -56,22 +56,24 @@ class StructuredCsvParser(BaseBankParser):
             )
 
         date_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['buchungstag', 'buchungsdatum', 'datum', 'date', 'tag', 'zeitraum', 'buchung'])), None)
+        valuta_col = next((c for c in df.columns if c != date_col and any(k in str(c).lower() for k in ['valuta', 'wertstellung'])), None)
         # Prioritize betrag/amount and avoid false positives like 'umsatzart'
-        amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount']) and not any(ex in str(c).lower() for ex in ['art', 'typ', 'type'])), None)
+        amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount']) and not any(ex in str(c).lower() for ex in ['art', 'typ', 'type', 'foreign'])), None)
         if not amount_col:
             amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['umsatz', 'summe', 'wert']) and not any(ex in str(c).lower() for ex in ['art', 'typ', 'type'])), None)
         if not amount_col:
             amount_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['betrag', 'amount', 'umsatz', 'summe', 'wert'])), None)
-        curr_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['währung', 'waehrung', 'currency', 'wkz', 'curr'])), None)
+        curr_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['währung', 'waehrung', 'currency', 'wkz', 'curr']) and 'foreign' not in str(c).lower()), None)
         saldo_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['saldo nach buchung', 'kontostand nach', 'endsaldo', 'saldo'])), None)
-        iban_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['auftragskonto', 'iban', 'kontonummer'])), None)
+        iban_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['auftragskonto', 'kontonummer']) or (str(c).lower().strip() == 'iban')), None)
         bank_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['bankname', 'institut', 'bank'])), None)
 
         # Counterparty / Partner column
-        partner_col = next((c for c in df.columns if c != iban_col and any(k in str(c).lower() for k in ['beguenstigter', 'begünstigter', 'zahlungspflichtiger', 'empfänger', 'empfaenger', 'partner', 'karteninhaber'])), None)
+        partner_col = next((c for c in df.columns if c != iban_col and 'iban' not in str(c).lower() and any(k in str(c).lower() for k in ['beguenstigter', 'begünstigter', 'zahlungspflichtiger', 'empfänger', 'empfaenger', 'partner', 'karteninhaber'])), None)
+        partner_iban_col = next((c for c in df.columns if c != iban_col and any(k in str(c).lower() for k in ['partner iban', 'kontonummer/iban', 'gegenkonto iban'])), None)
 
         # Purpose / Verwendungszweck column
-        purpose_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['verwendungszweck', 'zahlungsgrund', 'zweck'])), None)
+        purpose_col = next((c for c in df.columns if any(k in str(c).lower() for k in ['verwendungszweck', 'zahlungsgrund', 'zweck', 'purpose'])), None)
 
         # General text / description column
         text_col = next((c for c in df.columns if c not in (iban_col, partner_col, purpose_col) and any(k in str(c).lower() for k in ['beschreibung', 'description', 'text', 'details', 'name', 'buchungstext'])), None)
@@ -163,6 +165,24 @@ class StructuredCsvParser(BaseBankParser):
                 saldo_cents, _, _ = self._parse_amount_to_cents(raw_saldo)
                 row_saldos.append((amount_cents, saldo_cents))
 
+            parsed_valuta = (
+                self._parse_date(str(row[valuta_col]).strip())
+                if (valuta_col and pd.notna(row[valuta_col]))
+                else None
+            )
+            partner_val = (
+                str(row[partner_col]).strip()
+                if (partner_col and pd.notna(row[partner_col]) and str(row[partner_col]).strip())
+                else None
+            )
+            partner_iban_val = (
+                str(row[partner_iban_col]).strip().replace(" ", "")
+                if (partner_iban_col and pd.notna(row[partner_iban_col]) and str(row[partner_iban_col]).strip())
+                else None
+            )
+            if partner_iban_val and row_account_id and partner_iban_val == row_account_id:
+                partner_iban_val = None
+
             tx = CanonicalTransaction(
                 tenant_id=tenant_id,
                 client_entity_id=client_entity_id,
@@ -171,9 +191,12 @@ class StructuredCsvParser(BaseBankParser):
                 source_file_id=filename,
                 source_row_page=f"row_{idx+1}",
                 booking_date=parsed_date,
+                value_date=parsed_valuta,
                 amount_cents=amount_cents,
                 currency=curr,
                 description=desc,
+                partner=partner_val,
+                partner_iban=partner_iban_val,
                 reference=ref,
                 validation_status=row_validation,
                 warnings=row_warnings
